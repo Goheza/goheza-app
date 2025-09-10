@@ -61,14 +61,18 @@ export default function SignUpForm() {
             }).then((args) => {
                 if (args.isErrorTrue) {
                     console.log('Error Signing Up User', args.errorMessage)
-                    toast.error('Sign Up Failed', {
-                     
-                        style: {
-                            fontSize: 14,
-                            padding: 10,
-                        },
-                        description: args.errorMessage || 'Please try again.',
-                    })
+                    if (
+                        args.errorMessage ==
+                        'insert or update on table "creator_profiles" violates foreign key constraint "creator_profiles_user_id_fkey"'
+                    ) {
+                        toast.error('Sign Up Failed', {
+                            style: {
+                                fontSize: 14,
+                                padding: 10,
+                            },
+                            description:"Account Already Present with another Email or Name"
+                        })
+                    }
                 } else {
                     console.log('User Created Successfully', args.data)
                     toast.success('Welcome to Goheza!', {
@@ -113,8 +117,6 @@ export default function SignUpForm() {
             }
         }
     }
-
-    
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex justify-center py-8">
