@@ -27,6 +27,7 @@ interface IUserAccountItemOptions {
 
 interface IUserAccountItem extends IUserAccountItemOptions {
     userName: string
+    userEmail:string;
     userImageSource:string;
 }
 
@@ -50,13 +51,13 @@ export default function UserAccountItem(props: IUserAccountItem) {
                 <div className="flex items-center space-x-4">
                     <Avatar className="w-8 h-8">
                         <AvatarImage src={props.userImageSource} alt="User" />
-                        <AvatarFallback>{getFirstCharacter(props.userName)}</AvatarFallback>
+                        <AvatarFallback className='cursor-pointer'>{getFirstCharacter(props.userName.toUpperCase())}</AvatarFallback>
                     </Avatar>
                 </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="start">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-               <DropdownMenuLabel>{props.userName}</DropdownMenuLabel>
+                <DropdownMenuLabel className=' cursor-default'>My Account</DropdownMenuLabel>
+               <DropdownMenuLabel className='text-[#E66262] cursor-default'>{props.userEmail}</DropdownMenuLabel>
                 <DropdownMenuItem onClick={props.signOutUser}>
                     Log out
                 </DropdownMenuItem>

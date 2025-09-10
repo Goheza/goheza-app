@@ -206,11 +206,11 @@ export default function Dashboard() {
 
             {/* Campaign Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="bg-white p-6 rounded-lg border">
                     <h2 className="text-xl font-semibold text-gray-700">Active Campaigns</h2>
                     <p className="text-4xl font-bold text-blue-600 mt-2">{activeCampaigns}</p>
                 </div>
-                <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="bg-white p-6 rounded-lg border">
                     <h2 className="text-xl font-semibold text-gray-700">Completed Campaigns</h2>
                     <p className="text-4xl font-bold text-green-600 mt-2">{completedCampaigns}</p>
                 </div>

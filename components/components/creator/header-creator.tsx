@@ -9,7 +9,7 @@ import Link from 'next/link'
 export default function HeaderCreator() {
     return (
         <div className='space-x-4'>
-            <Link href="#" className="text-gray-600 hover:text-gray-900">
+            <Link href="/creator/dashboard" className="text-gray-600 hover:text-gray-900">
                 Dashboard
             </Link>
             <Link href="#" className="text-gray-600 hover:text-gray-900">
