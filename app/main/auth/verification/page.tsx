@@ -1,6 +1,6 @@
 // app/main/auth/verification/page.tsx
 
-import VerificationNotice from "@/components/components/main/auth/verification-notice";
+import VerificationNotice from "@/components/components/auth/verification-notice";
 
 export default function VerificationPage({
   searchParams,
