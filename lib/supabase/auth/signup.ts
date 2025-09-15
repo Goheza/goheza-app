@@ -33,35 +33,6 @@ export const signUpUser = async ({ email, password, fullName, role }: ISignUpUse
         // Insert role-specific profile
         
 
-        if (role === 'brand') {
-            const { error: profileError } = await supabaseClient.from('brand_profiles').insert([
-                {
-                    user_id: user.id,
-                    brand_name: fullName, // use fullName for now
-                    email,
-                },
-            ])
-
-            if (profileError) {
-                console.error('Error creating brand profile:', profileError)
-                return { isErrorTrue: true, errorMessage: profileError.message }
-            }
-        }
-
-        if (role === 'creator') {
-            const { error: profileError } = await supabaseClient.from('creator_profiles').insert([
-                {
-                    user_id: user.id,
-                    creator_name: fullName,
-                    email,
-                },
-            ])
-
-            if (profileError) {
-                console.error('Error creating creator profile:', profileError)
-                return { isErrorTrue: true, errorMessage: profileError.message }
-            }
-        }
         return {
             isErrorTrue: false,
             data: {

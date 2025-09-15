@@ -6,14 +6,17 @@ import Link from 'next/link'
  * @returns
  */
 
-export default function HeaderCreator() {
+export default function HeaderBrand() {
     return (
-        <div className='space-x-4'>
-            <Link href="#" className="text-gray-600 hover:text-gray-900">
+        <div className="space-x-8 ]">
+            <Link href="/main/brand/dashboard" className="text-gray-600  hover:text-[#E66262]">
                 Dashboard
             </Link>
-            <Link href="#" className="text-gray-600 hover:text-gray-900">
-                Help
+            <Link href="/main/brand/campaigns" className="text-gray-600  hover:text-[#E66262]">
+                Campaigns
+            </Link>
+            <Link href="/main/brand/profile" className="text-gray-600  hover:text-[#E66262]">
+                Settings
             </Link>
         </div>
     )

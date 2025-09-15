@@ -29,7 +29,7 @@ export default function SearchItem(props: ISearchItemProps) {
                     }, 500)
                 }}
                 type="text"
-                placeholder="Search opportunities"
+                placeholder="Search Campaigns"
                 className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-600 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
             />
         </div>

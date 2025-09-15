@@ -15,7 +15,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
                 data: { user },
             } = await supabaseClient.auth.getUser()
             if (!user) {
-                router.replace('/auth/signin?redirect=' + encodeURIComponent(pathname || '/admin'))
+                router.replace('/main/auth/signin?redirect=' + encodeURIComponent(pathname || '/admin'))
                 return
             }
 

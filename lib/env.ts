@@ -8,7 +8,6 @@ function setURL() {
 }
 
 console.log("current-environment",process.env.NODE_ENV)
-console.log("current-url",window.origin)
 
 
 export const baseURL = setURL()

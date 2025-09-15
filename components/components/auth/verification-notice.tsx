@@ -40,7 +40,7 @@ export default function VerificationNotice({ email }: { email?: string }) {
                     </button>
 
                     <Link
-                        href="/auth/signin"
+                        href="/main/auth/signin"
                         className="block w-full py-3 px-4 text-sm font-medium text-[#E66262] border border-purple-200 rounded-2xl hover:bg-purple-50 transition-all duration-200"
                     >
                         Back to Sign In

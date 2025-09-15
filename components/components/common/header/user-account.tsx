@@ -19,7 +19,7 @@ import {
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, HelpCircle, LogOut, User } from 'lucide-react'
 
 interface IUserAccountItemOptions {
     signOutUser(): void
@@ -27,21 +27,20 @@ interface IUserAccountItemOptions {
 
 interface IUserAccountItem extends IUserAccountItemOptions {
     userName: string
-    userEmail:string;
-    userImageSource:string;
+    userEmail: string
+    userImageSource: string
 }
 
 export default function UserAccountItem(props: IUserAccountItem) {
-
     /**
-     * 
+     *
      * Used to get the first character
-     * 
-     * @param v 
-     * @returns 
+     *
+     * @param v
+     * @returns
      */
 
-    const getFirstCharacter = (v:string) =>{
+    const getFirstCharacter = (v: string) => {
         return v.charAt(0)
     }
 
@@ -51,14 +50,22 @@ export default function UserAccountItem(props: IUserAccountItem) {
                 <div className="flex items-center space-x-4">
                     <Avatar className="w-8 h-8">
                         <AvatarImage src={props.userImageSource} alt="User" />
-                        <AvatarFallback className='cursor-pointer'>{getFirstCharacter(props.userName.toUpperCase())}</AvatarFallback>
+                        <AvatarFallback className="cursor-pointer text-white bg-[#E66262]">
+                            {getFirstCharacter(props.userName.toUpperCase())}
+                        </AvatarFallback>
                     </Avatar>
                 </div>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="start">
-                <DropdownMenuLabel className=' cursor-default'>My Account</DropdownMenuLabel>
-               <DropdownMenuLabel className='text-[#E66262] cursor-default'>{props.userEmail}</DropdownMenuLabel>
+            <DropdownMenuContent className="w-56 p-2 text-lg" align="start">
+                <DropdownMenuLabel className=" cursor-default">My Goheza</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-[#E66262] cursor-default">{props.userEmail}</DropdownMenuLabel>
+               
                 <DropdownMenuItem onClick={props.signOutUser}>
+                    <HelpCircle />
+                    Help
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={props.signOutUser}>
+                    <LogOut />
                     Log out
                 </DropdownMenuItem>
             </DropdownMenuContent>

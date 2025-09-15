@@ -3,7 +3,16 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from "@/components/ui/sonner"
+import { Manrope } from "next/font/google"
+
 import './globals.css'
+
+
+export const sans = Manrope({
+    preload : true,
+    subsets : ["latin"],
+})
+
 
 export const metadata: Metadata = {
     title: 'Goheza',
@@ -17,7 +26,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+            <body className={`font-sans ${sans.className} `}>
                 {children}
                 <Toaster/>
             </body>

@@ -14,7 +14,7 @@ export default function NoSubmissionsBanner() {
     const router = useRouter();
 
     const onWillLoadAvaialbleGigs = ()=>{
-        router.push("/creator/dashboard")
+        router.push("/main/creator/dashboard")
     }
 
     return (

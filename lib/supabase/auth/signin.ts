@@ -40,6 +40,7 @@ export const signInWithGoogle = async ({ redirectURL }:ISignInWithGoogle) => {
             provider: 'google',
             options: {
                 redirectTo: redirectURL,
+                
             },
         })
 

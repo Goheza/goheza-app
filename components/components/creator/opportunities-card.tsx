@@ -16,7 +16,7 @@ export interface ICampaignCard {
 
 export default function CampaignCard(props:ICampaignCard) {
     return (
-        <Link href={`/creator/dashboard/campaign/${props.campaignSourceID}`} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <Link href={`/main/creator/dashboard/campaign/${props.campaignSourceID}`} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="h-32 bg-green-500 flex items-center justify-center">
                 <div className="text-white text-center">
                     <div className="w-8 h-8 mx-auto mb-2 bg-white bg-opacity-20 rounded-full flex items-center justify-center">

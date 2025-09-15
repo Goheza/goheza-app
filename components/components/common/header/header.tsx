@@ -20,6 +20,9 @@ interface IHeaderComponentProps {
 export default function HeaderItemMain(props: IHeaderComponentProps) {
     const router = useRouter()
 
+
+    const [role,setRole] = useState('creator')
+
     /**
      * The UserName of the acccount
      */
@@ -40,7 +43,7 @@ export default function HeaderItemMain(props: IHeaderComponentProps) {
     const onWillSignOutUser = async () => {
         await supabaseClient.auth.signOut()
 
-        router.push('/auth/signin')
+        router.push('/main/auth/signin')
     }
 
     useEffect(() => {
@@ -50,10 +53,13 @@ export default function HeaderItemMain(props: IHeaderComponentProps) {
             } = await supabaseClient.auth.getUser()
 
             if (user) {
-              
+                const userName =
+                    user.identities![0]?.identity_data?.full_name ||
+                    user.user_metadata?.full_name ||
+                    user.user_metadata.fullName
+                const userImage = user.identities![0]?.identity_data?.avatar_url || user.user_metadata?.avatar_url;
 
-                const userName = user.identities![0]?.identity_data?.full_name || user.user_metadata?.full_name || user.user_metadata.fullName
-                const userImage = user.identities![0]?.identity_data?.avatar_url || user.user_metadata?.avatar_url
+                const userRole = 
 
                 setUserName(userName)
                 setUserImage(userImage)
@@ -65,7 +71,7 @@ export default function HeaderItemMain(props: IHeaderComponentProps) {
     })
 
     return (
-        <header className="bg-white border-b px-6 py-4 ">
+        <header className="bg-white border-b px-6 py-4 fixed top-0 z-40 w-full">
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-8">
                     <div className="flex items-center space-x-2">
@@ -73,7 +79,7 @@ export default function HeaderItemMain(props: IHeaderComponentProps) {
                     </div>
                 </div>
                 <div className="flex space-x-5 items-center">
-                    {props.children}
+                    <div className='mr-6'>{props.children}</div>
                     <UserAccountItem
                         userEmail={userEmail}
                         userImageSource={userImage}
