@@ -3,8 +3,8 @@
  * Allows users to sign up as either a Creator or Brand
  */
 'use client'
-import React, { useEffect, useState } from 'react'
-import { Eye, EyeOff, Users, Briefcase, Sparkles, Building2 } from 'lucide-react'
+import React, { useState } from 'react'
+import { Eye, EyeOff, Users, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { signUpUser } from '@/lib/supabase/auth/signup'
 import { AuthError } from '@supabase/supabase-js'
@@ -24,55 +24,59 @@ export default function SignUpForm() {
     const [showPassword, setShowPassword] = useState<boolean>(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false)
 
+    // Creator-specific fields
+    const [phone, setPhone] = useState<string>('')
+    const [country, setCountry] = useState<string>('')
+    const [city, setCity] = useState<string>('')
+    const [paymentMethod, setPaymentMethod] = useState<string>('')
+    const [socialLinks, setSocialLinks] = useState<string>('')
+
     const router = useRouter()
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
 
         if (!selectedRole) {
-            toast.info('Please select your role', {
-                style: {
-                    fontSize: 14,
-                    padding: 10,
-                },
-                description: "Choose whether you're signing up as a Creator or Brand.",
-            })
+            toast.info('Please select your role', { style: { fontSize: 14, padding: 10 } })
             return
         }
 
         if (password !== confirmPassword) {
-            toast.error("Passwords don't match", {
-                style: {
-                    fontSize: 14,
-                    padding: 10,
-                },
-                description: 'Please make sure your passwords match.',
-            })
+            toast.error("Passwords don't match", { style: { fontSize: 14, padding: 10 } })
             return
+        }
+
+        // If creator, validate creator-specific fields
+        if (selectedRole === 'creator') {
+            if (!phone || !country || !city || !paymentMethod) {
+                toast.error('Please fill in all required fields for Creator.', {
+                    style: { fontSize: 14, padding: 10 },
+                })
+                return
+            }
         }
 
         try {
             router.push('/main/z1i2n')
             signUpUser({
-                email: email,
-                password: password,
-                fullName: fullName,
+                email,
+                password,
+                fullName,
                 role: selectedRole,
+                phone,
+                country,
+                city,
+                paymentMethod,
+                socialLinks,
             }).then((args) => {
                 if (args.isErrorTrue) {
                     toast.error('Sign Up Failed', {
-                        style: {
-                            fontSize: 14,
-                            padding: 10,
-                        },
+                        style: { fontSize: 14, padding: 10 },
                         description: 'Account Already Present with another Email or Name',
                     })
                 } else {
                     toast.success('Welcome to Goheza!', {
-                        style: {
-                            fontSize: 14,
-                            padding: 10,
-                        },
+                        style: { fontSize: 14, padding: 10 },
                         description: `Account created successfully as ${selectedRole}.`,
                     })
                     router.push(`/main/auth/verification?email=${encodeURIComponent(email)}`)
@@ -83,18 +87,9 @@ export default function SignUpForm() {
         }
     }
 
-    /**
-     * Handle Google sign up with role selection
-     */
     const handleGoogleSignUp = () => {
         if (!selectedRole) {
-            toast('Please select your role first', {
-                style: {
-                    fontSize: 14,
-                    padding: 10,
-                },
-                description: "Choose whether you're signing up as a Creator or Brand.",
-            })
+            toast('Please select your role first', { style: { fontSize: 14, padding: 10 } })
             return
         }
 
@@ -115,9 +110,7 @@ export default function SignUpForm() {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <div className="flex justify-center mb-4">
-                        <div className="text-neutral-800">
-                            <span className="text-2xl font-bold text-neutral-800 ">Goheza</span>
-                        </div>
+                        <span className="text-2xl font-bold text-neutral-800">Goheza</span>
                     </div>
                     <h1 className="text-2xl font-light text-black bg-clip-text mb-2">Create Account</h1>
                     <p className="text-gray-600 text-sm leading-relaxed">
@@ -170,7 +163,7 @@ export default function SignUpForm() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Full Name or Bussiness Name */}
+                    {/* Full Name or Business Name */}
                     <div>
                         <input
                             type="text"
@@ -212,6 +205,62 @@ export default function SignUpForm() {
                             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
                     </div>
+
+                    {/* Creator-specific fields */}
+                    {selectedRole === 'creator' && (
+                        <>
+                            <div>
+                                <input
+                                    type="text"
+                                    placeholder="Phone Number"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <input
+                                    type="text"
+                                    placeholder="Country"
+                                    value={country}
+                                    onChange={(e) => setCountry(e.target.value)}
+                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                                    required
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="City"
+                                    value={city}
+                                    onChange={(e) => setCity(e.target.value)}
+                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <select
+                                    value={paymentMethod}
+                                    onChange={(e) => setPaymentMethod(e.target.value)}
+                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent transition-all duration-200"
+                                    required
+                                >
+                                    <option value="">Select Payment Method</option>
+                                    <option value="PayPal">PayPal</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Mobile Money">Mobile Money</option>
+                                </select>
+                            </div>
+                            <div>
+                                <input
+                                    type="text"
+                                    placeholder="Social Link (optional)"
+                                    value={socialLinks}
+                                    onChange={(e) => setSocialLinks(e.target.value)}
+                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                                />
+                            </div>
+                        </>
+                    )}
 
                     {/* Confirm Password */}
                     <div className="relative">
@@ -290,7 +339,7 @@ export default function SignUpForm() {
                         Already have an account?{' '}
                         <Link
                             href="/main/auth/signin"
-                            className="font-medium text-[#E66262]  transition-colors duration-200"
+                            className="font-medium text-[#E66262] transition-colors duration-200"
                         >
                             Sign in
                         </Link>

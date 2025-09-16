@@ -1,7 +1,15 @@
 import { User } from '@supabase/supabase-js'
 import { supabaseClient } from '../client'
 
-export async function makeProfile(user: User, role: 'brand' | 'creator') {
+interface IEXtraInfo {
+    phone:string;
+    country:string;
+    city:string;
+    paymentMethod:string;
+    socialLinks:string;
+}
+
+export async function makeProfile(user: User, role: 'brand' | 'creator',extraInfo?:IEXtraInfo) {
     if (role === 'brand') {
         const { error: profileError } = await supabaseClient.from('brand_profiles').insert([
             {
@@ -22,6 +30,12 @@ export async function makeProfile(user: User, role: 'brand' | 'creator') {
                 user_id: user.id,
                 full_name: user.identities![0]?.identity_data?.full_name || user.user_metadata?.fullName,
                 email: user.email!,
+                payment_method : extraInfo!.paymentMethod,
+                country : extraInfo!.country,
+                city:extraInfo!.city,
+                sociallinks:extraInfo!.socialLinks,
+                phone : extraInfo!.phone
+
             },
         ])
 
@@ -31,7 +45,6 @@ export async function makeProfile(user: User, role: 'brand' | 'creator') {
         }
     }
 }
-
 
 export async function getProfile(user: User, role: 'brand' | 'creator' | 'random') {
     const table = role === 'brand' ? 'brand_profiles' : 'creator_profiles'

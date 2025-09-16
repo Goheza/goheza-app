@@ -6,6 +6,7 @@ import { signInUser, signInWithGoogle } from '@/lib/supabase/auth/signin' // we 
 import { baseURL } from '@/lib/env'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import Link from 'next/link'
 
 export default function SignInForm() {
     const [email, setEmail] = useState('')
@@ -120,6 +121,15 @@ export default function SignInForm() {
                             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
                     </div>
+                     {/* Forgot Password link */}
+                        <div className="mt-2 text-right">
+                            <Link
+                                href="/main/auth/forgot-password"
+                                className="text-xs font-medium text-[#E66262] hover:text-[#c94c4c] transition-colors duration-200"
+                            >
+                                Forgot password?
+                            </Link>
+                        </div>
 
                     {/* Submit Button */}
                     <button

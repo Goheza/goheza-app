@@ -119,7 +119,7 @@ export default function InitalPage() {
                     baseLogger('AUTHENTICATION', 'DidMakeProfile')
 
                     setCreatingProfile(true)
-                    
+
                     baseLogger('AUTHENTICATION', 'DidSuccefullyMakeProfile')
                     baseLogger('AUTHENTICATION', 'WillNavigateToDashboar')
 
@@ -135,6 +135,12 @@ export default function InitalPage() {
                  * @@@@@@@@@@@With No Provider
                  */
                 let currentRole = user.user_metadata?.role
+                let paymentMethod = user.user_metadata?.payment_method
+                let country = user.user_metadata?.country
+                let socialLinks = user.user_metadata?.sociallinks
+                let phone = user.user_metadata?.phone
+                let city = user.user_metadata?.city
+
                 const checkForProfile = await getProfile(user, currentRole)
 
                 baseLogger('AUTHENTICATION', `DidFindRoleAs:${currentRole}`)
@@ -150,7 +156,13 @@ export default function InitalPage() {
                     baseLogger('AUTHENTICATION', 'DIdFailToFIndProfile')
                     baseLogger('AUTHENTICATION', 'WillMakeProfile')
 
-                    await makeProfile(user, currentRole)
+                    await makeProfile(user, currentRole, {
+                        city: city,
+                        phone: phone,
+                        country: country,
+                        paymentMethod: paymentMethod,
+                        socialLinks: socialLinks,
+                    })
                     baseLogger('AUTHENTICATION', 'DidMakeProfile')
                     setCreatingProfile(true)
 

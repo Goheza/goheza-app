@@ -2,13 +2,28 @@ import { baseURL } from '@/lib/env'
 import { supabaseClient } from '@/lib/supabase/client'
 
 interface ISignUpUser {
-    email: string,
+    email: string
     password: string
     fullName: string
     role: string
+    phone: string
+    country: string
+    city: string
+    paymentMethod: string
+    socialLinks: string
 }
 
-export const signUpUser = async ({ email, password, fullName, role }: ISignUpUser) => {
+export const signUpUser = async ({
+    email,
+    password,
+    fullName,
+    role,
+    country,
+    paymentMethod,
+    phone,
+    socialLinks,
+    city,
+}: ISignUpUser) => {
     try {
         // Create account in Supabase auth
         const { data, error } = await supabaseClient.auth.signUp({
@@ -16,7 +31,7 @@ export const signUpUser = async ({ email, password, fullName, role }: ISignUpUse
             password,
             options: {
                 emailRedirectTo: `${baseURL}$`,
-                data: { fullName, role },
+                data: { fullName, role, socialLinks, phone, country, paymentMethod, city },
                 // stored in user_metadata
             },
         })
@@ -31,7 +46,6 @@ export const signUpUser = async ({ email, password, fullName, role }: ISignUpUse
         }
 
         // Insert role-specific profile
-        
 
         return {
             isErrorTrue: false,
@@ -45,4 +59,3 @@ export const signUpUser = async ({ email, password, fullName, role }: ISignUpUse
         return { isErrorTrue: true, errorMessage: 'Unexpected error occurred.' }
     }
 }
-
