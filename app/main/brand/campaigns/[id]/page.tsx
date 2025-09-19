@@ -81,7 +81,7 @@ export default function CampaignDetails() {
     if (!campaign) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <p className="text-red-600">Campaign not found.</p>
+                <p className="text-[#e85c51]">Campaign not found.</p>
             </div>
         )
     }
@@ -115,7 +115,7 @@ export default function CampaignDetails() {
                         <button
                             onClick={cancelCampaign}
                             disabled={cancelling}
-                            className="bg-red-600 hover:bg-black hover:text-white text-white px-4 py-2 rounded-lg font-medium  transition disabled:opacity-50"
+                            className="bg-[#e85c51] hover:bg-black hover:text-white text-white px-4 py-2 rounded-lg font-medium  transition disabled:opacity-50"
                         >
                             {cancelling ? 'Cancelling...' : 'Discard Campaign'}
                         </button>
@@ -126,12 +126,12 @@ export default function CampaignDetails() {
             <h1 className="text-3xl font-bold mb-5 text-[#e93838]">{campaign.name}</h1>
             <p className="text-gray-600 mb-6">
                 Review the details of this campaign.{' '}
-                {campaign.status === 'cancelled' && <span className="text-red-600 font-semibold">(Cancelled)</span>}
+                {campaign.status === 'cancelled' && <span className="text-[#e85c51] font-semibold">(Cancelled)</span>}
             </p>
 
             {/* Campaign Details */}
             <div className="bg-white p-6 rounded-lg space-y-4 border mb-6">
-                <h2 className="text-xl font-semibold mb-4 text-red-600">Campaign Details</h2>
+                <h2 className="text-xl font-semibold mb-4 text-[#e85c51]">Campaign Details</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className='space-y-1'>
                         <p className="text-sm font-medium text-gray-700">Campaign Title</p>

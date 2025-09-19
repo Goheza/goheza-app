@@ -183,7 +183,7 @@ export default function InitalPage() {
                 <div className="text-2xl font-bold text-neutral-900">Goheza</div>
 
                 {/* Spinner */}
-                <div className="w-12 h-12 border-4 border-[#E66262] border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-12 h-12 border-4 border-[#e85c51] border-t-transparent rounded-full animate-spin"></div>
 
                 <span className={`${isCreatingProfile ? 'flex' : 'hidden'}`}>Initalizing Profile....</span>
             </div>

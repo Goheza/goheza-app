@@ -189,10 +189,10 @@ export default function Dashboard() {
             <div className="min-h-screen bg-gray-50">
                 <div className="max-w-6xl mx-auto p-5">
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <p className="text-red-600">Error: {error}</p>
+                        <p className="text-default">Error: {error}</p>
                         <button
                             onClick={() => window.location.reload()}
-                            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                            className="mt-2 px-4 py-2 bg-default text-white rounded hover:bg-hover"
                         >
                             Retry
                         </button>
@@ -304,7 +304,7 @@ export default function Dashboard() {
                         <p className="text-gray-500 mb-4">You haven't created any campaigns yet.</p>
                         <button
                             onClick={handleCreateCampaign}
-                            className="bg-[#E66262] text-white px-6 py-2 rounded-lg hover:bg-[#E66262]"
+                            className="bg-[#e85c51] text-white px-6 py-2 rounded-lg hover:bg-[#e85c51]"
                         >
                             Create Your First Campaign
                         </button>

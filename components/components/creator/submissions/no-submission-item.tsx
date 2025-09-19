@@ -31,7 +31,7 @@ export default function NoSubmissionsBanner() {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">You haven't submitted any gigs yet!</h3>
                 <p className="text-gray-600 mb-6">Browse available gigs to get started.</p>
-                <Button onClick={onWillLoadAvaialbleGigs} className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg">Browse Gigs</Button>
+                <Button onClick={onWillLoadAvaialbleGigs} className="bg-red-500 hover:bg-[#e85c51] text-white px-6 py-2 rounded-lg">Browse Gigs</Button>
             </div>
         </div>
     )

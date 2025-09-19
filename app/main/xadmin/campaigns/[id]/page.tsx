@@ -81,7 +81,7 @@ export default function AdminCampaignDetail() {
     }
 
     if (loading) return <p className="text-gray-600">Loading…</p>
-    if (!data) return <p className="text-red-600">Not found</p>
+    if (!data) return <p className="text-[#e85c51]">Not found</p>
 
     const assetsBy = (cat: Asset['category']) => data.assets?.filter((a) => a.category === cat) || []
 

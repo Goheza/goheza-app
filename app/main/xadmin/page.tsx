@@ -80,7 +80,7 @@ export default function AdminDashboard() {
             <div className="max-w-6xl mx-auto p-6 bg-white min-h-screen">
                 <div className="flex items-center justify-center py-12">
                     <div className="flex items-center gap-3">
-                        <RefreshCw className="w-5 h-5 text-red-600 animate-spin" />
+                        <RefreshCw className="w-5 h-5 text-[#e85c51] animate-spin" />
                         <span className="text-gray-600">Loading campaigns...</span>
                     </div>
                 </div>
@@ -93,17 +93,17 @@ export default function AdminDashboard() {
             <div className="max-w-6xl mx-auto p-6 bg-white min-h-screen">
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                     <div className="flex items-center gap-3">
-                        <XCircle className="w-5 h-5 text-red-600" />
+                        <XCircle className="w-5 h-5 text-[#e85c51]" />
                         <p className="text-red-800 font-medium">Error loading campaigns</p>
                     </div>
-                    <p className="text-red-600 text-sm mt-1">{error}</p>
+                    <p className="text-[#e85c51] text-sm mt-1">{error}</p>
                 </div>
                 <button
                     onClick={() => {
                         setError(null)
                         fetchCampaigns()
                     }}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    className="px-4 py-2 bg-[#e85c51] text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                     Try Again
                 </button>
@@ -124,7 +124,7 @@ export default function AdminDashboard() {
                 <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <Clock className="w-5 h-5 text-red-600" />
+                            <Clock className="w-5 h-5 text-[#e85c51]" />
                         </div>
                         <div>
                             <p className="text-sm text-gray-600">Pending Review</p>
@@ -136,7 +136,7 @@ export default function AdminDashboard() {
                 <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <DollarSign className="w-5 h-5 text-red-600" />
+                            <DollarSign className="w-5 h-5 text-[#e85c51]" />
                         </div>
                         <div>
                             <p className="text-sm text-gray-600">Total Payout Value</p>
@@ -153,7 +153,7 @@ export default function AdminDashboard() {
                 <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <Filter className="w-5 h-5 text-red-600" />
+                            <Filter className="w-5 h-5 text-[#e85c51]" />
                         </div>
                         <div>
                             <p className="text-sm text-gray-600">Filter</p>
@@ -268,7 +268,7 @@ export default function AdminDashboard() {
                                         <button
                                             onClick={() => updateStatus(campaign.id, 'rejected')}
                                             disabled={processingId === campaign.id}
-                                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="flex items-center gap-2 px-4 py-2 bg-[#e85c51] text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <XCircle className="w-4 h-4" />
                                             Reject

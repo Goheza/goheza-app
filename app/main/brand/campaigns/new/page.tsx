@@ -18,6 +18,7 @@ import { useDropzone } from 'react-dropzone'
 import { useRouter } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
 import { baseLogger } from '@/lib/logger'
+import { calculateGohezaPayment } from '@/lib/ats/payment-calculator'
 
 interface CampaignFormData {
     title: string
@@ -25,7 +26,6 @@ interface CampaignFormData {
     objectives: string // single selected objective (keeps newer UI behavior)
     objectivesArray: string[] // for DB compatibility (older file expected array)
     contentRequirements: string[]
-    qualityStandard: string
     estimatedViews: number
     totalBudget: number
     creatorsPerMillion: number
@@ -35,6 +35,24 @@ interface CampaignFormData {
     payout?: string
     timeline?: string
     requirementsText?: string[] // free-form requirements list
+
+    // NEW fields
+    information?: string
+    dos?: string
+    donts?: string
+    countries?: string // comma separated input
+    numCreators?: number
+    maxPay?: string
+    flatFee?: string
+}
+
+interface PaymentBreakdown {
+    numCreators: number
+    maxPayout: number
+    flatFee: number
+    creatorPayoutTotal: number
+    platformFee: number
+    brandTotalPay: number
 }
 
 const CampaignBriefForm: React.FC = () => {
@@ -46,7 +64,6 @@ const CampaignBriefForm: React.FC = () => {
         objectives: 'increase-brand-awareness',
         objectivesArray: ['increase-brand-awareness'],
         contentRequirements: ['video-ad', 'social-media-posts'],
-        qualityStandard: 'premium',
         estimatedViews: 1000000,
         totalBudget: 1500,
         creatorsPerMillion: 20,
@@ -55,6 +72,15 @@ const CampaignBriefForm: React.FC = () => {
         payout: '$500',
         timeline: '1 month',
         requirementsText: [''],
+
+        // defaults for new fields
+        information: '',
+        dos: '',
+        donts: '',
+        countries: '',
+        numCreators: 1,
+        maxPay: '',
+        flatFee: '',
     })
 
     const [currentMonth, setCurrentMonth] = useState(0) // 0 = July 2024, 1 = August 2024
@@ -72,6 +98,13 @@ const CampaignBriefForm: React.FC = () => {
     const [brandGuidelines, setBrandGuidelines] = useState<File | null>(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+
+      const [numCreators, setNumCreators] = useState(50)
+    const [maxPayout, setMaxPayout] = useState(30)
+    const [flatFee, setFlatFee] = useState(0)
+    const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentBreakdown | null>(null)
+    const [paymentError, setPaymentError] = useState<string | null>(null)
+
 
     // Local previews (object URLs) so users can download/view before upload
     const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
@@ -130,16 +163,40 @@ const CampaignBriefForm: React.FC = () => {
         }
 
         // revoke previous urls
-        Object.values(assetUrls).forEach((u) => URL.revokeObjectURL(u))
+        Object.values(assetUrls).forEach((u) => {
+            try {
+                URL.revokeObjectURL(u)
+            } catch {
+                // ignore
+            }
+        })
         setAssetUrls(urls)
 
         // cleanup when component unmounts
         return () => {
-            Object.values(urls).forEach((u) => URL.revokeObjectURL(u))
+            Object.values(urls).forEach((u) => {
+                try {
+                    URL.revokeObjectURL(u)
+                } catch {
+                    // ignore
+                }
+            })
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [brandAssets, referenceImages, brandGuidelines])
 
+
+    
+ const handlePaymentCalculate = () => {
+        try {
+            const result = calculateGohezaPayment(numCreators, maxPayout, flatFee)
+            setPaymentBreakdown(result)
+            setPaymentError(null)
+        } catch (err: any) {
+            setPaymentBreakdown(null)
+            setPaymentError(err.message)
+        }
+    }
     const handleInputChange = (field: keyof CampaignFormData, value: any) => {
         // keep budget display synced with totalBudget when appropriate
         if (field === 'totalBudget') {
@@ -196,25 +253,8 @@ const CampaignBriefForm: React.FC = () => {
         return days
     }
 
-    // requirement helpers (from older file)
-    const handleRequirementChange = (index: number, value: string) => {
-        const newRequirements = [...(formData.requirementsText || [])]
-        newRequirements[index] = value
-        setFormData((prev) => ({ ...prev, requirementsText: newRequirements }))
-    }
-
-    const addRequirement = () => {
-        setFormData((prev) => ({ ...prev, requirementsText: [...(prev.requirementsText || ['']), ''] }))
-    }
-
-    const removeRequirement = (index: number) => {
-        if ((formData.requirementsText || []).length > 1) {
-            setFormData((prev) => ({
-                ...prev,
-                requirementsText: prev.requirementsText!.filter((_, i) => i !== index),
-            }))
-        }
-    }
+   
+   
 
     const removeFile = (type: 'brandAssets' | 'referenceImages', index: number) => {
         if (type === 'brandAssets') {
@@ -333,6 +373,12 @@ const CampaignBriefForm: React.FC = () => {
 
             baseLogger('BRAND-OPERATIONS', 'WillCreateAndInsertCampaignForBrand')
 
+            // convert countries string to array
+            const targetCountries = (formData.countries || '')
+                .split(',')
+                .map((c) => c.trim())
+                .filter((c) => c.length > 0)
+
             const { data: campaignData, error: campaignError } = await supabaseClient
                 .from('campaigns')
                 .insert([
@@ -345,11 +391,17 @@ const CampaignBriefForm: React.FC = () => {
                         requirements: filteredRequirements,
                         objectives: formData.objectivesArray,
                         estimated_views: formData.estimatedViews,
-                        quality_standard: formData.qualityStandard,
                         status: 'inreview',
                         created_by: user.id,
                         assets: assets,
-                     
+                        // new fields saved to DB (naming follows snake_case used earlier)
+                        additional_information: formData.information || null,
+                        dos: formData.dos || null,
+                        donts: formData.donts || null,
+                        target_countries: targetCountries,
+                        num_creators: formData.numCreators ?? null,
+                        max_pay: formData.maxPay || null,
+                        flat_fee: formData.flatFee || null,
                     },
                 ])
                 .select()
@@ -417,27 +469,10 @@ const CampaignBriefForm: React.FC = () => {
                     </select>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Creator Payout</label>
-                    <input
-                        type="text"
-                        placeholder="$500"
-                        value={formData.payout}
-                        onChange={(e) => handleInputChange('payout', e.target.value)}
-                        className="w-full px-4 py-3 bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium  mb-2">Budget Display</label>
-                    <input
-                        type="text"
-                        value={formData.budget}
-                        onChange={(e) => handleInputChange('budget', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                    />
-                </div>
+               
             </div>
+
+          
 
             {/* Campaign Description */}
             <div className="mb-6">
@@ -448,8 +483,21 @@ const CampaignBriefForm: React.FC = () => {
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     className="w-full px-4 py-3  bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
                 />
+            </div>
 
-             
+            {/* Additional Information (NEW) */}
+            <div className="mb-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">Additional Information</h2>
+                <textarea
+                    rows={4}
+                    placeholder="Add more context about your campaign (audience, tone, key messages)..."
+                    value={formData.information}
+                    onChange={(e) => handleInputChange('information', e.target.value)}
+                    className="w-full px-4 py-3 bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                    Optional: Use to give creators more context about the campaign.
+                </p>
             </div>
 
             {/* Media Uploads */}
@@ -482,7 +530,7 @@ const CampaignBriefForm: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => removeFile('referenceImages', index)}
-                                            className="text-red-600 hover:text-red-800 text-xs"
+                                            className="text-[#e85c51] hover:text-red-800 text-xs"
                                         >
                                             Remove
                                         </button>
@@ -519,7 +567,7 @@ const CampaignBriefForm: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => removeFile('brandAssets', index)}
-                                            className="text-red-600 hover:text-red-800 text-xs"
+                                            className="text-[#e85c51] hover:text-red-800 text-xs"
                                         >
                                             Remove
                                         </button>
@@ -553,7 +601,7 @@ const CampaignBriefForm: React.FC = () => {
                                         e.stopPropagation()
                                         setBrandGuidelines(null)
                                     }}
-                                    className="text-red-600 hover:text-red-800 text-sm"
+                                    className="text-[#e85c51] hover:text-red-800 text-sm"
                                 >
                                     Remove
                                 </button>
@@ -580,7 +628,7 @@ const CampaignBriefForm: React.FC = () => {
                                         value={opt}
                                         checked={formData.objectives === opt}
                                         onChange={(e) => handleInputChange('objectives', e.target.value)}
-                                        className="w-4 h-4 text-red-600 border-gray-300 focus:ring-red-500"
+                                        className="w-4 h-4 text-[#e85c51] border-gray-300 focus:ring-red-500"
                                     />
                                 </div>
                                 <div>
@@ -602,6 +650,19 @@ const CampaignBriefForm: React.FC = () => {
                             </div>
                         </div>
                     ))}
+                </div>
+
+                {/* Target Countries (NEW) */}
+                <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Target Countries</label>
+                    <input
+                        type="text"
+                        placeholder="e.g. United States, Canada, UK"
+                        value={formData.countries}
+                        onChange={(e) => handleInputChange('countries', e.target.value)}
+                        className="w-full px-4 py-3 bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">Comma-separated list — used for creator targeting.</p>
                 </div>
             </div>
 
@@ -648,72 +709,29 @@ const CampaignBriefForm: React.FC = () => {
                 </div>
             </div>
 
-            {/* Quality Standards */}
+            {/* Dos and Don'ts (NEW) */}
             <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Quality Standards</h2>
-
-                <div className="flex gap-4 mb-6">
-                    <button
-                        onClick={() => handleInputChange('qualityStandard', 'premium')}
-                        className={`px-4 py-2 text-sm font-medium ${
-                            formData.qualityStandard === 'premium'
-                                ? 'text-red-600 border-b-2 border-red-600'
-                                : 'text-gray-600 hover:text-red-600'
-                        }`}
-                    >
-                        Premium
-                    </button>
-                    <button
-                        onClick={() => handleInputChange('qualityStandard', 'standard')}
-                        className={`px-4 py-2 text-sm font-medium ${
-                            formData.qualityStandard === 'standard'
-                                ? 'text-red-600 border-b-2 border-red-600'
-                                : 'text-gray-600 hover:text-red-600'
-                        }`}
-                    >
-                        Standard
-                    </button>
-                    <button
-                        onClick={() => handleInputChange('qualityStandard', 'basic')}
-                        className={`px-4 py-2 text-sm font-medium ${
-                            formData.qualityStandard === 'basic'
-                                ? 'text-red-600 border-b-2 border-red-600'
-                                : 'text-gray-600 hover:text-red-600'
-                        }`}
-                    >
-                        Basic
-                    </button>
-                </div>
-
-                <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Dos and Don’ts</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <h3 className="font-medium text-gray-900 mb-1">Premium Example</h3>
-                        <p className="text-sm text-gray-600 mb-3">
-                            High-quality video ad with professional editing and voiceover.
-                        </p>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                            <p className="text-gray-500 text-sm">Drag and drop images here</p>
-                        </div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Dos</label>
+                        <textarea
+                            rows={4}
+                            placeholder="List things creators must include (e.g., mention discount code, show product clearly)..."
+                            value={formData.dos}
+                            onChange={(e) => handleInputChange('dos', e.target.value)}
+                            className="w-full px-4 py-3 bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                        />
                     </div>
-
                     <div>
-                        <h3 className="font-medium text-gray-900 mb-1">Standard Example</h3>
-                        <p className="text-sm text-gray-600 mb-3">
-                            Well-produced video ad with clear visuals and audio.
-                        </p>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                            <p className="text-gray-500 text-sm">Drag and drop images here</p>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 className="font-medium text-gray-900 mb-1">Basic Example</h3>
-                        <p className="text-sm text-gray-600 mb-3">
-                            Simple video ad with basic editing and minimal production.
-                        </p>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                            <p className="text-gray-500 text-sm">Drag and drop images here</p>
-                        </div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Don’ts</label>
+                        <textarea
+                            rows={4}
+                            placeholder="List restrictions (e.g., avoid profanity, don’t alter brand logos)..."
+                            value={formData.donts}
+                            onChange={(e) => handleInputChange('donts', e.target.value)}
+                            className="w-full px-4 py-3 bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                        />
                     </div>
                 </div>
             </div>
@@ -740,39 +758,74 @@ const CampaignBriefForm: React.FC = () => {
                             onChange={(e) => handleInputChange('estimatedViews', parseInt(e.target.value))}
                             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                         />
-                        <style jsx>{`
-                            input[type='range']::-webkit-slider-thumb {
-                                appearance: none;
-                                width: 20px;
-                                height: 20px;
-                                border-radius: 50%;
-                                background: #dc2626;
-                                cursor: pointer;
-                                border: 2px solid white;
-                                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                            }
-                            input[type='range']::-moz-range-thumb {
-                                width: 20px;
-                                height: 20px;
-                                border-radius: 50%;
-                                background: #dc2626;
-                                cursor: pointer;
-                                border: 2px solid white;
-                                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                            }
-                        `}</style>
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                            <span>1M</span>
-                            <span>5.5M</span>
-                            <span>10M</span>
-                        </div>
                     </div>
                 </div>
 
+                {/* Payment Inputs */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label className="block mb-1 font-medium">Number of Creators</label>
+                        <input
+                            type="number"
+                            min={50}
+                            value={numCreators}
+                            onChange={(e) => setNumCreators(Number(e.target.value))}
+                            className="w-full p-2 border rounded"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block mb-1 font-medium">Max Payout per Creator ($)</label>
+                        <input
+                            type="number"
+                            min={30}
+                            value={maxPayout}
+                            onChange={(e) => setMaxPayout(Number(e.target.value))}
+                            className="w-full p-2 border rounded"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block mb-1 font-medium">Flat Fee per Creator ($, optional)</label>
+                        <input
+                            type="number"
+                            min={0}
+                            value={flatFee}
+                            onChange={(e) => setFlatFee(Number(e.target.value))}
+                            className="w-full p-2 border rounded"
+                        />
+                    </div>
+                </div>
+
+                <button
+                    onClick={handlePaymentCalculate}
+                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mb-4"
+                >
+                    Calculate Payment
+                </button>
+
+                {paymentError && <p className="text-red-500 font-medium mb-3">{paymentError}</p>}
+
+                {paymentBreakdown && (
+                    <div className="p-4 bg-gray-50 border rounded mb-6">
+                        <p>
+                            <strong>Creators Total Payout:</strong> $
+                            {paymentBreakdown.creatorPayoutTotal.toLocaleString()}
+                        </p>
+                        <p>
+                            <strong>Platform Fee (30%):</strong> ${paymentBreakdown.platformFee.toLocaleString()}
+                        </p>
+                        <p>
+                            <strong>Total Brand Pay:</strong> ${paymentBreakdown.brandTotalPay.toLocaleString()}
+                        </p>
+                    </div>
+                )}
+
+                {/* Original Budget Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <Wallet className="w-5 h-5 text-red-600" />
+                            <Wallet className="w-5 h-5 text-[#e85c51]" />
                         </div>
                         <div>
                             <p className="text-sm text-gray-600">Total Budget</p>
@@ -781,20 +834,18 @@ const CampaignBriefForm: React.FC = () => {
                             </p>
                         </div>
                     </div>
-
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <Users className="w-5 h-5 text-red-600" />
+                            <Users className="w-5 h-5 text-[#e85c51]" />
                         </div>
                         <div>
                             <p className="text-sm text-gray-600">Creators per 1M views</p>
                             <p className="text-lg font-semibold text-gray-900">{formData.creatorsPerMillion}</p>
                         </div>
                     </div>
-
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <DollarSign className="w-5 h-5 text-red-600" />
+                            <DollarSign className="w-5 h-5 text-[#e85c51]" />
                         </div>
                         <div>
                             <p className="text-sm text-gray-600">Rate per 1K views</p>
@@ -802,49 +853,18 @@ const CampaignBriefForm: React.FC = () => {
                         </div>
                     </div>
                 </div>
-
-                {/* Budget Summary */}
-                <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Budget Summary</h3>
-                    <p className="text-gray-600 mb-4">
-                        {formatNumber(formData.estimatedViews)} views | {formData.creatorsPerMillion} creators | $
-                        {formData.totalBudget.toLocaleString()} budget
-                    </p>
-
-                    <div className="flex flex-wrap gap-3">
-                        <button
-                            onClick={() => {
-                                /* keep this UI-only */
-                            }}
-                            className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                        >
-                            Save Budget
-                        </button>
-                        <button
-                            onClick={() => {
-                                /* payment flow not in scope */
-                            }}
-                            className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                        >
-                            Proceed to Payment
-                        </button>
-                    </div>
-                </div>
             </div>
 
             {/* Create Campaign Button */}
             <div className="flex justify-end">
-                <button
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    className="px-8 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
-                >
-                    {loading ? 'Creating Campaign...' : 'Create Campaign'}
+                <button className="px-8 py-3 bg-[#e85c51] text-white font-medium rounded-lg hover:bg-red-700 transition-colors">
+                    Create Campaign
                 </button>
             </div>
+          
 
             {/* Error display */}
-            {error && <div className="mt-4 text-sm text-red-600">{error}</div>}
+            {error && <div className="mt-4 text-sm text-[#e85c51]">{error}</div>}
         </div>
     )
 }

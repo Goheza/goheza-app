@@ -116,7 +116,7 @@ export default function ResetPasswordFormComponent() {
                                 )}
                             </button>
                         </div>
-                        {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+                        {errors.password && <p className="mt-1 text-sm text-[#e85c51]">{errors.password}</p>}
                     </div>
 
                     <div>
@@ -168,13 +168,13 @@ export default function ResetPasswordFormComponent() {
                             </button>
                         </div>
                         {errors.confirmPassword && (
-                            <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                            <p className="mt-1 text-sm text-[#e85c51]">{errors.confirmPassword}</p>
                         )}
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-[#E66262] hover:bg-[#E66262] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                        className="w-full bg-[#e85c51] hover:bg-[#e85c51] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                     >
                         {isLoading ? 'Updating...' : 'Update password'}
                     </button>

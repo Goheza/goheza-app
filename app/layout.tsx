@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { Manrope } from "next/font/google"
 
 import './globals.css'
+import { useEffect } from 'react'
 
 
 export const sans = Manrope({
@@ -20,10 +21,15 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({
+    
     children,
 }: Readonly<{
     children: React.ReactNode
+
+
+    
 }>) {
+
     return (
         <html lang="en">
             <body className={`font-sans ${sans.className} `}>

@@ -87,7 +87,7 @@ export default function BrandProfile() {
                         type="text"
                         value={companyContact}
                         onChange={(e) => setCompanyContact(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-[#E66262]  focus:border-[#E66262] "
+                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-[#e85c51]  focus:border-[#e85c51] "
                         placeholder="Enter company contact information..."
                     />
                 </div>
@@ -101,7 +101,7 @@ export default function BrandProfile() {
                         <p className="text-xs text-gray-400 mb-4">Accepted formats: PNG, JPG, SVG. Max size: 5MB.</p>
                         <label
                             htmlFor="logo-upload"
-                            className="cursor-pointer border border-[#E66262]  text-[#E66262] font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
+                            className="cursor-pointer border border-[#e85c51]  text-[#e85c51] font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
                         >
                             Browse Logo
                         </label>
@@ -129,7 +129,7 @@ export default function BrandProfile() {
                         </p>
                         <label
                             htmlFor="assets-upload"
-                            className="cursor-pointer bg-transparent border border-[#E66262]  text-[#E66262] font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
+                            className="cursor-pointer bg-transparent border border-[#e85c51]  text-[#e85c51] font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
                         >
                             Browse Files
                         </label>
@@ -149,7 +149,7 @@ export default function BrandProfile() {
                 <div className="flex justify-end">
                     <button
                         type="submit"
-                        className="bg-[#E66262] text-white font-bold py-3 px-6 rounded-md hover:bg-[#d46f6f]  transition duration-200"
+                        className="bg-[#e85c51] text-white font-bold py-3 px-6 rounded-md hover:bg-[#d46f6f]  transition duration-200"
                     >
                         Save Profile
                     </button>

@@ -50,7 +50,7 @@ export default function UserAccountItem(props: IUserAccountItem) {
                 <div className="flex items-center space-x-4">
                     <Avatar className="w-8 h-8">
                         <AvatarImage src={props.userImageSource} alt="User" />
-                        <AvatarFallback className="cursor-pointer text-white bg-[#E66262]">
+                        <AvatarFallback className="cursor-pointer text-white bg-[#e85c51]">
                             {getFirstCharacter(props.userName.toUpperCase())}
                         </AvatarFallback>
                     </Avatar>
@@ -58,7 +58,7 @@ export default function UserAccountItem(props: IUserAccountItem) {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 p-2 text-lg" align="start">
                 <DropdownMenuLabel className=" cursor-default">My Goheza</DropdownMenuLabel>
-                <DropdownMenuLabel className="text-[#E66262] cursor-default">{props.userEmail}</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-[#e85c51] cursor-default">{props.userEmail}</DropdownMenuLabel>
                
                 <DropdownMenuItem onClick={props.signOutUser}>
                     <HelpCircle />

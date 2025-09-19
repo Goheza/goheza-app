@@ -24,8 +24,10 @@ export default function SignUpForm() {
     const [showPassword, setShowPassword] = useState<boolean>(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false)
 
-    // Creator-specific fields
+    // Shared field
     const [phone, setPhone] = useState<string>('')
+
+    // Creator-specific fields
     const [country, setCountry] = useState<string>('')
     const [city, setCity] = useState<string>('')
     const [paymentMethod, setPaymentMethod] = useState<string>('')
@@ -46,10 +48,19 @@ export default function SignUpForm() {
             return
         }
 
-        // If creator, validate creator-specific fields
+        // Validation
         if (selectedRole === 'creator') {
             if (!phone || !country || !city || !paymentMethod) {
                 toast.error('Please fill in all required fields for Creator.', {
+                    style: { fontSize: 14, padding: 10 },
+                })
+                return
+            }
+        }
+
+        if (selectedRole === 'brand') {
+            if (!phone) {
+                toast.error('Please provide a phone number for your Brand.', {
                     style: { fontSize: 14, padding: 10 },
                 })
                 return
@@ -129,13 +140,13 @@ export default function SignUpForm() {
                             onClick={() => setSelectedRole('creator')}
                             className={`p-4 rounded-2xl border-2 transition-all duration-200 ${
                                 selectedRole === 'creator'
-                                    ? 'border-[#E66262] bg-purple-50 shadow-md'
+                                    ? 'border-[#e85c51] bg-purple-50 shadow-md'
                                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                             }`}
                         >
                             <Users
                                 className={`w-6 h-6 mx-auto mb-2 ${
-                                    selectedRole === 'creator' ? 'text-[#E66262]' : 'text-gray-400'
+                                    selectedRole === 'creator' ? 'text-[#e85c51]' : 'text-gray-400'
                                 }`}
                             />
                             <div className="text-sm font-medium text-gray-900">Creator</div>
@@ -167,10 +178,10 @@ export default function SignUpForm() {
                     <div>
                         <input
                             type="text"
-                            placeholder={selectedRole == 'brand' ? 'Business Name' : 'Full name'}
+                            placeholder={selectedRole == 'brand' ? 'Brand Name' : 'Full name'}
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
-                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                             required
                         />
                     </div>
@@ -179,10 +190,10 @@ export default function SignUpForm() {
                     <div>
                         <input
                             type="email"
-                            placeholder={selectedRole == 'brand' ? 'Company Email' : 'Email Address'}
+                            placeholder={selectedRole == 'brand' ? 'Brand Email' : 'Email Address'}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                             required
                         />
                     </div>
@@ -206,26 +217,32 @@ export default function SignUpForm() {
                         </button>
                     </div>
 
+                    {/* Phone Number for both roles */}
+                    {selectedRole && (
+                        <div>
+                            <input
+                                type="text"
+                                placeholder="Phone Number"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl 
+                                           focus:outline-none focus:ring-2 focus:ring-[#e85c51] 
+                                           focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                                required
+                            />
+                        </div>
+                    )}
+
                     {/* Creator-specific fields */}
                     {selectedRole === 'creator' && (
                         <>
-                            <div>
-                                <input
-                                    type="text"
-                                    placeholder="Phone Number"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
-                                    required
-                                />
-                            </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <input
                                     type="text"
                                     placeholder="Country"
                                     value={country}
                                     onChange={(e) => setCountry(e.target.value)}
-                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                                     required
                                 />
                                 <input
@@ -233,30 +250,8 @@ export default function SignUpForm() {
                                     placeholder="City"
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
-                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                                     required
-                                />
-                            </div>
-                            <div>
-                                <select
-                                    value={paymentMethod}
-                                    onChange={(e) => setPaymentMethod(e.target.value)}
-                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent transition-all duration-200"
-                                    required
-                                >
-                                    <option value="">Select Payment Method</option>
-                                    <option value="PayPal">PayPal</option>
-                                    <option value="Bank Transfer">Bank Transfer</option>
-                                    <option value="Mobile Money">Mobile Money</option>
-                                </select>
-                            </div>
-                            <div>
-                                <input
-                                    type="text"
-                                    placeholder="Social Link (optional)"
-                                    value={socialLinks}
-                                    onChange={(e) => setSocialLinks(e.target.value)}
-                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                                 />
                             </div>
                         </>
@@ -287,7 +282,7 @@ export default function SignUpForm() {
                         disabled={!selectedRole}
                         className={`w-full py-3 px-4 rounded-2xl text-sm font-medium transition-all duration-200 ${
                             selectedRole
-                                ? 'bg-[#E66262] hover:bg-[#d66d6d] cursor-pointer text-white shadow-lg hover:shadow-xl'
+                                ? 'bg-[#e85c51] hover:bg-[#f3867e] cursor-pointer text-white shadow-lg hover:shadow-xl'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         }`}
                     >
@@ -339,7 +334,7 @@ export default function SignUpForm() {
                         Already have an account?{' '}
                         <Link
                             href="/main/auth/signin"
-                            className="font-medium text-[#E66262] transition-colors duration-200"
+                            className="font-medium text-[#e85c51] transition-colors duration-200"
                         >
                             Sign in
                         </Link>

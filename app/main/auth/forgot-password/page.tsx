@@ -52,7 +52,7 @@ export default function ForgotPasswordComponent() {
 
                     <button
                         type="submit"
-                        className="w-full font-light bg-[#E66262] hover:bg-[#E66262] disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg transition-colors"
+                        className="w-full font-light bg-[#e85c51] hover:bg-[#e85c51] disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg transition-colors"
                     >
                         Send Reset Link
                     </button>

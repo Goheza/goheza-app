@@ -95,7 +95,7 @@ export default function SignInForm() {
                             placeholder="Email address"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                             required
                             disabled={isLoading}
                         />
@@ -108,7 +108,7 @@ export default function SignInForm() {
                             placeholder="Password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3 text-sm pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E66262] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                            className="w-full px-4 py-3 text-sm pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                             required
                             disabled={isLoading}
                         />
@@ -125,7 +125,7 @@ export default function SignInForm() {
                         <div className="mt-2 text-right">
                             <Link
                                 href="/main/auth/forgot-password"
-                                className="text-xs font-medium text-[#E66262] hover:text-[#c94c4c] transition-colors duration-200"
+                                className="text-xs font-medium text-[#e85c51] hover:text-[#c94c4c] transition-colors duration-200"
                             >
                                 Forgot password?
                             </Link>
@@ -138,7 +138,7 @@ export default function SignInForm() {
                         disabled={isLoading}
                         className={`w-full py-3 px-4 rounded-2xl text-sm font-medium transition-all duration-200 flex items-center justify-center ${
                             !isLoading
-                                ? ' bg-[#E66262] text-white font-bold shadow-lg hover:shadow-xl'
+                                ? ' bg-[#e85c51] text-white font-bold shadow-lg hover:shadow-xl'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         }`}
                     >
@@ -230,7 +230,7 @@ export default function SignInForm() {
                 <div className="mt-6 text-center">
                     <p className="text-sm text-gray-600">
                         Don’t have an account?{' '}
-                        <a href="/main/auth/signup" className="font-medium text-[#E66262] transition-colors duration-200">
+                        <a href="/main/auth/signup" className="font-medium text-[#e85c51] transition-colors duration-200">
                             Sign up
                         </a>
                     </p>

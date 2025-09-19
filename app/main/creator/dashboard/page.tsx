@@ -155,10 +155,10 @@ export default function CreatorDashboard() {
         return (
             <div className="min-h-screen bg-gray-50 flex justify-center items-center">
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <p className="text-red-600">Error: {error}</p>
+                    <p className="text-[#e85c51]">Error: {error}</p>
                     <button
                         onClick={() => window.location.reload()}
-                        className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                        className="mt-2 px-4 py-2 bg-[#e85c51] text-white rounded hover:bg-red-700"
                     >
                         Retry
                     </button>

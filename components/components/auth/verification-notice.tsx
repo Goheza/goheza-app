@@ -9,7 +9,7 @@ export default function VerificationNotice({ email }: { email?: string }) {
             <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
                 {/* Icon */}
                 <div className="flex justify-center mb-6">
-                    <div className="bg-[#E66262] p-4 rounded-full">
+                    <div className="bg-[#e85c51] p-4 rounded-full">
                         <Mail className="w-8 h-8 text-white" />
                     </div>
                 </div>
@@ -34,14 +34,14 @@ export default function VerificationNotice({ email }: { email?: string }) {
                             // TODO: wire resend email logic
                             alert('Resend verification link triggered')
                         }}
-                        className="w-full py-3 px-4 text-sm font-medium text-white rounded-2xl bg-[#E66262] transition-all duration-200 shadow-md"
+                        className="w-full py-3 px-4 text-sm font-medium text-white rounded-2xl bg-[#e85c51] transition-all duration-200 shadow-md"
                     >
                         Resend Verification Email
                     </button>
 
                     <Link
                         href="/main/auth/signin"
-                        className="block w-full py-3 px-4 text-sm font-medium text-[#E66262] border border-purple-200 rounded-2xl hover:bg-purple-50 transition-all duration-200"
+                        className="block w-full py-3 px-4 text-sm font-medium text-[#e85c51] border border-purple-200 rounded-2xl hover:bg-purple-50 transition-all duration-200"
                     >
                         Back to Sign In
                     </Link>

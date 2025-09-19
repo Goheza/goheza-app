@@ -320,7 +320,7 @@ export default function ContentReviewPage() {
                             <button
                                 onClick={() => handleDecision('rejected')}
                                 disabled={actionLoading}
-                                className="flex-1 bg-transparent border border-[#e75353] text-[#E66262] py-2 px-2 w-[290px] rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="flex-1 bg-transparent border border-[#e75353] text-[#e85c51] py-2 px-2 w-[290px] rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 {actionLoading ? 'Processing...' : 'Reject'}
                             </button>

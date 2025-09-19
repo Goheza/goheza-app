@@ -7,6 +7,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
 import { baseLogger } from '@/lib/logger'
 import { toast } from 'sonner'
+import PaymentDialog from '@/components/components/paymentOptions/paymentOptions'
+import { checkIFPaymentExists } from '@/lib/ats/checkForPaymentMethod'
 
 interface ICampaignAssets {
     name: string
@@ -25,6 +27,7 @@ export default function CampaignOverview() {
     const params = useParams()
     const campaignId = params.id as string
 
+    const [willShowPaymentDetails, setShowPaymentDetails] = useState(false)
     const [campaignDetails, setCampaignDetails] = useState<ICampaignDetails | null>(null)
     const [loading, setLoading] = useState<boolean>(true)
     const [error, setError] = useState<string>('')
@@ -36,6 +39,14 @@ export default function CampaignOverview() {
 
     // Fetch campaign details from Supabase
     useEffect(() => {
+        const checkForPaymentDetails = () => {
+            checkIFPaymentExists().then((common) => {
+                if (common == 'is_unavailable') {
+                    setShowPaymentDetails(true)
+                }
+            })
+        }
+
         const fetchCampaignDetails = async () => {
             if (!campaignId) {
                 setError('Campaign ID not found')
@@ -75,6 +86,7 @@ export default function CampaignOverview() {
             }
         }
 
+        checkForPaymentDetails()
         fetchCampaignDetails()
     }, [campaignId])
 
@@ -100,6 +112,11 @@ export default function CampaignOverview() {
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
+
+        /**
+         * We need to check if they added in their payment options
+         */
+
         if (!file) {
             alert('Please upload a video file.')
             return
@@ -203,7 +220,7 @@ export default function CampaignOverview() {
                         <p className="mt-2 text-gray-500 italic">Uploading...</p>
                         <div className="w-full h-2 bg-gray-200 rounded-lg mt-2">
                             <div
-                                className="h-full bg-[#E66262] rounded-lg transition-all duration-300 ease-in-out"
+                                className="h-full bg-[#e85c51] rounded-lg transition-all duration-300 ease-in-out"
                                 style={{ width: `${uploadProgress}%` }}
                             ></div>
                         </div>
@@ -235,7 +252,7 @@ export default function CampaignOverview() {
         return (
             <div className="font-sans p-5  mx-auto">
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <p className="text-red-600">Error: {error}</p>
+                    <p className="text-[#e85c51]">Error: {error}</p>
                 </div>
             </div>
         )
@@ -254,6 +271,7 @@ export default function CampaignOverview() {
 
     return (
         <div className="font-sans p-5 space-y-12 max-w-4xl mx-auto mb-8">
+            {/* <PaymentDialog/> */}
             <div className="bg-gray-200 h-[200px] mb-12 rounded-2xl">
                 <img src="/placeholder.png" className="w-full h-[200px] object-cover" />
             </div>
@@ -272,7 +290,7 @@ export default function CampaignOverview() {
                     {campaignDetails.campaignAssets.map((v, index) => {
                         const imageSrc = '/placeholder.png' // ✅ fallback placeholder
                         return (
-                            <div className='space-y-5'>
+                            <div className="space-y-5" key={`kl-${index}`}>
                                 <div
                                     key={index}
                                     className="flex border rounded-2xl border-neutral-400 w-[300px] h-[300px] flex-col items-center text-center"
@@ -285,7 +303,7 @@ export default function CampaignOverview() {
                                         className="group no-underline text-black"
                                     >
                                         <Image
-                                        className='rounded-2xl'
+                                            className="rounded-2xl"
                                             src={imageSrc}
                                             alt={v.name || 'Campaign Asset'}
                                             width={300}
@@ -296,7 +314,7 @@ export default function CampaignOverview() {
                                 <a
                                     href={v.url}
                                     download={v.name || `asset-${index}`}
-                                    className=" text-sm mt-6 text-[#e93838]  hover:text-[#E66262]"
+                                    className=" text-sm mt-6 text-[#e93838]  hover:text-[#e85c51]"
                                 >
                                     {v.name}
                                 </a>
@@ -317,7 +335,7 @@ export default function CampaignOverview() {
                     <div className="border-b border-gray-200">
                         <nav className="flex space-x-8">
                             <button
-                                className={`py-3  border-red-500 text-red-600 px-1 border-b-2 font-bold text-sm transition-colors `}
+                                className={`py-3  border-red-500 text-[#e85c51] px-1 border-b-2 font-bold text-sm transition-colors `}
                             >
                                 Requirments
                             </button>
@@ -374,6 +392,13 @@ export default function CampaignOverview() {
                         )}
                         {renderFileStatus()}
                     </div>
+                </div>
+                <div
+                    style={{
+                        display: willShowPaymentDetails ? 'block' : 'none',
+                    }}
+                >
+                    <PaymentDialog />
                 </div>
 
                 <button
