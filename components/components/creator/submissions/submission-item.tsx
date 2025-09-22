@@ -5,6 +5,7 @@ export interface ISubmissionItem  {
     status : "inreview" | "approved" | "rejected",
     submissionDate:string;
     submissionDetailsLink:string;
+    id:string;
 
 }
 
@@ -15,7 +16,7 @@ export default function SubmissionItem(props:ISubmissionItem) {
             <div>{props.campaignTitle}</div>
             <div>{props.status}</div>
             <div>{props.submissionDate}</div>
-            {/* <Link href={props.submissionDetailsLink}>view Details</Link> */}
+            <Link href={props.submissionDetailsLink}>view Details</Link>
         </div>
     )
 }

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
 import { baseLogger } from '@/lib/logger'
+import NotificationsDialog from '@/components/components/brand/notifications'
 
 interface Campaign {
     id: string
@@ -204,6 +205,7 @@ export default function Dashboard() {
 
     return (
         <div className="font-sans p-5 max-w-6xl mx-auto bg-white">
+            
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Welcome, {brandProfile?.brandName || 'Brand'}!</h1>
                 <p className="text-gray-600">Here's an overview of your campaigns and performance.</p>

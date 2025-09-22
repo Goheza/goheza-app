@@ -30,7 +30,7 @@ export default function SubmissionsView() {
                 const { data, error } = await supabase
                     .from('campaign_submissions')
                     .select(
-             ` id,
+                        ` id,
     campaign_id,
     video_url,
     caption,
@@ -52,7 +52,7 @@ export default function SubmissionsView() {
                 baseLogger('BRAND-OPERATIONS', `DidGetBrandSubmission:${data}`)
 
                 if (error) {
-                baseLogger('BRAND-OPERATIONS', `DidFailToGetBrandSubmission:${data}`)
+                    baseLogger('BRAND-OPERATIONS', `DidFailToGetBrandSubmission:${data}`)
 
                     console.error('Error fetching submissions:', error)
                     setError('Failed to fetch submissions.')
@@ -61,17 +61,15 @@ export default function SubmissionsView() {
 
                 const transformedData: DisplaySubmission[] = (data || []).map((s: any) => ({
                     id: s.id,
-                    creator_name: s.users?.full_name || s.users?.email || 'Unknown Creator',
+                    creator_name: s.creator_profiles?.full_name || s.creator_profiles?.email || 'Unknown Creator',
                     video_url: s.video_url,
                     status: s.status,
                     submitted_at: s.submitted_at,
                 }))
                 baseLogger('BRAND-OPERATIONS', `WillSetBrandSubmissions`)
 
-
                 setSubmissions(transformedData)
                 baseLogger('BRAND-OPERATIONS', `DidSetBrandSubmissionData`)
-
             } catch (err) {
                 console.error('Unexpected error:', err)
                 setError('An unexpected error occurred.')
@@ -82,11 +80,10 @@ export default function SubmissionsView() {
 
         console.log(id)
         if (id) {
-            baseLogger("BRAND-OPERATIONS","WillFetchBrandSubmission--Start")
+            baseLogger('BRAND-OPERATIONS', 'WillFetchBrandSubmission--Start')
             fetchSubmissions()
-        }else{
-            baseLogger("BRAND-OPERATIONS","DidFailToFetchBrandSubmission--Start")
-
+        } else {
+            baseLogger('BRAND-OPERATIONS', 'DidFailToFetchBrandSubmission--Start')
         }
     }, [id])
 

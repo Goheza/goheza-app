@@ -15,7 +15,8 @@ export default function PaymentDialog() {
     const [accountName, setAccountName] = React.useState('')
     const [mobileNumber, setMobileNumber] = React.useState('')
     const [frequency, setFrequency] = React.useState('weekly')
-    const [socials, setSocials] = React.useState('')
+    const [hasInstagram, setHasInstagram] = React.useState(false)
+    const [hasTiktok, setHasTiktok] = React.useState(false)
 
     const savePaymentOptions = async (payload:any) => {
         const {
@@ -33,11 +34,17 @@ export default function PaymentDialog() {
                     payment_account_number: payload.accountNumber,
                     payment_frequency: payload.frequency,
                     payment_mobilemoney_number: payload.mobileNumber,
-                    sociallinks: payload.socials,
+                    has_instagram: payload.hasInstagram,
+                    has_tiktok: payload.hasTiktok,
                 },
             ])
 
-            return
+            if (profileError) {
+                console.error("Error saving profile:", profileError)
+                toast.error("Failed to save preferences.")
+            } else {
+                toast.success("Payment Details Saved Successfully")
+            }
         }
     }
 
@@ -48,22 +55,20 @@ export default function PaymentDialog() {
             accountName: paymentMethod === 'bank' ? accountName : undefined,
             mobileNumber: paymentMethod === 'mobile' ? mobileNumber : undefined,
             frequency,
-            socials,
+            hasInstagram,
+            hasTiktok,
         }
-
-        savePaymentOptions(payload).then(()=>{
-            toast.success("Payment Details Saved Successfully")
-        })
+        await savePaymentOptions(payload)
     }
 
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <div>
-                    <Button className="bg-[#e85c51] hover:bg-[#d65555] text-white rounded-xl">
-                        Set Payment Preferences
+                <div className='space-x-3'>
+                    <Button className="border bg-transparent text-[#e85c51] border-[#e85c51] rounded-xl">
+                        Set Account Preferences 
                     </Button>
-                    <span className="">You can update this in your Settings</span>
+                    <span className='text-sm text-neutral-400'>Asked Only Once!</span>
                 </div>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px] rounded-2xl p-6">
@@ -146,16 +151,27 @@ export default function PaymentDialog() {
                     </RadioGroup>
                 </div>
 
-                {/* Social Links */}
-                <div className="mt-4">
-                    <Label className="text-sm font-medium">Link Social Media Accounts</Label>
-                    <Input
-                        type="text"
-                        placeholder="Enter links (comma separated)"
-                        value={socials}
-                        onChange={(e) => setSocials(e.target.value)}
-                        className="mt-2 rounded-xl"
-                    />
+                {/* Social Buttons */}
+                <div className="mt-4 space-y-3">
+                    <Label className="text-sm font-medium">Which social media accounts do you have?</Label>
+                    <div className="flex space-x-4">
+                        <Button
+                            type="button"
+                            variant={hasInstagram ? 'default' : 'outline'}
+                            onClick={() => setHasInstagram(!hasInstagram)}
+                            className="rounded-lg"
+                        >
+                            Instagram
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={hasTiktok ? 'default' : 'outline'}
+                            onClick={() => setHasTiktok(!hasTiktok)}
+                            className="rounded-lg"
+                        >
+                            TikTok
+                        </Button>
+                    </div>
                 </div>
 
                 <Button

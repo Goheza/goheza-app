@@ -1,4 +1,5 @@
 'use client'
+
 import { useState } from 'react'
 import NoSubmissionsBanner from './no-submission-item'
 import SubmissionItem, { ISubmissionItem } from './submission-item'
@@ -84,7 +85,10 @@ export default function SubmissionsContainer(props: ISubmissionsContainer) {
                                             </div>
                                             <div className="text-gray-600 font-medium">{submission.submissionDate}</div>
                                             <div className="text-right">
-                                                <button className="text-blue-500 hover:text-blue-700 font-medium transition-colors">
+                                                <button
+                                                    onClick={() => (window.location.href = `/main/creator/submissions/${submission.id}`)}
+                                                    className="text-blue-500 hover:text-blue-700 font-medium transition-colors"
+                                                >
                                                     View Details
                                                 </button>
                                             </div>

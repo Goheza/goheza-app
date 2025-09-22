@@ -21,6 +21,11 @@ export interface ICampaignDetails {
     campaignRequirements: string[]
     campaignPayout: string
     campaignAssets: Array<ICampaignAssets>
+    campaignObjective?: string
+    targetAudience?: string
+    campaignDos?: string[]
+    campaignDonts?: string[]
+    prohibitedContent?: string[]
 }
 
 export default function CampaignOverview() {
@@ -37,7 +42,6 @@ export default function CampaignOverview() {
     const [uploadProgress, setUploadProgress] = useState<number>(0)
     const router = useRouter()
 
-    // Fetch campaign details from Supabase
     useEffect(() => {
         const checkForPaymentDetails = () => {
             checkIFPaymentExists().then((common) => {
@@ -56,7 +60,7 @@ export default function CampaignOverview() {
 
             try {
                 const { data, error: fetchError } = await supabaseClient
-                    .from('campaigns') // Adjust table name as needed
+                    .from('campaigns')
                     .select('*')
                     .eq('id', campaignId)
                     .single()
@@ -69,15 +73,17 @@ export default function CampaignOverview() {
                     throw new Error('Campaign not found')
                 }
 
-                // Map the database response to your interface
-
-                console.log(data.assets)
                 setCampaignDetails({
                     id: data.id,
                     campaignName: data.name || data.campaign_name,
                     campaignRequirements: data.requirements || [],
                     campaignPayout: data.payout || data.campaign_payout,
                     campaignAssets: data.assets || data.campaign_assets || [],
+                    campaignObjective: data.objective,
+                    targetAudience: data.audience,
+                    campaignDos: data.dos || [],
+                    campaignDonts: data.donts || [],
+                    prohibitedContent: data.prohibited_content || [],
                 })
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch campaign details')
@@ -113,34 +119,24 @@ export default function CampaignOverview() {
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
 
-        /**
-         * We need to check if they added in their payment options
-         */
-
         if (!file) {
             alert('Please upload a video file.')
             return
         }
 
         baseLogger('CREATOR-OPERATIONS', 'WillMakeCampaignSubmission')
-
         setUploadStatus('uploading')
         setUploadProgress(0)
 
         const uploadInterval = setInterval(() => {
             setUploadProgress((prev) => {
-                if (prev >= 100) {
-                    clearInterval(uploadInterval)
-                    setUploadStatus('success')
-                    return 100
-                }
+                if (prev >= 90) return prev
                 return prev + 10
             })
         }, 500)
 
         try {
             baseLogger('CREATOR-OPERATIONS', 'WillGetAuthenticatedUser')
-
             const {
                 data: { user },
                 error: userError,
@@ -151,13 +147,11 @@ export default function CampaignOverview() {
             }
 
             baseLogger('CREATOR-OPERATIONS', 'DidGetAuthenticatedUser')
-
             baseLogger('CREATOR-OPERATIONS', 'WillUploadVideoIFAvailable')
 
-            // First, upload the video file to Supabase Storage
             const fileName = `${Date.now()}_${file.name}`
             const { data: uploadData, error: uploadError } = await supabaseClient.storage
-                .from('campaign-videos') // Make sure this bucket exists in your Supabase storage
+                .from('campaign-videos')
                 .upload(fileName, file, {
                     cacheControl: '3600',
                     upsert: false,
@@ -166,21 +160,22 @@ export default function CampaignOverview() {
             if (uploadError) {
                 throw new Error(`Upload failed: ${uploadError.message}`)
             }
+            clearInterval(uploadInterval)
+            setUploadProgress(100)
+            setUploadStatus('success')
+
             baseLogger('CREATOR-OPERATIONS', 'DidUploadVideoIFAvailable')
             baseLogger('CREATOR-OPERATIONS', 'WillGetVideoPublicURL')
 
-            // Get the public URL of the uploaded video
             const {
                 data: { publicUrl },
             } = supabaseClient.storage.from('campaign-videos').getPublicUrl(fileName)
 
             baseLogger('CREATOR-OPERATIONS', `DidGetVideoPublicURL:${publicUrl}`)
-
             baseLogger('CREATOR-OPERATIONS', 'WillSaveCampaignSubmission')
 
-            // Save the submission to your database
             const { data: submissionData, error: dbError } = await supabaseClient
-                .from('campaign_submissions') // Adjust table name as needed
+                .from('campaign_submissions')
                 .insert([
                     {
                         user_id: user.id,
@@ -197,18 +192,16 @@ export default function CampaignOverview() {
 
             if (dbError) {
                 baseLogger('CREATOR-OPERATIONS', 'DidFailToSaveCampaignSubmission')
-
                 throw new Error(`Database error: ${dbError.message}`)
             }
 
             baseLogger('CREATOR-OPERATIONS', 'DidSuccefullySaveCampaignSubmission')
-            router.push('/main/creator/dashboard')
-            console.log('Submission successful:', submissionData)
             toast.success('Submission Successful')
+            router.push('/main/creator/dashboard')
         } catch (error) {
             setUploadStatus('failure')
             console.error('Submission error:', error)
-            toast.error('Submission Successful')
+            toast.error('Submission failed.')
         }
     }
 
@@ -228,7 +221,7 @@ export default function CampaignOverview() {
                     </>
                 )
             case 'success':
-                return <p className="mt-2 text-green-500 italic">File uploaded successfully.</p>
+                return <p className="mt-2 text-green-500 italic">File uploaded successfully. Redirecting...</p>
             case 'failure':
                 return <p className="mt-2 text-red-500 italic">File upload failed. Please try again.</p>
             default:
@@ -236,7 +229,6 @@ export default function CampaignOverview() {
         }
     }
 
-    // Loading state
     if (loading) {
         return (
             <div className="font-sans p-5 max-w-4xl mx-auto">
@@ -247,10 +239,9 @@ export default function CampaignOverview() {
         )
     }
 
-    // Error state
     if (error) {
         return (
-            <div className="font-sans p-5  mx-auto">
+            <div className="font-sans p-5 mx-auto">
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <p className="text-[#e85c51]">Error: {error}</p>
                 </div>
@@ -258,7 +249,6 @@ export default function CampaignOverview() {
         )
     }
 
-    // No campaign found
     if (!campaignDetails) {
         return (
             <div className="font-sans p-5 max-w-4xl mx-auto">
@@ -271,30 +261,120 @@ export default function CampaignOverview() {
 
     return (
         <div className="font-sans p-5 space-y-12 max-w-4xl mx-auto mb-8">
-            {/* <PaymentDialog/> */}
             <div className="bg-gray-200 h-[200px] mb-12 rounded-2xl">
-                <img src="/placeholder.png" className="w-full h-[200px] object-cover" />
-            </div>
-
-            <div>
-                <h2 className="text-2xl font-semibold mb-5 text-[#e93838]">Campaign Requirements</h2>
+                <img src="/placeholder.png" className="w-full h-[200px] object-cover" alt="Campaign Banner" />
             </div>
 
             <div>
                 <h2 className="text-2xl font-semibold mb-2 text-neutral-850">Campaign Name</h2>
                 <span className="text-lg font-bold text-[#e93838]">{campaignDetails.campaignName}</span>
             </div>
+
+            <div className="bg-white">
+                <div className="border-b border-gray-200">
+                    <nav className="flex space-x-8">
+                        <button className="py-3 px-1 border-b-2 border-red-500 text-[#e85c51] font-bold text-sm transition-colors">
+                            Brief
+                        </button>
+                    </nav>
+                </div>
+
+                <div className="py-6">
+                    <div className="space-y-6">
+                        {/* The Objective Section */}
+                        {campaignDetails.campaignObjective && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Objective</h3>
+                                <p className="text-gray-700 leading-relaxed">{campaignDetails.campaignObjective}</p>
+                            </div>
+                        )}
+
+                        {/* The Target Audience Section */}
+                        {campaignDetails.targetAudience && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Target Audience</h3>
+                                <p className="text-gray-700 leading-relaxed">{campaignDetails.targetAudience}</p>
+                            </div>
+                        )}
+
+                        {/* The Key Requirements/Deliverables Section */}
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Requirements & Deliverables</h3>
+                            <ul className="space-y-3 pl-5 list-disc text-gray-700">
+                                {campaignDetails.campaignRequirements.map((item, id) => (
+                                    <li key={id}>{item}</li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        {/* Do's and Don'ts Section */}
+                        {(campaignDetails.campaignDos && campaignDetails.campaignDos.length > 0) ||
+                        (campaignDetails.campaignDonts && campaignDetails.campaignDonts.length > 0) ? (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-2">
+                                    Creative Guidelines: Do's and Don'ts
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {campaignDetails.campaignDos && campaignDetails.campaignDos.length > 0 && (
+                                        <div className="bg-green-50 p-4 rounded-lg">
+                                            <h4 className="font-semibold text-green-700 mb-2">Do's ✅</h4>
+                                            <ul className="space-y-2 text-green-800 list-disc pl-5">
+                                                {campaignDetails.campaignDos.map((item, id) => (
+                                                    <li key={id}>{item}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {campaignDetails.campaignDonts && campaignDetails.campaignDonts.length > 0 && (
+                                        <div className="bg-red-50 p-4 rounded-lg">
+                                            <h4 className="font-semibold text-red-700 mb-2">Don'ts 🚫</h4>
+                                            <ul className="space-y-2 text-red-800 list-disc pl-5">
+                                                {campaignDetails.campaignDonts.map((item, id) => (
+                                                    <li key={id}>{item}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            </div>
+
+            {/* New Prohibited Content Section */}
+            {campaignDetails.prohibitedContent && campaignDetails.prohibitedContent.length > 0 && (
+                <div className="bg-white p-6 rounded-lg shadow-inner border border-gray-200">
+                    <h2 className="text-2xl font-semibold mb-4 text-[#e85c51]">Prohibited Content</h2>
+                    <p className="text-gray-700 mb-4">
+                        The following types of content are strictly prohibited and will result in the immediate
+                        rejection of your submission:
+                    </p>
+                    <ul className="space-y-2 text-gray-800 list-disc pl-5">
+                        {campaignDetails.prohibitedContent.map((item, id) => (
+                            <li key={id} className="text-sm">
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            <div>
+                <h2 className="text-2xl font-semibold mb-2">Payout</h2>
+                <span className="text-lg font-bold text-[#e93838]">{campaignDetails.campaignPayout}</span>
+            </div>
+
             <div>
                 <h2 className="text-2xl font-semibold mb-7">Campaign Assets</h2>
                 <div className="flex gap-2">
                     {campaignDetails.campaignAssets.map((v, index) => {
-                        const imageSrc = '/placeholder.png' // ✅ fallback placeholder
+                        const isVideo = v.name.endsWith('.mp4')
+                        const imageSrc = isVideo ? '/images/video-placeholder.svg' : '/placeholder.png'
+
                         return (
-                            <div className="space-y-5" key={`kl-${index}`}>
-                                <div
-                                    key={index}
-                                    className="flex border rounded-2xl border-neutral-400 w-[300px] h-[300px] flex-col items-center text-center"
-                                >
+                            <div className="space-y-5" key={`asset-${index}`}>
+                                <div className="flex border rounded-2xl border-neutral-400 w-[300px] h-[300px] flex-col items-center text-center">
                                     <a
                                         href={v.url}
                                         download={v.name || `asset-${index}`}
@@ -314,7 +394,7 @@ export default function CampaignOverview() {
                                 <a
                                     href={v.url}
                                     download={v.name || `asset-${index}`}
-                                    className=" text-sm mt-6 text-[#e93838]  hover:text-[#e85c51]"
+                                    className="text-sm mt-6 text-[#e93838] hover:text-[#e85c51]"
                                 >
                                     {v.name}
                                 </a>
@@ -324,43 +404,8 @@ export default function CampaignOverview() {
                 </div>
             </div>
 
-            <div>
-                <h2 className="text-2xl font-semibold mb-2">Payout</h2>
-                <span className="text-lg font-bold text-[#e93838]">{campaignDetails.campaignPayout}</span>
-            </div>
-
-            <div>
-                <div className="bg-white">
-                    {/* Tab Navigation */}
-                    <div className="border-b border-gray-200">
-                        <nav className="flex space-x-8">
-                            <button
-                                className={`py-3  border-red-500 text-[#e85c51] px-1 border-b-2 font-bold text-sm transition-colors `}
-                            >
-                                Requirments
-                            </button>
-                        </nav>
-                    </div>
-
-                    {/* Content */}
-                    <div className="py-6">
-                        <div>
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Campaign Brief</h2>
-                            <div className="space-y-3">
-                                {campaignDetails.campaignRequirements.map((item, id) => (
-                                    <div key={id} className="flex items-start">
-                                        <span className="text-gray-600 mr-2">-</span>
-                                        <p className="text-gray-700 leading-relaxed">{item}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <form className="mb-5 space-y-7" onSubmit={handleSubmit}>
-                <h2 className="text-2xl font-semibold mb-4">Submission</h2>
+                <h2 className="text-2xl font-semibold mb-4">Your Submission</h2>
 
                 <div>
                     <label htmlFor="caption" className="block text-sm font-medium text-gray-700 mb-1">
@@ -370,8 +415,8 @@ export default function CampaignOverview() {
                         id="caption"
                         value={caption}
                         onChange={handleCaptionChange}
-                        placeholder="Write a caption for your video"
-                        className="w-full h-28 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Write a caption for your video, aligning with the brief's key message."
+                        className="w-full h-28 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#e93838]"
                         required
                     />
                 </div>
@@ -381,14 +426,16 @@ export default function CampaignOverview() {
                     <div
                         {...getRootProps()}
                         className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-all duration-200 ease-in-out ${
-                            isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
+                            isDragActive ? 'border-[#e85c51] bg-[#fdf3f3]' : 'border-gray-300 bg-white'
                         }`}
                     >
                         <input {...getInputProps()} />
                         {file ? (
                             <p className="text-gray-900">{file.name}</p>
                         ) : (
-                            <p className="text-[#e93838]">Drag and drop your MP4 file here</p>
+                            <p className="text-[#e93838]">
+                                Drag and drop your MP4 file here, or click to select a file
+                            </p>
                         )}
                         {renderFileStatus()}
                     </div>
@@ -404,7 +451,7 @@ export default function CampaignOverview() {
                 <button
                     type="submit"
                     className="w-[150px] mb-5 float-right bg-[#e93838] text-white font-bold py-3 px-4 rounded-lg hover:bg-[#f17474] transition-colors duration-200"
-                    disabled={uploadStatus === 'uploading'}
+                    disabled={uploadStatus === 'uploading' || !file}
                 >
                     {uploadStatus === 'uploading' ? 'Submitting...' : 'Submit'}
                 </button>

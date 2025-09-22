@@ -8,6 +8,7 @@ import { ISubmissionItem } from '@/components/components/creator/submissions/sub
 import { supabaseClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { baseLogger } from '@/lib/logger'
+import NoCampaignsBanner from '@/components/components/creator/no-campaign'
 
 export default function CreatorDashboard() {
     const [allCampaigns, setAllCampaigns] = useState<ICampaignCard[]>([])
@@ -16,6 +17,7 @@ export default function CreatorDashboard() {
     const [loading, setLoading] = useState<boolean>(true)
     const [error, setError] = useState<string>('')
     const [searchQuery, setSearchQuery] = useState<string>('')
+    const router = useRouter()
 
     const handleUserSearchRequest = (userInputValue: string) => {
         setSearchQuery(userInputValue)
@@ -69,6 +71,7 @@ export default function CreatorDashboard() {
             baseLogger('CREATOR-OPERATIONS', `DidFindUserSubmission:${submissionsData}`)
 
             const mappedSubmissions: ISubmissionItem[] = submissionsData.map((submission) => ({
+                id: submission.id,
                 campaignTitle: submission.campaign_name ?? submission.campaigns?.name,
                 status:
                     submission.status === 'pending'
@@ -105,7 +108,6 @@ export default function CreatorDashboard() {
 
             baseLogger("CREATOR-OPERATIONS",`DidRetrieveApprovedCampaigns`)
 
-
             const mappedCampaigns: ICampaignCard[] = campaignsData.map((campaign) => ({
                 campaignSourceID: campaign.id,
                 campaignImageSource: campaign.image_url || '/images/default-campaign.png',
@@ -140,8 +142,6 @@ export default function CreatorDashboard() {
 
         init()
     }, [])
-
-    const router = useRouter()
 
     if (loading) {
         return (
@@ -183,22 +183,24 @@ export default function CreatorDashboard() {
                         {campaigns.length > 0 ? (
                             campaigns.map((val) => <CampaignCard key={val.campaignSourceID} {...val} />)
                         ) : (
-                            <div className="col-span-full text-center py-12">
-                                <p className="text-gray-500">
-                                    {searchQuery
-                                        ? 'No campaigns found matching your search.'
-                                        : 'No campaigns available at the moment.'}
-                                </p>
-                                {searchQuery && (
-                                    <button
-                                        onClick={() => {
-                                            setSearchQuery('')
-                                            setCampaigns(allCampaigns)
-                                        }}
-                                        className="mt-2 text-blue-600 hover:text-blue-700"
-                                    >
-                                        Clear search
-                                    </button>
+                            <div className="col-span-full">
+                                {searchQuery ? (
+                                    <div className="text-center py-12">
+                                        <p className="text-gray-500">
+                                            No campaigns found matching your search.
+                                        </p>
+                                        <button
+                                            onClick={() => {
+                                                setSearchQuery('');
+                                                setCampaigns(allCampaigns);
+                                            }}
+                                            className="mt-2 text-blue-600 hover:text-blue-700"
+                                        >
+                                            Clear search
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <NoCampaignsBanner />
                                 )}
                             </div>
                         )}
@@ -209,5 +211,5 @@ export default function CreatorDashboard() {
                 </div>
             </main>
         </div>
-    )
+    );
 }

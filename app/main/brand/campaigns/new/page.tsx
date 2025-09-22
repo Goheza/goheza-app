@@ -19,6 +19,8 @@ import { useRouter } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
 import { baseLogger } from '@/lib/logger'
 import { calculateGohezaPayment } from '@/lib/ats/payment-calculator'
+import { toast } from 'sonner'
+import { addNotificationToTheAdmin } from '@/lib/ats/adminNotifications'
 
 interface CampaignFormData {
     title: string
@@ -99,12 +101,11 @@ const CampaignBriefForm: React.FC = () => {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
-      const [numCreators, setNumCreators] = useState(50)
+    const [numCreators, setNumCreators] = useState(50)
     const [maxPayout, setMaxPayout] = useState(30)
     const [flatFee, setFlatFee] = useState(0)
     const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentBreakdown | null>(null)
     const [paymentError, setPaymentError] = useState<string | null>(null)
-
 
     // Local previews (object URLs) so users can download/view before upload
     const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
@@ -185,9 +186,7 @@ const CampaignBriefForm: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [brandAssets, referenceImages, brandGuidelines])
 
-
-    
- const handlePaymentCalculate = () => {
+    const handlePaymentCalculate = () => {
         try {
             const result = calculateGohezaPayment(numCreators, maxPayout, flatFee)
             setPaymentBreakdown(result)
@@ -227,34 +226,6 @@ const CampaignBriefForm: React.FC = () => {
         if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
         return num.toString()
     }
-
-    const renderCalendar = (monthIndex: number) => {
-        const month = months[monthIndex]
-        const daysInMonth = month.days
-        const firstDay = monthIndex === 0 ? 1 : 4 // July 1st is Monday (1), August 1st is Thursday (4)
-
-        const days = []
-
-        for (let i = 0; i < firstDay; i++) {
-            days.push(<div key={`empty-${i}`} className="h-8"></div>)
-        }
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            days.push(
-                <div
-                    key={day}
-                    className="h-8 flex items-center justify-center text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                >
-                    {day}
-                </div>
-            )
-        }
-
-        return days
-    }
-
-   
-   
 
     const removeFile = (type: 'brandAssets' | 'referenceImages', index: number) => {
         if (type === 'brandAssets') {
@@ -412,6 +383,30 @@ const CampaignBriefForm: React.FC = () => {
                 throw new Error(campaignError.message)
             }
 
+            baseLogger('BRAND-OPERATIONS', 'DidCreateAndInsertCampaign')
+
+            /**
+             * -----------------------------------------------------------------------------------------------------
+             *
+             *
+             * Since the Campaign has been sent, we need yo add on the admin notifications
+             *
+             */
+
+            toast.success('Campaign Successfully Created', {
+                description: 'An invoice will be sent to your email once the campaign has been reviewed.',
+            })
+
+            /**
+             * Send a message to the Admin about the new campaign that has been posted
+             */
+
+            addNotificationToTheAdmin({
+                id: user.id,
+                message: `(NEW-CAMPAIGN) ${formData.title} from Brand`,
+                source: 'brand',
+            })
+
             // redirect
             if (campaignData && campaignData.id) router.push(`/main/brand/campaigns/${campaignData.id}`)
         } catch (err) {
@@ -468,11 +463,7 @@ const CampaignBriefForm: React.FC = () => {
                         <option value="flexible">Flexible</option>
                     </select>
                 </div>
-
-               
             </div>
-
-          
 
             {/* Campaign Description */}
             <div className="mb-6">
@@ -857,11 +848,13 @@ const CampaignBriefForm: React.FC = () => {
 
             {/* Create Campaign Button */}
             <div className="flex justify-end">
-                <button className="px-8 py-3 bg-[#e85c51] text-white font-medium rounded-lg hover:bg-red-700 transition-colors">
+                <button
+                    onClick={handleSubmit}
+                    className="px-8 py-3 bg-[#e85c51] text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
+                >
                     Create Campaign
                 </button>
             </div>
-          
 
             {/* Error display */}
             {error && <div className="mt-4 text-sm text-[#e85c51]">{error}</div>}

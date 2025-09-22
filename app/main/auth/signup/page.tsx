@@ -245,14 +245,7 @@ export default function SignUpForm() {
                                     className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                                     required
                                 />
-                                <input
-                                    type="text"
-                                    placeholder="City"
-                                    value={city}
-                                    onChange={(e) => setCity(e.target.value)}
-                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
-                                    required
-                                />
+                                
                             </div>
                         </>
                     )}

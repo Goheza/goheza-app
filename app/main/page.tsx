@@ -109,7 +109,7 @@ export default function InitalPage() {
                     baseLogger('AUTHENTICATION', 'DidFindProfile')
                     baseLogger('AUTHENTICATION', 'WillNavigateToDashboard')
                     router.replace(`/main/${currentRole}/dashboard`)
-
+7o
                     return
                 } else {
                     baseLogger('AUTHENTICATION', 'DidFailToFindProfile(SignUP)')

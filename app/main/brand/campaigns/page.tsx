@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { supabaseClient } from '@/lib/supabase/client'
 import { baseLogger } from '@/lib/logger'
+import { fetchBrandProfile } from '@/lib/supabase/common/getProfile'
 
 const supabase = supabaseClient
 
@@ -20,9 +21,21 @@ export default function Campaigns() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [campaignBrandLogo, setCampaignBrandLogo] = useState<string | undefined>('')
     const router = useRouter()
 
     useEffect(() => {
+        const fetchCurrentBrandProfile = async () => {
+            const data = await fetchBrandProfile()
+            let logo = data.logo_url! as string
+            if (logo && logo.charAt(0)) {
+                setCampaignBrandLogo(logo)
+            }
+        }
+
+        /**
+         * Used to fetch campaigns for the brand page
+         */
         const fetchCampaigns = async () => {
             baseLogger('BRAND-OPERATIONS', 'WillFetchCampaignsForCampaignsPage')
             setLoading(true)
@@ -43,12 +56,12 @@ export default function Campaigns() {
             }
             setLoading(false)
         }
-
+        fetchCurrentBrandProfile()
         fetchCampaigns()
     }, [])
 
     const handleCampaignClick = (campaignId: string) => {
-            baseLogger("BRAND-OPERATIONS","WillNavigateToCampaignsPage")
+        baseLogger('BRAND-OPERATIONS', 'WillNavigateToCampaignsPage')
 
         router.push(`/main/brand/campaigns/${campaignId}`) // 👈 sends param
     }
@@ -76,7 +89,9 @@ export default function Campaigns() {
                         >
                             <div className="relative w-full h-48 bg-gray-200">
                                 <Image
-                                    src={campaign.image_url || 'https://placehold.co/400x225?text=Zepha'}
+                                    src={
+                                        campaignBrandLogo || `https://placehold.co/400x225?text=${campaign.name.at(0)}`
+                                    }
                                     alt={campaign.name}
                                     fill
                                     style={{ objectFit: 'cover' }}
