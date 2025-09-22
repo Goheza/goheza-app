@@ -7,6 +7,9 @@ import { baseURL } from '@/lib/env'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import Image from 'next/image'
+import logo from '@/assets/GOHEZA-02.png'
+import { supabaseClient } from '@/lib/supabase/client'
 
 export default function SignInForm() {
     const [email, setEmail] = useState('')
@@ -73,6 +76,24 @@ export default function SignInForm() {
         }
     }
 
+    useEffect(() => {
+        const InitaliStartup = async () => {
+            /**
+             * Check if there is existing user before allowing them to come to this page
+             */
+            const {
+                data: { user },
+            } = await supabaseClient.auth.getUser()
+            if (user) {
+                /**
+                 * If there is a user present, we take them to autoLogin
+                 */
+                router.push('/main')
+            }
+        }
+        InitaliStartup()
+    }, [router])
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex justify-center py-8">
             <div className="w-full max-w-md p-6">
@@ -80,7 +101,17 @@ export default function SignInForm() {
                 <div className="text-center mb-8">
                     <div className="flex justify-center mb-2">
                         <div className="text-neutral-800">
-                            <span className="text-2xl font-bold">Goheza</span>
+                            <span className="text-2xl font-bold">
+                                <div className=" flex items-center justify-center">
+                                    <Image
+                                        src={logo.src}
+                                        width={100}
+                                        height={30}
+                                        alt="Goheza Logo"
+                                        className=" p-0 m-0 object-contain"
+                                    />
+                                </div>
+                            </span>
                         </div>
                     </div>
                     <h1 className="text-2xl font-light text-black bg-clip-text mb-2">Sign in or Login in</h1>
@@ -121,15 +152,15 @@ export default function SignInForm() {
                             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
                     </div>
-                     {/* Forgot Password link */}
-                        <div className="mt-2 text-right">
-                            <Link
-                                href="/main/auth/forgot-password"
-                                className="text-xs font-medium text-[#e85c51] hover:text-[#c94c4c] transition-colors duration-200"
-                            >
-                                Forgot password?
-                            </Link>
-                        </div>
+                    {/* Forgot Password link */}
+                    <div className="mt-2 text-right">
+                        <Link
+                            href="/main/auth/forgot-password"
+                            className="text-xs font-medium text-[#e85c51] hover:text-[#c94c4c] transition-colors duration-200"
+                        >
+                            Forgot password?
+                        </Link>
+                    </div>
 
                     {/* Submit Button */}
                     <button
@@ -230,7 +261,10 @@ export default function SignInForm() {
                 <div className="mt-6 text-center">
                     <p className="text-sm text-gray-600">
                         Don’t have an account?{' '}
-                        <a href="/main/auth/signup" className="font-medium text-[#e85c51] transition-colors duration-200">
+                        <a
+                            href="/main/auth/signup"
+                            className="font-medium text-[#e85c51] transition-colors duration-200"
+                        >
                             Sign up
                         </a>
                     </p>

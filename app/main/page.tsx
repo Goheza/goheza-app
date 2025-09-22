@@ -1,8 +1,3 @@
-/**
- * This is the inital Page from the start
- * Where the loading of the web application begins
- */
-
 'use client'
 
 import { baseLogger } from '@/lib/logger'
@@ -10,182 +5,129 @@ import { supabaseClient } from '@/lib/supabase/client'
 import { getProfile, makeProfile } from '@/lib/supabase/profiles/profile-maker'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner' // Added for user feedback
 
 export default function InitalPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
     const params = useSearchParams()
 
-    /**
-     * If there is profile creation we do it.
-     */
-    const [isCreatingProfile, setCreatingProfile] = useState(Boolean)
+    // Used to show a loading state for profile creation
+    const [isCreatingProfile, setCreatingProfile] = useState(false) 
 
     useEffect(() => {
-        /**
-         * Main Function decides the final route
-         * @returns
-         */
-
         const main = async () => {
-            /**
-             * Get the currently Logged in User
-             */
             baseLogger('AUTHENTICATION', 'WillSearchForLoggedInUser')
             const {
                 data: { user },
             } = await supabaseClient.auth.getUser()
 
-            /**
-             * Send the user to the signin page if there is no other user
-             */
-
             if (!user) {
                 baseLogger('AUTHENTICATION', 'DidFailToFindLoggedInUser')
                 baseLogger('AUTHENTICATION', 'WillNavigateToSignIn')
-
                 router.replace('/main/auth/signin')
                 return
             }
             baseLogger('AUTHENTICATION', 'didFindLoggedInUSer')
 
-            /**
-             * @todo
-             *
-             * When the user signs up without Google, we will be able to check for the role
-             * within the metadata that was created, but if they signed up with google,
-             *
-             * The Redirect Link from google will have the params of the current available role,
-             *  --we need to check if they don't have a profile in the beginning so we can create them one,
-             *
-             * still if the metadata of the normal signup(without provider) has a role, we need to check to make sure
-             * they don't have a profile.
-             *
-             * then we send to the right page.
-             */
-
-            /**
-             * @@@@@@@@@@With Provider(Google)
-             */
-            if (user.identities![0].provider == 'google') {
+            // Check if the user signed up with a provider (e.g., Google)
+            if (user.identities && user.identities[0].provider === 'google') {
                 baseLogger('AUTHENTICATION', 'DidSignUpWithGoogle')
-                baseLogger('AUTHENTICATION', 'WillFindSearchParamsForRole')
+                const currentRole = params.get('role') as 'brand' | 'creator' | undefined
 
-                let currentRole = params.get('role')! as 'brand' | 'creator' | undefined
-
-                baseLogger('AUTHENTICATION', 'WillStartCreatingProfileLoader')
-
-                /**Signin case */
-                setCreatingProfile(true)
-
-                if (currentRole == undefined) {
+                if (!currentRole) {
                     baseLogger('AUTHENTICATION', 'DidFailToFindRole')
-                    baseLogger('AUTHENTICATION', 'WillAssumeSignInCase')
-                    baseLogger('AUTHENTICATION', 'WillCheckForExistingProfile')
+                    baseLogger('AUTHENTICATION', 'WillAssumeSignInCase and check for existing profiles')
 
-                    //check for profile as a brand:
-                    const checkForProfile = await getProfile(user, 'brand')
-                    if (checkForProfile.profile) {
+                    const brandProfileCheck = await getProfile(user, 'brand')
+                    if (brandProfileCheck.profile) {
                         baseLogger('AUTHENTICATION', 'DidFindProfileAsBrand')
-                        router.replace(`/main/brand/dashboard`)
+                        router.replace('/main/brand/dashboard')
                         return
                     }
-                    const checkForProfile2 = await getProfile(user, 'creator')
-                    if (checkForProfile2.profile) {
+                    const creatorProfileCheck = await getProfile(user, 'creator')
+                    if (creatorProfileCheck.profile) {
                         baseLogger('AUTHENTICATION', 'DidFindProfileAsCreator')
-                        router.replace(`/main/creator/dashboard`)
+                        router.replace('/main/creator/dashboard')
                         return
                     }
+                    
+                    // A Google user with no profile and no role param needs to select a role.
+                    toast.info("Please select your role to continue.", { style: { fontSize: 14 } });
+                    router.replace('/main/auth/signin');
+                    return;
                 }
 
-                baseLogger('AUTHENTICATION', 'WillChangeCaseToSignUP')
-                baseLogger('AUTHENTICATION', `WillLookForProfileAsRoleOF:${currentRole}`)
+                // A Google user with a role param (from a new sign-up)
+                baseLogger('AUTHENTICATION', `WillLookForProfile as role of: ${currentRole}`)
 
-                const checkForProfile = await getProfile(user, currentRole!)
-                /**Sign up case; */
+                const profileCheck = await getProfile(user, currentRole)
 
-                if (checkForProfile.profile) {
-                    //skip creation and proceed
+                if (profileCheck.profile) {
                     baseLogger('AUTHENTICATION', 'DidFindProfile')
                     baseLogger('AUTHENTICATION', 'WillNavigateToDashboard')
                     router.replace(`/main/${currentRole}/dashboard`)
-7o
                     return
                 } else {
-                    baseLogger('AUTHENTICATION', 'DidFailToFindProfile(SignUP)')
-                    baseLogger('AUTHENTICATION', `WillMakeProfileForRole:${currentRole}`)
-
-                    await makeProfile(user, currentRole!!)
-                    baseLogger('AUTHENTICATION', 'DidMakeProfile')
-
-                    setCreatingProfile(true)
-
-                    baseLogger('AUTHENTICATION', 'DidSuccefullyMakeProfile')
-                    baseLogger('AUTHENTICATION', 'WillNavigateToDashboar')
-
-                    setCreatingProfile(false)
-                    router.replace(`/main/${currentRole}/dashboard`)
+                    baseLogger('AUTHENTICATION', 'DidFailToFindProfile (Sign-Up)')
+                    baseLogger('AUTHENTICATION', `WillRedirect to onboarding for role: ${currentRole}`)
+                    
+                    // This is the key integration point!
+                    router.replace(`/main/auth/onboarding?role=${currentRole}`)
                     return
                 }
+
             } else {
-                baseLogger('AUTHENTICATION', 'DidSignUpWithNormalUSer')
-                baseLogger('AUTHENTICATION', 'WillCheckForRoleFromMetaData')
+                // Logic for normal (email/password) sign-up
+                baseLogger('AUTHENTICATION', 'DidSignUpWithNormalUser')
+                let currentRole = user.user_metadata?.role as 'brand' | 'creator' | undefined
 
-                /**
-                 * @@@@@@@@@@@With No Provider
-                 */
-                let currentRole = user.user_metadata?.role
-                let paymentMethod = user.user_metadata?.payment_method
-                let country = user.user_metadata?.country
-                let socialLinks = user.user_metadata?.sociallinks
-                let phone = user.user_metadata?.phone
-                let city = user.user_metadata?.city
+                if (!currentRole) {
+                     // Handle case where user_metadata is missing role (shouldn't happen with your sign-up form but good practice)
+                    baseLogger('AUTHENTICATION', 'No role in metadata. Redirecting to signin.');
+                    router.replace('/main/auth/signin');
+                    return;
+                }
 
-                const checkForProfile = await getProfile(user, currentRole)
+                const profileCheck = await getProfile(user, currentRole)
 
-                baseLogger('AUTHENTICATION', `DidFindRoleAs:${currentRole}`)
-
-                if (checkForProfile.profile) {
-                    //skip creation and proceed
-                    baseLogger('AUTHENTICATION', 'DIdFIndProfile')
-                    baseLogger('AUTHENTICATION', 'willSkipProfileCreationAndNavigate')
-
+                if (profileCheck.profile) {
+                    baseLogger('AUTHENTICATION', 'DidFindProfile')
                     router.replace(`/main/${currentRole}/dashboard`)
                     return
                 } else {
-                    baseLogger('AUTHENTICATION', 'DIdFailToFIndProfile')
-                    baseLogger('AUTHENTICATION', 'WillMakeProfile')
-
-                    await makeProfile(user, currentRole, {
-                        city: city,
-                        phone: phone,
-                        country: country,
-                        paymentMethod: paymentMethod,
-                        socialLinks: socialLinks,
-                    })
-                    baseLogger('AUTHENTICATION', 'DidMakeProfile')
+                    baseLogger('AUTHENTICATION', 'DidFailToFindProfile')
                     setCreatingProfile(true)
 
-                    baseLogger('AUTHENTICATION', 'DIdSuccefullyMakeProfileWillContinueToNavigate')
+                    await makeProfile(user, currentRole, {
+                        city: user.user_metadata?.city,
+                        phone: user.user_metadata?.phone,
+                        country: user.user_metadata?.country,
+                        paymentMethod: user.user_metadata?.payment_method,
+                        socialLinks: user.user_metadata?.sociallinks,
+                        // Brand-specific fields would need to be added here if applicable
+                        // brandName: user.user_metadata?.brandName,
+                        // industry: user.user_metadata?.industry,
+                        // website: user.user_metadata?.website,
+                    })
+
                     setCreatingProfile(false)
+                    baseLogger('AUTHENTICATION', 'DidSuccessfullyMakeProfile')
                     router.replace(`/main/${currentRole}/dashboard`)
+                    return
                 }
             }
         }
 
         main().finally(() => setLoading(false))
-    }, [router])
+    }, [router, params])
 
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-white space-y-6">
-                {/* Logo */}
                 <div className="text-2xl font-bold text-neutral-900">Goheza</div>
-
-                {/* Spinner */}
                 <div className="w-12 h-12 border-4 border-[#e85c51] border-t-transparent rounded-full animate-spin"></div>
-
-                <span className={`${isCreatingProfile ? 'flex' : 'hidden'}`}>Initalizing Profile....</span>
+                <span className={`${isCreatingProfile ? 'flex' : 'hidden'}`}>Initializing Profile....</span>
             </div>
         )
     }

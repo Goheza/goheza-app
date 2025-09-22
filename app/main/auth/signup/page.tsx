@@ -3,7 +3,7 @@
  * Allows users to sign up as either a Creator or Brand
  */
 'use client'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Eye, EyeOff, Users, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { signUpUser } from '@/lib/supabase/auth/signup'
@@ -12,6 +12,9 @@ import { toast } from 'sonner'
 import { baseURL } from '@/lib/env'
 import { signInWithGoogle } from '@/lib/supabase/auth/signin'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import logo from '@/assets/GOHEZA-02.png'
+import { supabaseClient } from '@/lib/supabase/client'
 
 type UserRole = 'creator' | 'brand' | null
 
@@ -34,6 +37,22 @@ export default function SignUpForm() {
     const [socialLinks, setSocialLinks] = useState<string>('')
 
     const router = useRouter()
+
+    useEffect(() => {
+        const InitaliStartup = async () => {
+            /**
+             * Check if there is existing user before allowing them to come to this page
+             */
+            const {data: { user}} = await supabaseClient.auth.getUser();
+            if(user){
+                /**
+                 * If there is a user present, we take them to autoLogin
+                 */
+                router.push("/main")
+            }
+        }
+        InitaliStartup()
+    }, [router])
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -121,7 +140,17 @@ export default function SignUpForm() {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <div className="flex justify-center mb-4">
-                        <span className="text-2xl font-bold text-neutral-800">Goheza</span>
+                        <span className="text-2xl font-bold text-neutral-800">
+                            <div className=" flex items-center justify-center">
+                                <Image
+                                    src={logo.src}
+                                    width={100}
+                                    height={30}
+                                    alt="Goheza Logo"
+                                    className=" p-0 m-0 object-contain"
+                                />
+                            </div>
+                        </span>
                     </div>
                     <h1 className="text-2xl font-light text-black bg-clip-text mb-2">Create Account</h1>
                     <p className="text-gray-600 text-sm leading-relaxed">
@@ -245,7 +274,6 @@ export default function SignUpForm() {
                                     className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                                     required
                                 />
-                                
                             </div>
                         </>
                     )}
