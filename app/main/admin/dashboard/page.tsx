@@ -144,17 +144,17 @@ export default function AdminDashboardPage() {
                 </CardContent>
             </Card>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Link href="/admin/campaign-management">
+                <Link href="/main/admin/campaign-management">
                     <Button className="w-full h-auto py-4 bg-[#e85c51] hover:bg-[#f3867e] text-white">
                         Review Campaigns
                     </Button>
                 </Link>
-                <Link href="/admin/user-management">
+                <Link href="/main/admin/user-management">
                     <Button className="w-full h-auto py-4 bg-gray-100 text-neutral-800 border hover:bg-gray-200">
                         Manage Users
                     </Button>
                 </Link>
-                <Link href="/admin/notifications">
+                <Link href="/main/admin/notifications">
                     <Button className="w-full h-auto py-4 bg-gray-100 text-neutral-800 border hover:bg-gray-200">
                         View Notifications
                     </Button>
