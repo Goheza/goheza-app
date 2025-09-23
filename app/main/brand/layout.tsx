@@ -2,7 +2,7 @@
 
 import HeaderBrand from '@/components/components/brand/header-brand'
 import NotificationsDialog, { Notification } from '@/components/components/brand/notifications'
-import HeaderItemMain from '@/components/components/common/header/header'
+import HeaderItemMainBre from '@/components/components/common/header/header-bre'
 import { fetchBrandNotifications } from '@/lib/ats/brandNotifications'
 import { useEffect, useState } from 'react'
 
@@ -55,9 +55,8 @@ export default function RootLayout(props: { children: React.ReactNode }) {
                     setOpen(false)
                 }}
             />
-            <HeaderItemMain>
-                <HeaderBrand onWillOpenFunc={WillOpenDialog} />
-            </HeaderItemMain>
+            <HeaderItemMainBre onWillOpenFunc={WillOpenDialog}/>
+        
             <div className="translate-y-14 ">{props.children}</div>
         </div>
     )

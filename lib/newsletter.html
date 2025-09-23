@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goheza - The next generation of influencer marketing.</title>
+    <style>
+        /* Basic styles, you can replace this with a framework like Tailwind CSS */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background-color: #fff;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header img {
+            height: 40px;
+        }
+
+        .nav-links a {
+            margin-left: 20px;
+            text-decoration: none;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 100px 20px;
+            background-color: #f7beba;
+            color: #333;
+        }
+
+        .hero h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .hero p {
+            font-size: 1.2em;
+        }
+
+        .section {
+            padding: 60px 20px;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 40px;
+        }
+
+        .card-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 40px;
+        }
+
+        .card {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 300px;
+            text-align: center;
+        }
+
+        .card img {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 20px;
+        }
+
+        .card h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            font-size: 1em;
+            color: #666;
+        }
+
+        .email-section {
+            background-color: #fff;
+            text-align: center;
+            padding: 60px 20px;
+            border-radius: 10px;
+        }
+        
+        .email-section h2 {
+            font-size: 2em;
+            color: #333;
+        }
+
+        .email-section .email-btn {
+            background-color: #e85c51;
+            color: #fff;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 20px;
+        }
+
+        .footer {
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .footer .social-icons {
+            margin-top: 20px;
+        }
+
+        .footer .social-icons a {
+            margin: 0 10px;
+            color: #fff;
+            font-size: 24px;
+        }
+
+        .footer .legal-links a {
+            color: #fff;
+            margin: 0 10px;
+            text-decoration: none;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+            }
+            .nav-links {
+                margin-top: 10px;
+                text-align: center;
+            }
+            .nav-links a {
+                display: block;
+                margin: 10px 0;
+            }
+            .hero {
+                padding: 60px 20px;
+            }
+            .hero h1 {
+                font-size: 2em;
+            }
+            .hero p {
+                font-size: 1em;
+            }
+            .section-title {
+                font-size: 2em;
+            }
+            .card-container {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="logo">
+            <a href="#">
+                <img src="/path-to-your-logo.png" alt="Goheza Logo">
+            </a>
+        </div>
+        <nav class="nav-links">
+            <a href="#brand">Brands</a>
+            <a href="#creator">Creators</a>
+            <a href="/main/auth/signin">Sign In</a>
+            <a href="/main/auth/signup">Sign Up</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <h1>The next generation of influencer marketing.</h1>
+        <p>A marketplace for companies and creators to collaborate on campaigns effortlessly.</p>
+    </section>
+
+    <section id="brand" class="section">
+        <h2 class="section-title">For Brands</h2>
+        <div class="card-container">
+            <div class="card">
+                <img src="/brand_item-removebg-preview.png" alt="Why Brands Love Us">
+            </div>
+            <div class="card">
+                <h3>Pay Only For Results</h3>
+                <p>You spend money only when people watch</p>
+            </div>
+            <div class="card">
+                <h3>Creative Diversity</h3>
+                <p>One message, many styles</p>
+            </div>
+            <div class="card">
+                <h3>You Can Stay In Control</h3>
+                <p>Approve content before it goes live</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="creator" class="section">
+        <h2 class="section-title">For Creators</h2>
+        <div class="card-container">
+            <div class="card">
+                <img src="/creator_item-removebg-preview.png" alt="Why Creators Love Us">
+            </div>
+            <div class="card">
+                <h3>Anyone Can Earn</h3>
+                <p>No follower minimums, just your creativity</p>
+            </div>
+            <div class="card">
+                <h3>Get Paid for Views</h3>
+                <p>Every 1,000 views on your content = money in your pocket</p>
+            </div>
+            <div class="card">
+                <h3>Fast & Fair Pay</h3>
+                <p>No waiting for months, you earn as your content performs</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="container email-section">
+        <h2>Verify your email address</h2>
+        <p>You're so close to starting your Goheza journey. To finish signing up, click the button below to confirm your email address. The link will be valid for the next 24 hours.</p>
+        <a href="#" class="email-btn">Verify my email</a>
+        <p style="font-size:0.9em; color:#999; margin-top: 20px;">If you have any questions, please visit our FAQs or email us at info@goheza.com.</p>
+    </section>
+
+    <footer class="footer">
+        <div class="legal-links">
+            <a href="/faqs">FAQs</a>
+            <a href="/terms-and-conditions.pdf">T&Cs</a>
+            <a href="/privacy-policy.pdf">Privacy Policy</a>
+        </div>
+        <div class="copyright" style="margin-top: 20px;">
+            &copy; 2025 Goheza Technologies Company Limited. All rights reserved.
+        </div>
+    </footer>
+
+</body>
+</html>

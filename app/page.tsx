@@ -14,18 +14,18 @@ import {
     BarChart3,
     Handshake,
     Globe,
-    Facebook,
-    Youtube,
-    Mail,
     ArrowRight,
     Menu,
     X,
+    Youtube,
+    Mail,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import logo from '@/assets/GOHEZA-02.png'
+import { BrandCreatorTabs } from '@/components/components/landing/tabs'
 
 export default function GohezaLanding() {
     const router = useRouter()
@@ -66,12 +66,12 @@ export default function GohezaLanding() {
                         >
                             <Link href={'/'}>
                                 <Image
-                                    src={logo.src}
+                                    src={logo}
                                     width={100}
                                     height={30}
                                     alt="Goheza Logo"
-                                    className=" p-0 m-0 object-contain"
-                                />{' '}
+                                    className="p-0 m-0 object-contain"
+                                />
                             </Link>
                         </motion.div>
                     </div>
@@ -176,7 +176,7 @@ export default function GohezaLanding() {
                     >
                         <Button
                             size="lg"
-                            onClick={() => navigate('/main/auth/signin')}
+                            onClick={() => navigate('/main/auth/signup')}
                             className="font-semibold bg-[#e85c51] hover:bg-[#df4848] transform-gpu transition-all hover:scale-105"
                         >
                             Launch a Campaign
@@ -191,30 +191,7 @@ export default function GohezaLanding() {
                     </motion.div>
 
                     {/* Stats */}
-                    <motion.div
-                        variants={stagger}
-                        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 max-w-4xl text-base mx-auto"
-                    >
-                        <motion.div variants={fadeUp} className="text-center px-4 py-3 rounded-lg">
-                            <div className="text-2xl sm:text-3xl font-bold text-[#e85c51] mb-1">$0</div>
-                            <div className="text-gray-600 text-sm sm:text-base">Follower Minimum</div>
-                        </motion.div>
-
-                        <motion.div variants={fadeUp} className="text-center px-4 py-3 rounded-lg">
-                            <div className="text-2xl sm:text-3xl font-bold text-[#e85c51] mb-1">24h</div>
-                            <div className="text-gray-600 text-sm sm:text-base">Fast Payouts</div>
-                        </motion.div>
-
-                        <motion.div variants={fadeUp} className="text-center px-4 py-3 rounded-lg">
-                            <div className="text-2xl sm:text-3xl font-bold text-[#e85c51] mb-1">Real-time</div>
-                            <div className="text-gray-600 text-sm sm:text-base">View Tracking</div>
-                        </motion.div>
-
-                        <motion.div variants={fadeUp} className="text-center px-4 py-3 rounded-lg">
-                            <div className="text-2xl sm:text-3xl font-bold text-[#e85c51] mb-1">$1/1K</div>
-                            <div className="text-gray-600 text-sm sm:text-base">Views Payout</div>
-                        </motion.div>
-                    </motion.div>
+                    <BrandCreatorTabs />
                 </motion.div>
             </section>
 
@@ -429,13 +406,19 @@ export default function GohezaLanding() {
                         className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center"
                     >
                         <Button
+                            onClick={() => {
+                                navigate('/main/auth/signup')
+                            }}
                             size="lg"
                             variant="secondary"
-                            className="bg-[#e85c51] font-semibold text-white transform-gpu transition-all hover:scale-105"
+                            className="border bg-[#e85c51] hover:border-[#e85c51] hover:text-[#e85c51] font-semibold text-white transform-gpu transition-all hover:scale-105"
                         >
                             For Brands
                         </Button>
                         <Button
+                            onClick={() => {
+                                navigate('/main/auth/signup')
+                            }}
                             size="lg"
                             variant="outline"
                             className="text-[#e85c51] hover:bg-white font-semibold border-2 border-[#e85c51] bg-transparent transform-gpu transition-all hover:scale-105"
@@ -464,18 +447,21 @@ export default function GohezaLanding() {
                         </p>
                     </motion.div>
 
-                    <div className="max-w-3xl mx-auto">
-                        <Accordion type="single" collapsible>
+                    <div className="max-w-3xl mx-auto font-bold">
+                        <Accordion type="single" collapsible className="font-bold text-xl">
                             <motion.div
                                 initial="hidden"
                                 whileInView="visible"
+                                className="font-bold text-xl"
                                 viewport={{ once: true }}
                                 variants={stagger}
                             >
                                 <motion.div variants={fadeUp}>
                                     <AccordionItem value="item-1">
-                                        <AccordionTrigger>Do creators need to have followers to join?</AccordionTrigger>
-                                        <AccordionContent>
+                                        <AccordionTrigger className="font-bold">
+                                            Do creators need to have followers to join?
+                                        </AccordionTrigger>
+                                        <AccordionContent className="font-bold">
                                             No! Goheza believes creativity matters more than follower count. Anyone can
                                             join our platform and start earning from their content, regardless of their
                                             current social media following.
@@ -485,8 +471,10 @@ export default function GohezaLanding() {
 
                                 <motion.div variants={fadeUp}>
                                     <AccordionItem value="item-2">
-                                        <AccordionTrigger>How are payments tracked and calculated?</AccordionTrigger>
-                                        <AccordionContent>
+                                        <AccordionTrigger className="font-bold">
+                                            How are payments tracked and calculated?
+                                        </AccordionTrigger>
+                                        <AccordionContent className="font-bold">
                                             Payments are calculated based on verified views of your content. We use
                                             advanced tracking technology to ensure accurate view counts, and creators
                                             earn based on performance metrics.
@@ -496,8 +484,10 @@ export default function GohezaLanding() {
 
                                 <motion.div variants={fadeUp}>
                                     <AccordionItem value="item-3">
-                                        <AccordionTrigger>Who owns the content after it's created?</AccordionTrigger>
-                                        <AccordionContent>
+                                        <AccordionTrigger className="font-bold">
+                                            Who owns the content after it's created?
+                                        </AccordionTrigger>
+                                        <AccordionContent className="font-bold">
                                             Content ownership terms are clearly defined in each campaign agreement. The
                                             specific rights and usage terms are outlined before creators begin working
                                             on any campaign.
@@ -507,8 +497,10 @@ export default function GohezaLanding() {
 
                                 <motion.div variants={fadeUp}>
                                     <AccordionItem value="item-4">
-                                        <AccordionTrigger>How quickly do creators get paid?</AccordionTrigger>
-                                        <AccordionContent>
+                                        <AccordionTrigger className="font-bold">
+                                            How quickly do creators get paid?
+                                        </AccordionTrigger>
+                                        <AccordionContent className="font-bold">
                                             Creators receive fast payouts within 24 hours through various payment
                                             methods including Mobile Money, PayPal, and Bank Transfer.
                                         </AccordionContent>
@@ -517,8 +509,10 @@ export default function GohezaLanding() {
 
                                 <motion.div variants={fadeUp}>
                                     <AccordionItem value="item-5">
-                                        <AccordionTrigger>What types of content can creators submit?</AccordionTrigger>
-                                        <AccordionContent>
+                                        <AccordionTrigger className="font-bold">
+                                            What types of content can creators submit?
+                                        </AccordionTrigger>
+                                        <AccordionContent className="font-bold">
                                             Creators can submit various types of video content that align with brand
                                             campaign requirements. Each campaign specifies the content format and style
                                             preferences.
@@ -528,8 +522,10 @@ export default function GohezaLanding() {
 
                                 <motion.div variants={fadeUp}>
                                     <AccordionItem value="item-6">
-                                        <AccordionTrigger>How do brands ensure content quality?</AccordionTrigger>
-                                        <AccordionContent>
+                                        <AccordionTrigger className="font-bold">
+                                            How do brands ensure content quality?
+                                        </AccordionTrigger>
+                                        <AccordionContent className="font-bold">
                                             Brands have review and approval processes in place to ensure content meets
                                             their quality standards and campaign objectives before going live.
                                         </AccordionContent>
@@ -541,9 +537,9 @@ export default function GohezaLanding() {
 
                     <div className="text-center mt-8 sm:mt-12">
                         <p className="text-gray-600 mb-4">Still have questions? We're here to help.</p>
-                        <Button className="bg-[#e85c51] text-white transform-gpu transition-all hover:scale-105">
+                        <a href="mailto:info@goheza.com" className="bg-[#e85c51] p-3 rounded-full mt-2 text-white transform-gpu transition-all hover:scale-105">
                             Contact Support
-                        </Button>
+                        </a>
                     </div>
                 </div>
             </section>
@@ -565,75 +561,92 @@ export default function GohezaLanding() {
                                 easy for anyone to earn from their creativity and passion.
                             </p>
                             <div className="flex space-x-4">
-                                <Facebook className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transform-gpu transition-all hover:scale-110" />
-                                <Youtube className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transform-gpu transition-all hover:scale-110" />
-                                <Mail className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transform-gpu transition-all hover:scale-110" />
+                                {/* Using Link with an anchor tag for accessible navigation */}
+                                <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer">
+                                    <Users className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transform-gpu transition-all hover:scale-110" />
+                                </a>
+                                {/* Add other social media icons here */}
                             </div>
                         </div>
 
+                        {/* Quick Links Section */}
                         <div>
-                            <h3 className="font-semibold mb-4">Platform</h3>
-                            <ul className="space-y-2 text-gray-400">
+                            <h3 className="text-lg font-semibold mb-4 text-white">Quick Links</h3>
+                            <ul className="space-y-2">
                                 <li>
-                                    <Link href="#" className="hover:text-white">
-                                        For Brands
+                                    <Link
+                                        href="#how-it-works"
+                                        className="text-gray-400 hover:text-white transition-colors"
+                                    >
+                                        How It Works
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link href="#" className="hover:text-white">
-                                        For Creators
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link href="#" className="hover:text-white">
+                                    <Link href="#features" className="text-gray-400 hover:text-white transition-colors">
                                         Features
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link href="#" className="hover:text-white">
-                                        Pricing
-                                    </Link>
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div>
-                            <h3 className="font-semibold mb-4">Contact</h3>
-                            <ul className="space-y-2 text-gray-400">
-                                <li>support@goheza.com</li>
-                                <li>Kampala, Uganda</li>
-                            </ul>
-                        </div>
-
-                        <div>
-                            <h3 className="font-semibold mb-4">Support</h3>
-                            <ul className="space-y-2 text-gray-400">
-                                <li>
-                                    <Link href="#" className="hover:text-white">
-                                        Help Center
+                                    <Link href="#faq" className="text-gray-400 hover:text-white transition-colors">
+                                        FAQ
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link href="#" className="hover:text-white">
+                                    <Link href="mailto:info@goheza.com" className="text-gray-400 hover:text-white transition-colors">
                                         Contact Us
                                     </Link>
                                 </li>
+                            </ul>
+                        </div>
+
+                        {/* Legal Section */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4 text-white">Legal</h3>
+                            <ul className="space-y-2">
                                 <li>
-                                    <Link href="#" className="hover:text-white">
+                                    <Link
+                                        target="_blank"
+                                        href="/policies/GohezaPrivacyPolicy.pdf"
+                                        className="text-gray-400 hover:text-white transition-colors"
+                                    >
                                         Privacy Policy
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link href="#" className="hover:text-white">
-                                        Terms of Service
+                                    <Link
+                                        target="_blank"
+                                        href="/policies/GohezaTerms&Conditions.pdf"
+                                        className="text-gray-400 hover:text-white transition-colors"
+                                    >
+                                        Terms & Conditions
                                     </Link>
                                 </li>
                             </ul>
                         </div>
+
+                        {/* Contact Info Section */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4 text-white">Contact</h3>
+                            <ul className="space-y-2 text-gray-400">
+                                <li>
+                                    Email:{' '}
+                                    <a href="mailto:info@goheza.com" className="hover:text-white transition-colors">
+                                        info@goheza.com
+                                    </a>
+                                </li>
+                                <li>
+                                    Phone:{' '}
+                                    <a href="tel:+256776007962" className="hover:text-white transition-colors">
+                                        +256776007962
+                                    </a>
+                                </li>
+                                <li>Address: National ICT Hub P.O. BOX 7817, Kampala,Uganda</li>
+                            </ul>
+                        </div>
                     </div>
 
-                    <div className="border-t border-gray-800 mt-8 pt-6 text-center text-gray-400">
-                        <p>&copy; 2025 Goheza. All rights reserved.</p>
+                    <div className="border-t border-gray-700 mt-10 pt-8 text-center text-gray-500 text-sm">
+                        <p>&copy; {new Date().getFullYear()} Goheza. All rights reserved.</p>
                     </div>
                 </div>
             </motion.footer>

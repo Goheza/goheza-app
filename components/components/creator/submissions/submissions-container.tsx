@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import NoSubmissionsBanner from './no-submission-item'
-import SubmissionItem, { ISubmissionItem } from './submission-item'
+import { ISubmissionItem } from './submission-item'
 
 interface ISubmissionsContainer {
     submissions: ISubmissionItem[]
@@ -12,44 +12,41 @@ interface ISubmissionsContainer {
 type CommonStatusType = 'inreview' | 'approved' | 'rejected'
 
 const StatusBadge: React.FC<{ status: CommonStatusType }> = ({ status }) => {
-    const getStatusStyles = (status: CommonStatusType) => {
-        switch (status) {
-            case 'inreview':
-                return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-            case 'rejected':
-                return 'bg-red-100 text-red-800 border-red-200'
-            case 'approved':
-                return 'bg-green-100 text-green-800 border-green-200'
-            default:
-                return 'bg-gray-100 text-gray-800 border-gray-200'
-        }
+    const styles = {
+        inreview: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        approved: 'bg-green-100 text-green-800 border-green-200',
+        rejected: 'bg-red-100 text-red-800 border-red-200',
     }
 
     return (
-        <span className={`px-4 py-2 rounded-full text-sm font-medium border ${getStatusStyles(status)}`}>{status}</span>
+        <span
+            className={`px-3 py-1 w-fit rounded-full text-xs sm:text-sm font-semibold border ${styles[status]}`}
+        >
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+        </span>
     )
 }
 
-export default function SubmissionsContainer(props: ISubmissionsContainer) {
+export default function SubmissionsContainer({ submissions, areSubmissionAvailable }: ISubmissionsContainer) {
     const [filter, setFilter] = useState<'all' | CommonStatusType>('all')
 
-    // Filter submissions by dropdown selection
     const filteredSubmissions =
-        filter === 'all' ? props.submissions : props.submissions.filter((s) => s.status === filter)
+        filter === 'all' ? submissions : submissions.filter((s) => s.status === filter)
 
     return (
-        <div className="mb-8">
-            <div className="mb-6 flex justify-between items-center">
+        <div className="mb-8 px-2 sm:px-0">
+            {/* Header */}
+            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-semibold text-gray-900 mb-2">Your Submissions</h2>
-                    <p className="text-gray-600"></p>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-1">Your Submissions</h2>
+                    <p className="text-gray-600 text-sm">Manage your submission campaigns efficiently.</p>
                 </div>
 
-                {/* Dropdown Filter */}
+                {/* Filter */}
                 <select
                     value={filter}
                     onChange={(e) => setFilter(e.target.value as 'all' | CommonStatusType)}
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
                 >
                     <option value="all">All</option>
                     <option value="inreview">In Review</option>
@@ -58,50 +55,63 @@ export default function SubmissionsContainer(props: ISubmissionsContainer) {
                 </select>
             </div>
 
-            {!props.areSubmissionAvailable ? (
+            {!areSubmissionAvailable ? (
                 <NoSubmissionsBanner />
+            ) : filteredSubmissions.length === 0 ? (
+                <div className="text-gray-500 text-center py-8 rounded-lg border border-gray-200 bg-gray-50">
+                    No submissions match this filter.
+                </div>
             ) : (
-                <div>
-                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                        {/* Table Header */}
-                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                            <div className="grid grid-cols-4 gap-4">
-                                <div className="font-medium text-gray-700">Campaign Title</div>
-                                <div className="font-medium text-gray-700">Status</div>
-                                <div className="font-medium text-gray-700">Submission Date</div>
-                                <div className="font-medium text-gray-700"></div>
+                <div className="space-y-4">
+                    {filteredSubmissions.map((submission) => (
+                        <div
+                            key={submission.id}
+                            className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow"
+                        >
+                            {/* Desktop Grid */}
+                            <div className="hidden sm:grid sm:grid-cols-4 gap-4 items-center">
+                                <div className="font-medium text-gray-900">{submission.campaignTitle}</div>
+                                <StatusBadge status={submission.status} />
+                                <div className="text-gray-600 font-medium">{submission.submissionDate}</div>
+                                <div className="text-right">
+                                    <button
+                                        onClick={() =>
+                                            (window.location.href = `/main/creator/submissions/${submission.id}`)
+                                        }
+                                        className="text-blue-600 hover:text-blue-800 font-semibold transition-colors"
+                                    >
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Mobile Card */}
+                            <div className="sm:hidden flex flex-col gap-2">
+                                <div className="flex justify-between">
+                                    <span className="font-semibold text-gray-700">Campaign:</span>
+                                    <span className="text-gray-900">{submission.campaignTitle}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="font-semibold text-gray-700">Status:</span>
+                                    <StatusBadge status={submission.status} />
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="font-semibold text-gray-700">Date:</span>
+                                    <span className="text-gray-600">{submission.submissionDate}</span>
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={() =>
+                                            (window.location.href = `/main/creator/submissions/${submission.id}`)
+                                        }
+                                        className="text-blue-600 hover:text-blue-800 font-semibold transition-colors"
+                                    >
+                                        View Details
+                                    </button>
+                                </div>
                             </div>
                         </div>
-
-                        {/* Table Body */}
-                        <div className="divide-y divide-gray-200">
-                            {filteredSubmissions.length > 0 ? (
-                                filteredSubmissions.map((submission, id) => (
-                                    <div key={id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                                        <div className="grid grid-cols-4 gap-4 items-center">
-                                            <div className="font-medium text-gray-900">{submission.campaignTitle}</div>
-                                            <div>
-                                                <StatusBadge status={submission.status} />
-                                            </div>
-                                            <div className="text-gray-600 font-medium">{submission.submissionDate}</div>
-                                            <div className="text-right">
-                                                <button
-                                                    onClick={() => (window.location.href = `/main/creator/submissions/${submission.id}`)}
-                                                    className="text-blue-500 hover:text-blue-700 font-medium transition-colors"
-                                                >
-                                                    View Details
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="px-6 py-4 text-gray-500 text-center">
-                                    No submissions match this filter.
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    ))}
                 </div>
             )}
         </div>
