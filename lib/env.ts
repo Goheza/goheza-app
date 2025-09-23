@@ -7,3 +7,6 @@ function setURL() {
 }
 
 export const baseURL = setURL()
+
+
+console.log("Current URL For Basis",baseURL)
