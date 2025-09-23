@@ -20,7 +20,7 @@ import { supabaseClient } from '@/lib/supabase/client'
 import { baseLogger } from '@/lib/logger'
 import { calculateGohezaPayment } from '@/lib/ats/payment-calculator'
 import { toast } from 'sonner'
-import { addNotificationToTheAdmin } from '@/lib/ats/main/adminNotifications'
+import { addNotificationToTheAdmin } from '@/lib/ats/adminNotifications'
 
 interface CampaignFormData {
     title: string
