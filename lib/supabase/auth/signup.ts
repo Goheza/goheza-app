@@ -8,10 +8,10 @@ interface ISignUpUser {
     role: string
     phone: string
     country: string
-    city: string
     paymentMethod: string
     socialLinks: string
 }
+
 
 export const signUpUser = async ({
     email,
@@ -22,7 +22,6 @@ export const signUpUser = async ({
     paymentMethod,
     phone,
     socialLinks,
-    city,
 }: ISignUpUser) => {
     try {
         // Create account in Supabase auth
@@ -30,8 +29,8 @@ export const signUpUser = async ({
             email,
             password,
             options: {
-                emailRedirectTo: `${baseURL}$`,
-                data: { fullName, role, socialLinks, phone, country, paymentMethod, city },
+                emailRedirectTo: `${baseURL}/main`,
+                data: { fullName, role, socialLinks, phone, country, paymentMethod },
                 // stored in user_metadata
             },
         })

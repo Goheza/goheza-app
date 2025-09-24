@@ -4,7 +4,6 @@ import { supabaseClient } from '../client'
 interface IEXtraInfo {
     phone:string;
     country:string;
-    city:string;
     paymentMethod:string;
     socialLinks:string;
 }
@@ -32,7 +31,6 @@ export async function makeProfile(user: User, role: 'brand' | 'creator',extraInf
                 email: user.email!,
                 payment_method : extraInfo!.paymentMethod,
                 country : extraInfo!.country,
-                city:extraInfo!.city,
                 sociallinks:extraInfo!.socialLinks,
                 phone : extraInfo!.phone
 

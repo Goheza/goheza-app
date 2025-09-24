@@ -32,8 +32,7 @@ export default function SignUpForm() {
 
     // Creator-specific fields
     const [country, setCountry] = useState<string>('')
-    const [city, setCity] = useState<string>('')
-    const [paymentMethod, setPaymentMethod] = useState<string>('')
+    const [paymentMethod, setPaymentMethod] = useState<string>('Unknown')
     const [socialLinks, setSocialLinks] = useState<string>('')
 
     const router = useRouter()
@@ -43,12 +42,14 @@ export default function SignUpForm() {
             /**
              * Check if there is existing user before allowing them to come to this page
              */
-            const {data: { user}} = await supabaseClient.auth.getUser();
-            if(user){
+            const {
+                data: { user },
+            } = await supabaseClient.auth.getUser()
+            if (user) {
                 /**
                  * If there is a user present, we take them to autoLogin
                  */
-                router.push("/main")
+                router.push('/main')
             }
         }
         InitaliStartup()
@@ -69,7 +70,10 @@ export default function SignUpForm() {
 
         // Validation
         if (selectedRole === 'creator') {
-            if (!phone || !country || !city || !paymentMethod) {
+            if (!phone || !country  ) {
+            console.log("phone",phone);
+            console.log("country",country);
+
                 toast.error('Please fill in all required fields for Creator.', {
                     style: { fontSize: 14, padding: 10 },
                 })
@@ -95,7 +99,6 @@ export default function SignUpForm() {
                 role: selectedRole,
                 phone,
                 country,
-                city,
                 paymentMethod,
                 socialLinks,
             }).then((args) => {
@@ -246,6 +249,25 @@ export default function SignUpForm() {
                         </button>
                     </div>
 
+                    {/* Confirm Password */}
+                    <div className="relative">
+                        <input
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            placeholder="Confirm password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="w-full px-4 py-3 text-sm pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                            required
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                        >
+                            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                    </div>
+
                     {/* Phone Number for both roles */}
                     {selectedRole && (
                         <div>
@@ -277,25 +299,6 @@ export default function SignUpForm() {
                             </div>
                         </>
                     )}
-
-                    {/* Confirm Password */}
-                    <div className="relative">
-                        <input
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            placeholder="Confirm password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full px-4 py-3 text-sm pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 transition-all duration-200"
-                            required
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                        >
-                            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
-                    </div>
 
                     {/* Submit Button */}
                     <button

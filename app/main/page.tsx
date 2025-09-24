@@ -100,7 +100,6 @@ export default function InitalPage() {
                     setCreatingProfile(true)
 
                     await makeProfile(user, currentRole, {
-                        city: user.user_metadata?.city,
                         phone: user.user_metadata?.phone,
                         country: user.user_metadata?.country,
                         paymentMethod: user.user_metadata?.payment_method,

@@ -35,7 +35,7 @@ export default function OnboardingDialog() {
     const [onboardingData, setOnboardingData] = useState<OnboardingData>({
         phone: '',
         country: '',
-        paymentMethod: '',
+        paymentMethod: 'unknown',
         socialLinks: '',
         brandName: '',
     })
@@ -94,25 +94,27 @@ export default function OnboardingDialog() {
 
         let error = null
         if (role === 'creator') {
+            console.log(user.id)
             const { error: creatorError } = await supabase.from('creator_profiles').upsert(
                 {
-                    id: user.id,
+                    full_name: user.identities![0].identity_data!.name,
+                    email: user.identities![0].identity_data!.email,
+                    user_id: user.id, // ✅ correct column
                     phone: onboardingData.phone,
                     country: onboardingData.country,
-                    payment_method: onboardingData.paymentMethod,
-                    social_links: onboardingData.socialLinks,
+                    sociallinks: onboardingData.socialLinks,
                 },
-                { onConflict: 'id' }
+                { onConflict: 'user_id' } // ✅ conflict should be on user_id, not id
             )
             error = creatorError
         } else if (role === 'brand') {
             const { error: brandError } = await supabase.from('brand_profiles').upsert(
                 {
-                    id: user.id,
-                    phone: onboardingData.phone,
+                    user_id: user.id,
                     brand_name: onboardingData.brandName,
+                    phone: onboardingData.phone,
                 },
-                { onConflict: 'id' }
+                { onConflict: 'user_id' }
             )
             error = brandError
         }
@@ -160,15 +162,22 @@ export default function OnboardingDialog() {
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
                                 required
                             />
-                            <input
-                                type="text"
+                            <select
                                 name="country"
-                                placeholder="Country"
                                 value={onboardingData.country}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
                                 required
-                            />
+                            >
+                                <option value="" disabled>
+                                    Country
+                                </option>
+                                <option value="uganda">Uganda</option>
+                                <option value="kenya">Kenya</option>
+                                <option value="tanzania">Tanzania</option>
+                                <option value="rwanda">Rwanda</option>
+                                <option value="burundi">Burundi</option>
+                            </select>
                         </div>
                     )}
                     {role === 'brand' && (
@@ -185,7 +194,7 @@ export default function OnboardingDialog() {
                             <input
                                 type="text"
                                 name="phone"
-                                placeholder="Phone Number"
+                                placeholder="Phone"
                                 value={onboardingData.phone}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -229,15 +238,6 @@ export default function OnboardingDialog() {
                             className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
                             required
                         />
-                        <input
-                            type="text"
-                            name="paymentMethod"
-                            placeholder="Preferred Payment Method"
-                            value={onboardingData.paymentMethod}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
-                            required
-                        />
                     </div>
                     <button
                         onClick={handleSubmit}
@@ -245,6 +245,33 @@ export default function OnboardingDialog() {
                         className={`w-full py-3 px-4 mt-6 rounded-2xl text-sm font-medium transition-all duration-200 ${
                             onboardingData.socialLinks && onboardingData.paymentMethod
                                 ? 'bg-[#e85c51] hover:bg-[#f3867e] text-white '
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                    >
+                        {loading ? 'Saving...' : 'Finish Setup'}
+                    </button>
+                </div>
+            )
+        }
+        if (role === 'brand' && step === 2) {
+            return (
+                <div>
+                    <h2 className="text-xl font-bold text-center mb-2">Confirm Your Details</h2>
+                    <p className="text-gray-600 text-center mb-6">Please confirm your brand details to finish setup.</p>
+                    <div className="space-y-4">
+                        <p>
+                            <strong>Brand Name:</strong> {onboardingData.brandName}
+                        </p>
+                        <p>
+                            <strong>Phone:</strong> {onboardingData.phone}
+                        </p>
+                    </div>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className={`w-full py-3 px-4 mt-6 rounded-2xl text-sm font-medium transition-all duration-200 ${
+                            !loading
+                                ? 'bg-[#e85c51] hover:bg-[#f3867e] text-white'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         }`}
                     >

@@ -61,10 +61,6 @@ export default function UserAccountItem(props: IUserAccountItem) {
                 <DropdownMenuLabel className="text-[#e85c51] cursor-default">{props.userEmail}</DropdownMenuLabel>
                
                 <DropdownMenuItem onClick={props.signOutUser}>
-                    <HelpCircle />
-                    Help
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={props.signOutUser}>
                     <LogOut />
                     Log out
                 </DropdownMenuItem>
