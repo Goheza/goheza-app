@@ -44,12 +44,12 @@ export default function AdminDashboardPage() {
                 const { count: newCreators } = await supabaseClient
                     .from('creator_profiles')
                     .select('*', { count: 'exact', head: true })
-                    .gt('created_at', yesterday);
+                    // .gt('created_at', yesterday);
                 
                 const { count: newBrands } = await supabaseClient
                     .from('brand_profiles')
                     .select('*', { count: 'exact', head: true })
-                    .gt('created_at', yesterday);
+                    // .gt('created_at', yesterday);
                 
                 // Fetch count of campaigns pending review
                 const { count: pendingCampaigns } = await supabaseClient
@@ -103,7 +103,7 @@ export default function AdminDashboardPage() {
 
     return (
         <div className="p-8 space-y-8">
-            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-3xl font-bold">Goheza - Admin Dashboard</h1>
             <div className="flex flex-wrap gap-4">
                 <MetricCard 
                     title="New Sign-ups" 

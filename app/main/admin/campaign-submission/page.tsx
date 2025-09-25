@@ -21,7 +21,7 @@ type Submission = {
     id: string
     video_url: string
     caption: string
-    status: 'pending' | 'approved' | 'rejected' | 'posted' // Added 'posted' to the type
+    status: 'pending' | 'approved' | 'rejected' // Added 'posted' to the type
     submitted_at: string
     creator_name: string
     campaign_name: string
