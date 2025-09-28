@@ -17,8 +17,6 @@ import {
     ArrowRight,
     Menu,
     X,
-    Youtube,
-    Mail,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -26,6 +24,7 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import logo from '@/assets/GOHEZA-02.png'
 import { BrandCreatorTabs } from '@/components/components/landing/tabs'
+import ContactForm from '@/components/components/landing/contact-suppor' // fixed typo
 
 export default function GohezaLanding() {
     const router = useRouter()
@@ -106,14 +105,25 @@ export default function GohezaLanding() {
                         </Button>
                     </div>
 
-                    {/* Mobile menu toggle */}
-                    <button
-                        aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-                        onClick={() => setMobileMenuOpen((s) => !s)}
-                        className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100"
-                    >
-                        {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                    </button>
+                    {/* Mobile login button (always visible on phones) + mobile menu toggle */}
+                    <div className="md:hidden flex items-center gap-2">
+                        <Button
+                            variant="ghost"
+                            onClick={() => navigate('/main/auth/signin')}
+                            aria-label="Log in"
+                            className="p-2 min-w-[44px] h-10 rounded-md text-gray-700 hover:bg-gray-100"
+                        >
+                            Log In
+                        </Button>
+
+                        <button
+                            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+                            onClick={() => setMobileMenuOpen((s) => !s)}
+                            className="p-2 rounded-md text-gray-700 hover:bg-gray-100"
+                        >
+                            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Mobile nav dropdown (animated) */}
@@ -220,7 +230,7 @@ export default function GohezaLanding() {
                     >
                         <motion.div
                             variants={fadeUp}
-                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-102 bg-white"
+                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-105 bg-white"
                         >
                             <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <DollarSign className="w-7 h-7 text-purple-600" />
@@ -233,7 +243,7 @@ export default function GohezaLanding() {
 
                         <motion.div
                             variants={fadeUp}
-                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-102 bg-white"
+                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-105 bg-white"
                         >
                             <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <Lightbulb className="w-7 h-7 text-blue-600" />
@@ -246,7 +256,7 @@ export default function GohezaLanding() {
 
                         <motion.div
                             variants={fadeUp}
-                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-102 bg-white"
+                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-105 bg-white"
                         >
                             <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <Play className="w-7 h-7 text-green-600" />
@@ -259,7 +269,7 @@ export default function GohezaLanding() {
 
                         <motion.div
                             variants={fadeUp}
-                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-102 bg-white"
+                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-105 bg-white"
                         >
                             <div className="w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <DollarSign className="w-7 h-7 text-yellow-600" />
@@ -300,7 +310,7 @@ export default function GohezaLanding() {
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
                     >
                         <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-102 transition-all">
+                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
                                 <CardContent className="p-6">
                                     <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
                                         <Users className="w-6 h-6 text-purple-600" />
@@ -314,7 +324,7 @@ export default function GohezaLanding() {
                         </motion.div>
 
                         <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-102 transition-all">
+                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
                                 <CardContent className="p-6">
                                     <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                                         <TrendingUp className="w-6 h-6 text-blue-600" />
@@ -328,7 +338,7 @@ export default function GohezaLanding() {
                         </motion.div>
 
                         <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-102 transition-all">
+                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
                                 <CardContent className="p-6">
                                     <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
                                         <Shield className="w-6 h-6 text-green-600" />
@@ -342,7 +352,7 @@ export default function GohezaLanding() {
                         </motion.div>
 
                         <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-102 transition-all">
+                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
                                 <CardContent className="p-6">
                                     <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
                                         <BarChart3 className="w-6 h-6 text-yellow-600" />
@@ -356,7 +366,7 @@ export default function GohezaLanding() {
                         </motion.div>
 
                         <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-102 transition-all">
+                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
                                 <CardContent className="p-6">
                                     <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
                                         <Handshake className="w-6 h-6 text-[#e85c51]" />
@@ -370,7 +380,7 @@ export default function GohezaLanding() {
                         </motion.div>
 
                         <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-102 transition-all">
+                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
                                 <CardContent className="p-6">
                                     <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
                                         <Globe className="w-6 h-6 text-indigo-600" />
@@ -388,182 +398,133 @@ export default function GohezaLanding() {
 
             {/* Ready to get started */}
             <section className="py-12 sm:py-20 bg-gray-50">
-                <div className="container mx-auto px-4 text-center">
-                    <motion.h2
-                        initial={{ opacity: 0, y: 8 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6 }}
-                        className="text-2xl sm:text-3xl md:text-4xl font-normal text-black mb-6"
-                    >
-                        Ready to get started?
-                    </motion.h2>
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        whileInView={{ opacity: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6, delay: 0.08 }}
-                        className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center"
-                    >
-                        <Button
-                            onClick={() => {
-                                navigate('/main/auth/signup')
-                            }}
-                            size="lg"
-                            variant="secondary"
-                            className="border bg-[#e85c51] hover:border-[#e85c51] hover:text-[#e85c51] font-semibold text-white transform-gpu transition-all hover:scale-105"
-                        >
-                            For Brands
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                navigate('/main/auth/signup')
-                            }}
-                            size="lg"
-                            variant="outline"
-                            className="text-[#e85c51] hover:bg-white font-semibold border-2 border-[#e85c51] bg-transparent transform-gpu transition-all hover:scale-105"
-                        >
-                            For Creators
-                        </Button>
-                    </motion.div>
+                <div className="container mx-auto px-4">
+                    <div className="max-w-2xl mx-auto text-center space-y-6">
+                        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Ready to get started?</h2>
+
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                            <Button
+                                onClick={() => {
+                                    navigate('/main/auth/signup')
+                                }}
+                                size="lg"
+                                className="border bg-[#e85c51] hover:border-[#e85c51] hover:text-white font-semibold text-white transform-gpu transition-all hover:scale-105"
+                            >
+                                For Brands
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    navigate('/main/auth/signup')
+                                }}
+                                size="lg"
+                                variant="outline"
+                                className="text-[#e85c51] hover:bg-white font-semibold border-2 border-[#e85c51] bg-transparent transform-gpu transition-all hover:scale-105"
+                            >
+                                For Creators
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             {/* FAQ Section */}
             <section id="faq" className="py-12 sm:py-20">
                 <div className="container mx-auto px-4">
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6 }}
-                        className="text-center mb-8 sm:mb-12"
-                    >
+                    <div className="text-center mb-6">
                         <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3">
                             Frequently Asked Questions
                         </h2>
                         <p className="text-sm sm:text-lg text-gray-600">
                             Get answers to common questions about the Goheza platform.
                         </p>
-                    </motion.div>
+                    </div>
 
-                    <div className="max-w-3xl mx-auto font-bold">
+                    <div className="max-w-3xl mx-auto">
                         <Accordion type="single" collapsible className="font-bold text-xl">
-                            <motion.div
-                                initial="hidden"
-                                whileInView="visible"
-                                className="font-bold text-xl"
-                                viewport={{ once: true }}
-                                variants={stagger}
-                            >
-                                <motion.div variants={fadeUp}>
-                                    <AccordionItem value="item-1">
-                                        <AccordionTrigger className="font-bold">
-                                            Do creators need to have followers to join?
-                                        </AccordionTrigger>
-                                        <AccordionContent className="font-bold">
-                                            No! Goheza believes creativity matters more than follower count. Anyone can
-                                            join our platform and start earning from their content, regardless of their
-                                            current social media following.
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                </motion.div>
+                            <AccordionItem value="item-1">
+                                <AccordionTrigger className="font-bold">
+                                    Do creators need to have followers to join?
+                                </AccordionTrigger>
+                                <AccordionContent className="font-medium">
+                                    No! Goheza believes creativity matters more than follower count. Anyone can join our
+                                    platform and start earning from their content, regardless of their current social
+                                    media following.
+                                </AccordionContent>
+                            </AccordionItem>
 
-                                <motion.div variants={fadeUp}>
-                                    <AccordionItem value="item-2">
-                                        <AccordionTrigger className="font-bold">
-                                            How are payments tracked and calculated?
-                                        </AccordionTrigger>
-                                        <AccordionContent className="font-bold">
-                                            Payments are calculated based on verified views of your content. We use
-                                            advanced tracking technology to ensure accurate view counts, and creators
-                                            earn based on performance metrics.
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                </motion.div>
+                            <AccordionItem value="item-2">
+                                <AccordionTrigger className="font-bold">
+                                    How are payments tracked and calculated?
+                                </AccordionTrigger>
+                                <AccordionContent className="font-medium">
+                                    Payments are calculated based on verified views of your content. We use advanced
+                                    tracking technology to ensure accurate view counts, and creators earn based on
+                                    performance metrics.
+                                </AccordionContent>
+                            </AccordionItem>
 
-                                <motion.div variants={fadeUp}>
-                                    <AccordionItem value="item-3">
-                                        <AccordionTrigger className="font-bold">
-                                            Who owns the content after it's created?
-                                        </AccordionTrigger>
-                                        <AccordionContent className="font-bold">
-                                            Content ownership terms are clearly defined in each campaign agreement. The
-                                            specific rights and usage terms are outlined before creators begin working
-                                            on any campaign.
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                </motion.div>
+                            <AccordionItem value="item-3">
+                                <AccordionTrigger className="font-bold">
+                                    Who owns the content after it's created?
+                                </AccordionTrigger>
+                                <AccordionContent className="font-medium">
+                                    Content ownership terms are clearly defined in each campaign agreement. The specific
+                                    rights and usage terms are outlined before creators begin working on any campaign.
+                                </AccordionContent>
+                            </AccordionItem>
 
-                                <motion.div variants={fadeUp}>
-                                    <AccordionItem value="item-4">
-                                        <AccordionTrigger className="font-bold">
-                                            How quickly do creators get paid?
-                                        </AccordionTrigger>
-                                        <AccordionContent className="font-bold">
-                                            Creators receive fast payouts within 24 hours through various payment
-                                            methods including Mobile Money, PayPal, and Bank Transfer.
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                </motion.div>
+                            <AccordionItem value="item-4">
+                                <AccordionTrigger className="font-bold">
+                                    How quickly do creators get paid?
+                                </AccordionTrigger>
+                                <AccordionContent className="font-medium">
+                                    Creators receive fast payouts within 24 hours through various payment methods
+                                    including Mobile Money, PayPal, and Bank Transfer.
+                                </AccordionContent>
+                            </AccordionItem>
 
-                                <motion.div variants={fadeUp}>
-                                    <AccordionItem value="item-5">
-                                        <AccordionTrigger className="font-bold">
-                                            What types of content can creators submit?
-                                        </AccordionTrigger>
-                                        <AccordionContent className="font-bold">
-                                            Creators can submit various types of video content that align with brand
-                                            campaign requirements. Each campaign specifies the content format and style
-                                            preferences.
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                </motion.div>
+                            <AccordionItem value="item-5">
+                                <AccordionTrigger className="font-bold">
+                                    What types of content can creators submit?
+                                </AccordionTrigger>
+                                <AccordionContent className="font-medium">
+                                    Creators can submit various types of video content that align with brand campaign
+                                    requirements. Each campaign specifies the content format and style preferences.
+                                </AccordionContent>
+                            </AccordionItem>
 
-                                <motion.div variants={fadeUp}>
-                                    <AccordionItem value="item-6">
-                                        <AccordionTrigger className="font-bold">
-                                            How do brands ensure content quality?
-                                        </AccordionTrigger>
-                                        <AccordionContent className="font-bold">
-                                            Brands have review and approval processes in place to ensure content meets
-                                            their quality standards and campaign objectives before going live.
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                </motion.div>
-                            </motion.div>
+                            <AccordionItem value="item-6">
+                                <AccordionTrigger className="font-bold">
+                                    How do brands ensure content quality?
+                                </AccordionTrigger>
+                                <AccordionContent className="font-medium">
+                                    Brands have review and approval processes in place to ensure content meets their
+                                    quality standards and campaign objectives before going live.
+                                </AccordionContent>
+                            </AccordionItem>
                         </Accordion>
                     </div>
 
                     <div className="text-center mt-8 sm:mt-12">
                         <p className="text-gray-600 mb-4">Still have questions? We're here to help.</p>
-                        <a href="mailto:info@goheza.com" className="bg-[#e85c51] p-3 rounded-full mt-2 text-white transform-gpu transition-all hover:scale-105">
-                            Contact Support
-                        </a>
+                        <ContactForm />
                     </div>
                 </div>
             </section>
 
             {/* Footer */}
-            <motion.footer
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8 }}
-                className="bg-gray-900 text-white py-12 sm:py-16"
-            >
-                <div className="container mx-auto px-4">
+            <footer className="bg-gray-900 text-white">
+                <div className="container mx-auto px-4 py-12">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
                         <div>
-                            <div className="text-2xl font-bold text-white mb-4">Goheza</div>
-                            <p className="text-gray-400 mb-6">
+                            <div className="text-2xl font-bold mb-4">Goheza</div>
+                            <p className="text-gray-300 mb-6">
                                 Empowering creators and elevating brands through performance-based marketing. We make it
                                 easy for anyone to earn from their creativity and passion.
                             </p>
                             <div className="flex space-x-4">
-                                {/* Using Link with an anchor tag for accessible navigation */}
                                 <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer">
-                                    <Users className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transform-gpu transition-all hover:scale-110" />
+                                    <Users className="w-5 h-5 text-gray-300 hover:text-white cursor-pointer transform-gpu transition-all hover:scale-110" />
                                 </a>
                                 {/* Add other social media icons here */}
                             </div>
@@ -571,28 +532,25 @@ export default function GohezaLanding() {
 
                         {/* Quick Links Section */}
                         <div>
-                            <h3 className="text-lg font-semibold mb-4 text-white">Quick Links</h3>
-                            <ul className="space-y-2">
+                            <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
+                            <ul className="space-y-2 text-gray-300">
                                 <li>
-                                    <Link
-                                        href="#how-it-works"
-                                        className="text-gray-400 hover:text-white transition-colors"
-                                    >
+                                    <Link href="#how-it-works" className="hover:text-white transition-colors">
                                         How It Works
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link href="#features" className="text-gray-400 hover:text-white transition-colors">
+                                    <Link href="#features" className="hover:text-white transition-colors">
                                         Features
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link href="#faq" className="text-gray-400 hover:text-white transition-colors">
+                                    <Link href="#faq" className="hover:text-white transition-colors">
                                         FAQ
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link href="mailto:info@goheza.com" className="text-gray-400 hover:text-white transition-colors">
+                                    <Link href="mailto:info@goheza.com" className="hover:text-white transition-colors">
                                         Contact Us
                                     </Link>
                                 </li>
@@ -601,13 +559,13 @@ export default function GohezaLanding() {
 
                         {/* Legal Section */}
                         <div>
-                            <h3 className="text-lg font-semibold mb-4 text-white">Legal</h3>
-                            <ul className="space-y-2">
+                            <h3 className="text-lg font-semibold mb-4">Legal</h3>
+                            <ul className="space-y-2 text-gray-300">
                                 <li>
                                     <Link
                                         target="_blank"
                                         href="/policies/GohezaPrivacyPolicy.pdf"
-                                        className="text-gray-400 hover:text-white transition-colors"
+                                        className="hover:text-white transition-colors"
                                     >
                                         Privacy Policy
                                     </Link>
@@ -616,7 +574,7 @@ export default function GohezaLanding() {
                                     <Link
                                         target="_blank"
                                         href="/policies/GohezaTerms&Conditions.pdf"
-                                        className="text-gray-400 hover:text-white transition-colors"
+                                        className="hover:text-white transition-colors"
                                     >
                                         Terms & Conditions
                                     </Link>
@@ -626,8 +584,8 @@ export default function GohezaLanding() {
 
                         {/* Contact Info Section */}
                         <div>
-                            <h3 className="text-lg font-semibold mb-4 text-white">Contact</h3>
-                            <ul className="space-y-2 text-gray-400">
+                            <h3 className="text-lg font-semibold mb-4">Contact</h3>
+                            <ul className="space-y-2 text-gray-300">
                                 <li>
                                     Email:{' '}
                                     <a href="mailto:info@goheza.com" className="hover:text-white transition-colors">
@@ -640,16 +598,16 @@ export default function GohezaLanding() {
                                         +256776007962
                                     </a>
                                 </li>
-                                <li>Address: National ICT Hub P.O. BOX 7817, Kampala,Uganda</li>
+                                <li>Address: National ICT Hub P.O. BOX 7817, Kampala, Uganda</li>
                             </ul>
                         </div>
                     </div>
 
-                    <div className="border-t border-gray-700 mt-10 pt-8 text-center text-gray-500 text-sm">
+                    <div className="border-t border-gray-700 mt-10 pt-8 text-center text-gray-400 text-sm">
                         <p>&copy; {new Date().getFullYear()} Goheza. All rights reserved.</p>
                     </div>
                 </div>
-            </motion.footer>
+            </footer>
         </div>
     )
 }

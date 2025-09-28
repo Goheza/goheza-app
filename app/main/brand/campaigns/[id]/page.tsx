@@ -5,6 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabaseClient } from '@/lib/supabase/client'
 
+// Assuming a standard Button component is available from your UI library
+import { Button } from '@/components/ui/button'
+
+// --- UPDATED INTERFACES ---
+
 interface CampaignAsset {
     name: string
     url: string
@@ -24,9 +29,16 @@ interface CampaignData {
     objectives: string[]
     estimated_views: number
     quality_standard: 'basic' | 'premium' | 'professional'
-    assets: CampaignAsset[]
+    assets: CampaignAsset[] | null // Made null|undefined safe
     status: string
+    // ⭐ ADDED MISSING MISSION DETAILS (Based on typical schema design)
+    dos: string | null
+    donts: string | null
+    additional_information: string | null
+    target_countries: string[] | null // Assuming this is also part of mission details
 }
+
+// --- COMPONENT START ---
 
 export default function CampaignDetails() {
     const router = useRouter()
@@ -36,13 +48,22 @@ export default function CampaignDetails() {
     const [campaign, setCampaign] = useState<CampaignData | null>(null)
     const [loading, setLoading] = useState(true)
     const [cancelling, setCancelling] = useState(false)
+    // ⭐ NEW STATE: Controls the visibility of the confirmation dialog
+    const [showConfirmModal, setShowConfirmModal] = useState(false)
 
     useEffect(() => {
         const fetchCampaign = async () => {
-            const { data, error } = await supabaseClient.from('campaigns').select('*').eq('id', id).single()
+            // ⭐ UPDATED QUERY: Select all fields including dos, donts, etc.
+            const { data, error } = await supabaseClient
+                .from('campaigns')
+                .select('*, dos, donts, additional_information, target_countries')
+                .eq('id', id)
+                .single()
 
             if (error) {
                 console.error('Error fetching campaign:', error)
+                // Use a general alert for error visibility
+                alert('Campaign not found or an error occurred.')
                 router.push('/main/brand/dashboard')
             } else {
                 setCampaign(data as CampaignData)
@@ -53,19 +74,26 @@ export default function CampaignDetails() {
         if (id) fetchCampaign()
     }, [id, router])
 
+    const handleConfirmCancel = () => {
+        setShowConfirmModal(true) // Open the custom confirmation modal
+    }
+
+    // ⭐ MODIFIED: Actual cancellation logic, called only after modal confirmation
     const cancelCampaign = async () => {
         if (!campaign) return
-        if (!confirm('Are you sure you want to cancel this campaign?')) return
 
         setCancelling(true)
+        setShowConfirmModal(false) // Close modal immediately
 
         const { error } = await supabaseClient.from('campaigns').update({ status: 'cancelled' }).eq('id', campaign.id)
 
         if (error) {
             alert('Error cancelling campaign: ' + error.message)
         } else {
-            alert('Campaign cancelled successfully')
-            router.push('/main/brand/dashboard')
+            alert('Campaign discarded successfully.')
+            // Redirect or update the status in local state for immediate feedback
+            setCampaign((prev) => (prev ? { ...prev, status: 'cancelled' } : null))
+            router.push('/main/brand/campaigns') // Redirect to list page
         }
         setCancelling(false)
     }
@@ -73,7 +101,8 @@ export default function CampaignDetails() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <p className="text-gray-600">Loading campaign details...</p>
+                <div className="w-12 h-12 border-4 border-[#e85c51] border-t-transparent rounded-full animate-spin"></div>
+                <p className="ml-3 text-gray-600">Loading campaign details...</p>
             </div>
         )
     }
@@ -81,7 +110,7 @@ export default function CampaignDetails() {
     if (!campaign) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <p className="text-[#e85c51]">Campaign not found.</p>
+                <p className="text-[#e85c51] font-semibold">Campaign not found.</p>
             </div>
         )
     }
@@ -89,81 +118,150 @@ export default function CampaignDetails() {
     const getAssetsByCategory = (category: CampaignAsset['category']) =>
         campaign.assets?.filter((asset) => asset.category === category) || []
 
-    const formatViews = (views: number) => views.toLocaleString()
+    const formatViews = (views: number) => views?.toLocaleString() || 'N/A'
+    const formatCurrency = (value: string) => {
+        const num = parseFloat(value.replace(/[$,]/g, ''))
+        return isNaN(num) ? 'N/A' : `$${num.toLocaleString()}`
+    }
+
+    // Calculates Cost Per 1K Views, handles division by zero/invalid numbers
+    const calculateCpm = (budget: string, views: number) => {
+        const budgetNum = parseFloat(budget.replace(/[$,]/g, ''))
+        if (isNaN(budgetNum) || views <= 0) return 'N/A'
+        return `$${((budgetNum / views) * 1000).toFixed(3)}`
+    }
 
     const gotoSubmission = () => {
         router.push(`/main/brand/campaigns/submissions/${id}`)
     }
 
     return (
-        <div className="font-sans p-5 max-w-6xl mx-auto mt-5">
+        <div className="font-sans p-5 max-w-6xl mx-auto mt-5 static">
             <div className="mb-8 flex items-center justify-between">
                 <button
                     onClick={() => router.back()}
-                    className="mb-4 text-[#e93838] hover:text-blue-700 flex items-center"
+                    className="mb-4 text-[#e93838] hover:text-blue-700 flex items-center font-medium"
                 >
-                    ← Back
+                    &larr; Back to Campaigns
                 </button>
                 <div className="space-x-4">
-                    <button
+                    <Button
                         onClick={gotoSubmission}
-                        className="bg-transparent text-[#e93838]  hover:bg-black hover:text-white hover:border-transparent border border-[#e93838] px-4 py-2 rounded-lg font-medium  transition disabled:opacity-50"
+                        variant="outline"
+                        className="border-[#e93838] text-[#e93838] hover:bg-red-50"
                     >
                         View Submissions
-                    </button>
+                    </Button>
                     {campaign.status !== 'cancelled' && (
-                        <button
-                            onClick={cancelCampaign}
+                        <Button
+                            onClick={handleConfirmCancel} // ⭐ CALLS CONFIRMATION HANDLER
                             disabled={cancelling}
-                            className="bg-[#e85c51] hover:bg-black hover:text-white text-white px-4 py-2 rounded-lg font-medium  transition disabled:opacity-50"
+                            className="bg-[#e85c51] hover:bg-black text-white disabled:opacity-50"
                         >
-                            {cancelling ? 'Cancelling...' : 'Discard Campaign'}
-                        </button>
+                            {cancelling ? 'Discarding...' : 'Discard Campaign'}
+                        </Button>
                     )}
                 </div>
             </div>
-
-            <h1 className="text-3xl font-bold mb-5 text-[#e93838]">{campaign.name}</h1>
-            <p className="text-gray-600 mb-6">
-                Review the details of this campaign.{' '}
-                {campaign.status === 'cancelled' && <span className="text-[#e85c51] font-semibold">(Cancelled)</span>}
+            <h1 className="text-3xl font-bold mb-1 text-[#e93838]">{campaign.name}</h1>
+            <p className="text-gray-600 mb-6 flex items-center space-x-2">
+                <span>Current Status:</span>
+                <span
+                    className={`font-semibold ${campaign.status === 'cancelled' ? 'text-red-500' : 'text-green-500'}`}
+                >
+                    {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                </span>
             </p>
+            {/* --- Mission Details (Combined Section) --- */}
+            <div className="bg-white p-6 rounded-lg space-y-8 border mb-6">
+                <h2 className="text-2xl font-bold text-[#e85c51]">Mission Details</h2>
 
-            {/* Campaign Details */}
-            <div className="bg-white p-6 rounded-lg space-y-4 border mb-6">
-                <h2 className="text-xl font-semibold mb-4 text-[#e85c51]">Campaign Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className='space-y-1'>
-                        <p className="text-sm font-medium text-gray-700">Campaign Title</p>
-                        <p className="text-lg text-gray-900 font-bold">{campaign.name}</p>
+                {/* Basic Info Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 border-b pb-6">
+                    <div>
+                        <p className="text-sm font-medium text-gray-700">Budget</p>
+                        <p className="text-lg text-gray-900 font-bold">{formatCurrency(campaign.budget)}</p>
                     </div>
-                    <div className='space-y-1'>
+                    <div>
+                        <p className="text-sm font-medium text-gray-700">Payout (Per Creator)</p>
+                        <p className="text-lg text-gray-900 font-bold">{formatCurrency(campaign.payout)}</p>
+                    </div>
+                    <div>
                         <p className="text-sm font-medium text-gray-700">Timeline</p>
                         <p className="text-lg text-gray-900">{campaign.timeline}</p>
                     </div>
+                    <div>
+                        <p className="text-sm font-medium text-gray-700">Quality Standard</p>
+                        <p className="text-lg text-gray-900 capitalize">{campaign.quality_standard}</p>
+                    </div>
+                    {campaign.target_countries && campaign.target_countries.length > 0 && (
+                        <div className="col-span-2">
+                            <p className="text-sm font-medium text-gray-700">Target Countries</p>
+                            <p className="text-lg text-gray-900">{campaign.target_countries.join(', ')}</p>
+                        </div>
+                    )}
                 </div>
-                <div className="mt-6">
-                    <p className="text-sm font-medium text-gray-700">Description</p>
-                    <p className="text-lg text-gray-900">{campaign.description}</p>
+
+                {/* Description and Objectives */}
+                <div className="space-y-6 border-b pb-6">
+                    <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Campaign Description</p>
+                        <p className="text-lg text-gray-900 whitespace-pre-wrap">{campaign.description}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Key Objectives</p>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                            {campaign.objectives.map((obj, i) => (
+                                <li key={i} className="text-gray-900">
+                                    {obj}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+
+                {/* Requirements and Additional Info */}
+                <div className="space-y-6">
+                    <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Creator Requirements</p>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                            {campaign.requirements.map((req, i) => (
+                                <li key={i} className="text-gray-900">
+                                    {req}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    {campaign.additional_information && (
+                        <div>
+                            <p className="text-sm font-medium text-gray-700 mb-2">Additional Information</p>
+                            <p className="text-lg text-gray-900 whitespace-pre-wrap">
+                                {campaign.additional_information}
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
-
-            {/* Requirements */}
-            <div className="bg-white p-6 rounded-lg border mb-6">
-                <h2 className="text-xl font-semibold mb-4 text-[#e93838]">Requirements</h2>
-                <ul className="list-disc list-inside space-y-2">
-                    {campaign.requirements.map((req, i) => (
-                        <li key={i} className="text-gray-900">
-                            {req}
-                        </li>
-                    ))}
-                </ul>
+            {/* --- DOs and DON'Ts --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {/* DOs */}
+                <div className="bg-white p-6 rounded-lg border">
+                    <h2 className="text-xl font-bold text-green-600 mb-4">✅ DOs</h2>
+                    <p className="text-gray-900 whitespace-pre-wrap">{campaign.dos || 'No specific DOs provided.'}</p>
+                </div>
+                {/* DON'Ts */}
+                <div className="bg-white p-6 rounded-lg border">
+                    <h2 className="text-xl font-bold text-red-600 mb-4">❌ DON'Ts</h2>
+                    <p className="text-gray-900 whitespace-pre-wrap">
+                        {campaign.donts || "No specific DON'Ts provided."}
+                    </p>
+                </div>
             </div>
-
-            {/* Media */}
+            {/* --- Media & Guidelines --- */}
             <div className="bg-white p-6 rounded-lg border mb-6">
-                <h2 className="text-xl font-semibold mb-4 text-[#e93838]">Media & Guidelines</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <h2 className="text-xl font-bold mb-4 text-[#e93838]">Media & Guidelines</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Reference Images */}
                     <div>
                         <p className="text-sm font-medium text-gray-700 mb-2">Reference Images</p>
                         {getAssetsByCategory('reference_image').map((asset, i) => (
@@ -171,12 +269,16 @@ export default function CampaignDetails() {
                                 key={i}
                                 href={asset.url}
                                 target="_blank"
-                                className="block text-blue-600 hover:underline"
+                                className="block text-blue-600 hover:underline text-sm truncate"
                             >
-                                {asset.name}
+                                {asset.name} ({asset.type})
                             </Link>
                         ))}
+                        {getAssetsByCategory('reference_image').length === 0 && (
+                            <p className="text-gray-500 text-sm">None uploaded.</p>
+                        )}
                     </div>
+                    {/* Brand Assets */}
                     <div>
                         <p className="text-sm font-medium text-gray-700 mb-2">Brand Assets</p>
                         {getAssetsByCategory('brand_asset').map((asset, i) => (
@@ -184,54 +286,82 @@ export default function CampaignDetails() {
                                 key={i}
                                 href={asset.url}
                                 target="_blank"
-                                className="block text-blue-600 hover:underline"
+                                className="block text-blue-600 hover:underline text-sm truncate"
                             >
-                                {asset.name}
+                                {asset.name} ({asset.type})
                             </Link>
                         ))}
+                        {getAssetsByCategory('brand_asset').length === 0 && (
+                            <p className="text-gray-500 text-sm">None uploaded.</p>
+                        )}
                     </div>
-                </div>
-                <div className="mt-6">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Brand Guidelines</p>
-                    {getAssetsByCategory('brand_guidelines').map((asset, i) => (
-                        <Link key={i} href={asset.url} target="_blank" className="block text-blue-600 hover:underline">
-                            {asset.name}
-                        </Link>
-                    ))}
-                </div>
-            </div>
-
-            {/* Objectives + Quality */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div></div>
+                    {/* Brand Guidelines */}
                     <div>
-                        <h2 className="text-xl font-semibold mb-4 text-[#e93838]">Quality Standard</h2>
-                        <p className="text-lg text-gray-900 capitalize">{campaign.quality_standard}</p>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Brand Guidelines</p>
+                        {getAssetsByCategory('brand_guidelines').map((asset, i) => (
+                            <Link
+                                key={i}
+                                href={asset.url}
+                                target="_blank"
+                                className="block text-blue-600 hover:underline text-sm truncate"
+                            >
+                                {asset.name} ({asset.type})
+                            </Link>
+                        ))}
+                        {getAssetsByCategory('brand_guidelines').length === 0 && (
+                            <p className="text-gray-500 text-sm">None uploaded.</p>
+                        )}
                     </div>
                 </div>
             </div>
-
-            {/* Analytics */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
-                <h2 className="text-xl font-semibold mb-4 text-[#e93838]">Analytics</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* --- Analytics (Optional but good to keep) --- */}
+            {/* <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
+                <h2 className="text-xl font-bold mb-4 text-[#e93838]">Performance & Budget</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <p className="text-sm font-medium text-gray-700">Estimated Views</p>
                         <p className="text-lg font-bold text-gray-900">{formatViews(campaign.estimated_views)}</p>
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-gray-700">Cost Per 1K Views</p>
-                        <p className="text-lg font-semibold text-blue-600">
-                            $
-                            {(
-                                (parseFloat(campaign.budget.replace(/[$,]/g, '')) / campaign.estimated_views) *
-                                1000
-                            ).toFixed(3)}
-                        </p>
+                        <p className="text-sm font-medium text-gray-700">Total Budget</p>
+                        <p className="text-lg font-bold text-gray-900">{formatCurrency(campaign.budget)}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-gray-700">Cost Per 1K Views (eCPM)</p>
+                        <p className="text-lg font-semibold text-blue-600">{calculateCpm(campaign.budget, campaign.estimated_views)}</p>
                     </div>
                 </div>
-            </div>
+            </div> */}
+            {/* ⭐ CONFIRMATION MODAL (Using a simple overlay div) */}
+            {showConfirmModal && (
+                // REMOVED '-top-6' and used 'inset-0' to correctly fill the screen
+                <div className="absolute bg-black/50 w-full left-0  -top-20 h-[850px] z-50 flex items-center justify-center ">
+                    {/* The inner content box remains centered and styled */}
+                    <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl">
+                        <h3 className="text-xl font-bold mb-4 text-[#e85c51]">Confirm Discard</h3>
+                        <p className="mb-6 text-gray-700">
+                            Are you absolutely sure you want to **discard** this campaign? This action cannot be easily
+                            undone.
+                        </p>
+                        <div className="flex justify-end space-x-3">
+                            <Button
+                                onClick={() => setShowConfirmModal(false)}
+                                variant="outline"
+                                className="hover:bg-gray-100"
+                            >
+                                No, Keep It
+                            </Button>
+                            <Button
+                                onClick={cancelCampaign}
+                                className="bg-[#e85c51] hover:bg-black text-white"
+                                disabled={cancelling}
+                            >
+                                {cancelling ? 'Discarding...' : 'Yes, Discard'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

@@ -1,28 +1,16 @@
-"use client"
-
-import { useState } from 'react';
-import { Eye, DollarSign, Users, TrendingUp } from 'lucide-react';
+import { useState } from 'react'
+import { Eye, DollarSign, Users, TrendingUp } from 'lucide-react'
 
 export default function AnalyticsDashboard() {
-    const [activeFilter, setActiveFilter] = useState('Last 14 Days');
+    const [activeFilter, setActiveFilter] = useState('Last 14 Days')
 
-    const filters = [
-        'Last 7 Days',
-        'Last 14 Days',
-        'Sep 1, 2025 - Sep 25, 2025',
-        'Custom Range'
-    ];
+    const filters = ['Last 7 Days', 'Last 14 Days', 'Sep 1, 2025 - Sep 25, 2025', 'Custom Range']
 
-    const dates = ['Sep 11', 'Sep 13', 'Sep 15', 'Sep 17', 'Sep 19', 'Sep 21', 'Sep 23'];
+    const dates = ['Sep 11', 'Sep 13', 'Sep 15', 'Sep 17', 'Sep 19', 'Sep 21', 'Sep 23']
 
     return (
         <div className="bg-gray-50 min-h-screen p-6">
             <div className="max-w-7xl mx-auto">
-                <div className="mb-10">
-                     <h1 className="text-3xl font-semibold text-gray-900 mb-2">Dashboard</h1>
-                     <p className="text-gray-600 mb-6">Performance metrics for your submissions and campaigns.</p>
-                </div>
-
                 {/* Filter Tabs */}
                 <div className="flex flex-wrap gap-2 mb-8">
                     {filters.map((filter) => (
@@ -31,7 +19,7 @@ export default function AnalyticsDashboard() {
                             onClick={() => setActiveFilter(filter)}
                             className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                                 activeFilter === filter
-                                    ? 'bg-[#e85c51] text-white shadow-md'
+                                    ? 'bg-blue-600 text-white shadow-md'
                                     : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
                             }`}
                         >
@@ -46,7 +34,7 @@ export default function AnalyticsDashboard() {
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-blue-50 rounded-lg">
-                                <Eye className="w-5 h-5 text-[#e85c51]" />
+                                <Eye className="w-5 h-5 text-blue-600" />
                             </div>
                             <span className="text-gray-600 text-sm font-medium">Store Visits</span>
                         </div>
@@ -68,7 +56,7 @@ export default function AnalyticsDashboard() {
                             <span className="text-gray-600 text-sm font-medium">Total Revenue</span>
                         </div>
                         <div className="flex items-end gap-3">
-                            <span className="text-3xl font-bold text-gray-900">$0 made</span>
+                            <span className="text-3xl font-bold text-gray-900">0$ made</span>
                             <div className="flex items-center gap-1 text-green-500 text-sm font-medium mb-1">
                                 <TrendingUp className="w-4 h-4" />
                                 <span>0%</span>
@@ -107,5 +95,5 @@ export default function AnalyticsDashboard() {
                 </div>
             </div>
         </div>
-    );
+    )
 }

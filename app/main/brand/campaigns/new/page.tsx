@@ -13,6 +13,7 @@ import {
     Wallet,
     Users,
     DollarSign,
+    Airplay,
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { useRouter } from 'next/navigation'
@@ -21,6 +22,18 @@ import { baseLogger } from '@/lib/logger'
 import { calculateGohezaPayment } from '@/lib/ats/payment-calculator'
 import { toast } from 'sonner'
 import { addNotificationToTheAdmin } from '@/lib/ats/adminNotifications'
+
+/**
+ * NEW: Define the possible states for the campaign creation process
+ */
+type ProgressState =
+    | 'idle'
+    | 'calculating'
+    | 'uploading-assets'
+    | 'inserting-data'
+    | 'notifying-admin'
+    | 'complete'
+    | 'error'
 
 interface CampaignFormData {
     title: string
@@ -45,6 +58,7 @@ interface CampaignFormData {
     countries?: string // comma separated input
     numCreators?: number
     maxPay?: string
+    max_submissions?:number;
     flatFee?: string
 }
 
@@ -56,6 +70,174 @@ interface PaymentBreakdown {
     platformFee: number
     brandTotalPay: number
 }
+
+// ==================================================================================
+// HELPER COMPONENT: DosDontsList
+// ==================================================================================
+
+/**
+ * Helper component to handle Dos/Don'ts input and display as a numbered list.
+ */
+const DosDontsList: React.FC<{
+    title: string
+    value: string
+    onChange: (value: string) => void
+    placeholder: string
+}> = ({ title, value, onChange, placeholder }) => {
+    // Splits the value by new lines to create an array of list items
+    const items = value.split('\n').filter((item) => item.trim() !== '')
+
+    // State to toggle between the input mode and the structured list view
+    const [isEditing, setIsEditing] = useState(!value) // Start in editing mode if value is empty
+
+    useEffect(() => {
+        // Automatically switch to edit mode if the list is empty
+        if (!value) {
+            setIsEditing(true)
+        }
+    }, [value])
+
+    return (
+        <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm h-full flex flex-col">
+            <label className="block text-sm font-medium text-gray-700 mb-2">{title}</label>
+            <div className="flex-grow">
+                {' '}
+                {/* Allows the content area to expand */}
+                {!isEditing && items.length > 0 ? (
+                    // Display Mode: Show the formatted numbered list
+                    <div className="p-2">
+                        <ol className="list-decimal list-inside space-y-1 ml-4">
+                            {items.map((item, index) => (
+                                <li key={index} className="text-gray-800 text-sm">
+                                    {item.trim()}
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
+                ) : (
+                    // Edit Mode: Show the textarea for editing
+                    <textarea
+                        rows={6}
+                        placeholder={placeholder}
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="w-full px-4 py-3 border border-red-500/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/50 resize-none h-full"
+                    />
+                )}
+            </div>
+
+            <div className="mt-4 flex justify-between items-center">
+                <p className="text-xs text-gray-400">Use new lines (Enter) for 1., 2., 3. formatting.</p>
+                {/* Button toggles edit state, or shows 'Save' if editing, or shows 'Add' if empty */}
+                <button
+                    type="button"
+                    onClick={() => setIsEditing(!isEditing)}
+                    className={`px-4 py-1 text-sm rounded-lg transition-colors ${
+                        isEditing
+                            ? 'bg-[#e85c51] text-white hover:bg-red-700'
+                            : 'bg-gray-100 text-red-500 hover:bg-gray-200'
+                    }`}
+                >
+                    {isEditing ? 'Save List' : 'Edit List'}
+                </button>
+            </div>
+        </div>
+    )
+}
+
+// ==================================================================================
+// HELPER COMPONENT: ProgressStep
+// ==================================================================================
+
+interface ProgressStepProps {
+    label: string
+    state: 'pending' | 'active' | 'done' | 'error'
+    current: ProgressState
+}
+
+const ProgressStep: React.FC<ProgressStepProps> = ({ label, state, current }) => {
+    const icon = {
+        done: (
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+            </svg>
+        ),
+        active: (
+            <svg
+                className="animate-spin h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+            >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+            </svg>
+        ),
+        error: (
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        ),
+        pending: <div className="w-3 h-3 rounded-full bg-gray-400"></div>,
+    }[state]
+
+    const color = {
+        done: 'bg-green-500',
+        active: 'bg-red-500',
+        error: 'bg-red-500',
+        pending: 'bg-white border-2 border-gray-400',
+    }[state]
+
+    const textColor =
+        state === 'active' ? 'text-red-600 font-medium' : state === 'done' ? 'text-gray-900' : 'text-gray-500'
+
+    return (
+        <div className="flex items-center space-x-3">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center ${color} shadow-lg`}>
+                {state === 'done' || state === 'active' || state === 'error' ? icon : null}
+            </div>
+            <span className={`text-sm ${textColor}`}>{label}</span>
+        </div>
+    )
+}
+
+const getProgressStatus = (step: ProgressState, current: ProgressState) => {
+    const order: ProgressState[] = ['uploading-assets', 'inserting-data', 'notifying-admin', 'complete']
+    const stepIndex = order.indexOf(step)
+    const currentIndex = order.indexOf(current)
+
+    if (current === 'error') return 'error'
+    if (stepIndex < currentIndex) return 'done'
+    if (stepIndex === currentIndex) return 'active'
+    return 'pending'
+}
+
+const getButtonText = (state: ProgressState): string => {
+    switch (state) {
+        case 'calculating':
+            return 'Calculating...'
+        case 'uploading-assets':
+            return 'Uploading Assets...'
+        case 'inserting-data':
+            return 'Saving Campaign...'
+        case 'notifying-admin':
+            return 'Finalizing...'
+        case 'complete':
+            return 'Campaign Posted!'
+        case 'error':
+            return 'Try Again'
+        default:
+            return 'Create Campaign'
+    }
+}
+
+// ==================================================================================
+// MAIN COMPONENT: CampaignBriefForm
+// ==================================================================================
 
 const CampaignBriefForm: React.FC = () => {
     const router = useRouter()
@@ -85,24 +267,19 @@ const CampaignBriefForm: React.FC = () => {
         flatFee: '',
     })
 
-    const [currentMonth, setCurrentMonth] = useState(0) // 0 = July 2024, 1 = August 2024
-
-    const months = [
-        { name: 'July 2024', days: 31 },
-        { name: 'August 2024', days: 31 },
-    ]
-
-    const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-
-    // File states from the older component
+    // Local file states
     const [brandAssets, setBrandAssets] = useState<File[]>([])
     const [referenceImages, setReferenceImages] = useState<File[]>([])
     const [brandGuidelines, setBrandGuidelines] = useState<File | null>(null)
+
+    // NEW: Progress and Error States
+    const [progressState, setProgressState] = useState<ProgressState>('idle')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
+    // Payment Calculator States
     const [numCreators, setNumCreators] = useState(50)
-    const [maxPayout, setMaxPayout] = useState(30)
+    const [maxPayout, setMaxPayout] = useState(80)
     const [flatFee, setFlatFee] = useState(0)
     const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentBreakdown | null>(null)
     const [paymentError, setPaymentError] = useState<string | null>(null)
@@ -110,7 +287,8 @@ const CampaignBriefForm: React.FC = () => {
     // Local previews (object URLs) so users can download/view before upload
     const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
 
-    // Dropzone handlers
+    // --- Dropzone Handlers (useCallback for stability) ---
+
     const onDropBrandAssets = useCallback((acceptedFiles: File[]) => {
         setBrandAssets((prev) => [...prev, ...acceptedFiles])
     }, [])
@@ -144,6 +322,7 @@ const CampaignBriefForm: React.FC = () => {
         multiple: false,
     })
 
+    // --- File URL Effect ---
     useEffect(() => {
         // generate object URLs for easy download/preview and clean them up
         const urls: Record<string, string> = {}
@@ -186,16 +365,36 @@ const CampaignBriefForm: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [brandAssets, referenceImages, brandGuidelines])
 
+    // --- Core Functions ---
+
+    /**
+     * Handles payment calculation and aligns the result with the main formData.
+     */
     const handlePaymentCalculate = () => {
+        setProgressState('calculating') // Set state
         try {
             const result = calculateGohezaPayment(numCreators, maxPayout, flatFee)
             setPaymentBreakdown(result)
             setPaymentError(null)
+
+            // 💰 BUDGET ALIGNMENT: Update formData with the calculated total and other payment details
+            setFormData((prev) => ({
+                ...prev,
+                totalBudget: result.brandTotalPay,
+                budget: `$${result.brandTotalPay.toLocaleString()}`,
+                maxPay: `$${maxPayout.toLocaleString()}`,
+                flatFee: `$${flatFee.toLocaleString()}`,
+                numCreators: numCreators,
+                max_submissions : numCreators
+            }))
+            setProgressState('idle') // Reset state
         } catch (err: any) {
             setPaymentBreakdown(null)
             setPaymentError(err.message)
+            setProgressState('error') // Set error state
         }
     }
+
     const handleInputChange = (field: keyof CampaignFormData, value: any) => {
         // keep budget display synced with totalBudget when appropriate
         if (field === 'totalBudget') {
@@ -210,15 +409,6 @@ const CampaignBriefForm: React.FC = () => {
         }
 
         setFormData((prev) => ({ ...prev, [field]: value }))
-    }
-
-    const handleContentRequirementToggle = (requirement: string) => {
-        setFormData((prev) => ({
-            ...prev,
-            contentRequirements: prev.contentRequirements.includes(requirement)
-                ? prev.contentRequirements.filter((r) => r !== requirement)
-                : [...prev.contentRequirements, requirement],
-        }))
     }
 
     const formatNumber = (num: number) => {
@@ -264,6 +454,7 @@ const CampaignBriefForm: React.FC = () => {
         baseLogger('BRAND-OPERATIONS', 'WillSubmitCampaignDetails')
 
         setLoading(true)
+        setProgressState('uploading-assets') // START: Initial progress state
         setError('')
 
         try {
@@ -278,7 +469,7 @@ const CampaignBriefForm: React.FC = () => {
 
             baseLogger('BRAND-OPERATIONS', 'DidFindAuthenticatedUser')
 
-            // Filter out empty requirements (from free text requirements)
+            // Filter out empty requirements
             let filteredRequirements = (formData.requirementsText || []).filter((req) => req.trim() !== '')
 
             // Fallback: if no free-text requirements provided, use the checkbox content requirements
@@ -299,16 +490,15 @@ const CampaignBriefForm: React.FC = () => {
             let referenceImagesData: any[] = []
             let brandGuidelinesData: any = null
 
+            // --- ASSET UPLOADS ---
             if (brandAssets.length > 0) {
                 baseLogger('BRAND-OPERATIONS', 'WillUploadAssets')
                 brandAssetsData = await uploadFilesToStorage(brandAssets, 'brand-assets')
-                baseLogger('BRAND-OPERATIONS', 'DidUploadAssets')
             }
 
             if (referenceImages.length > 0) {
                 baseLogger('BRAND-OPERATIONS', 'WillUploadReferenceImages')
                 referenceImagesData = await uploadFilesToStorage(referenceImages, 'reference-images')
-                baseLogger('BRAND-OPERATIONS', 'DidUploadReferenceImages')
             }
 
             if (brandGuidelines) {
@@ -342,6 +532,8 @@ const CampaignBriefForm: React.FC = () => {
                 ...(brandGuidelinesData ? [{ ...brandGuidelinesData, category: 'brand_guidelines' }] : []),
             ]
 
+            // Update state before DB insertion
+            setProgressState('inserting-data')
             baseLogger('BRAND-OPERATIONS', 'WillCreateAndInsertCampaignForBrand')
 
             // convert countries string to array
@@ -356,7 +548,8 @@ const CampaignBriefForm: React.FC = () => {
                     {
                         name: formData.title,
                         description: formData.description,
-                        budget: formData.budget || `$${formData.totalBudget}`,
+                        // Using ALIGNED formData fields for budget/payout
+                        budget: formData.budget,
                         payout: formData.payout || null,
                         timeline: formData.timeline || null,
                         requirements: filteredRequirements,
@@ -365,7 +558,7 @@ const CampaignBriefForm: React.FC = () => {
                         status: 'inreview',
                         created_by: user.id,
                         assets: assets,
-                        // new fields saved to DB (naming follows snake_case used earlier)
+                        // new fields saved to DB
                         additional_information: formData.information || null,
                         dos: formData.dos || null,
                         donts: formData.donts || null,
@@ -385,21 +578,12 @@ const CampaignBriefForm: React.FC = () => {
 
             baseLogger('BRAND-OPERATIONS', 'DidCreateAndInsertCampaign')
 
-            /**
-             * -----------------------------------------------------------------------------------------------------
-             *
-             *
-             * Since the Campaign has been sent, we need yo add on the admin notifications
-             *
-             */
+            // --- ADMIN NOTIFICATION ---
+            setProgressState('notifying-admin')
 
             toast.success('Campaign Successfully Created', {
                 description: 'An invoice will be sent to your email once the campaign has been reviewed.',
             })
-
-            /**
-             * Send a message to the Admin about the new campaign that has been posted
-             */
 
             addNotificationToTheAdmin({
                 id: user.id,
@@ -407,11 +591,14 @@ const CampaignBriefForm: React.FC = () => {
                 source: 'brand',
             })
 
+            setProgressState('complete') // FINAL State
+
             // redirect
             if (campaignData && campaignData.id) router.push(`/main/brand/campaigns/${campaignData.id}`)
         } catch (err) {
             console.error('Error creating campaign:', err)
             setError(err instanceof Error ? err.message : 'Failed to create campaign')
+            setProgressState('error') // Set error state
         } finally {
             setLoading(false)
         }
@@ -439,7 +626,7 @@ const CampaignBriefForm: React.FC = () => {
                     maxLength={60}
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
-                    className="w-full px-4 py-3 bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    className="w-full px-4 py-3  border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
                 <p className="text-sm text-gray-500 mt-1">
                     SEO Suggestion: Include keywords related to your product or service.
@@ -472,23 +659,8 @@ const CampaignBriefForm: React.FC = () => {
                     rows={6}
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
-                    className="w-full px-4 py-3  bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                    className="w-full px-4 py-3    border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
                 />
-            </div>
-
-            {/* Additional Information (NEW) */}
-            <div className="mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">Additional Information</h2>
-                <textarea
-                    rows={4}
-                    placeholder="Add more context about your campaign (audience, tone, key messages)..."
-                    value={formData.information}
-                    onChange={(e) => handleInputChange('information', e.target.value)}
-                    className="w-full px-4 py-3 bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                    Optional: Use to give creators more context about the campaign.
-                </p>
             </div>
 
             {/* Media Uploads */}
@@ -499,7 +671,7 @@ const CampaignBriefForm: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Reference Images</label>
                     <div
                         {...getReferenceImagesRootProps()}
-                        className="border-2 border-dashed bg-[#e6626227]  border-[#e6626227] rounded-lg p-8 text-center"
+                        className="border-2 border-dashed    border-[#e6626227] rounded-lg p-8 text-center"
                     >
                         <input {...getReferenceImagesInputProps()} />
                         <p className="text-gray-500">Drag and drop images here</p>
@@ -536,7 +708,7 @@ const CampaignBriefForm: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Brand Assets</label>
                     <div
                         {...getBrandAssetsRootProps()}
-                        className="border-2 border-dashed bg-[#e6626227]  border-[#e6626227] rounded-lg p-8 text-center"
+                        className="border-2 border-dashed    border-[#e6626227] rounded-lg p-8 text-center"
                     >
                         <input {...getBrandAssetsInputProps()} />
                         <p className="text-gray-500">Drag and drop brand assets here</p>
@@ -573,7 +745,7 @@ const CampaignBriefForm: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Brand Guidelines (PDF/DOCX)</label>
                     <div
                         {...getBrandGuidelinesRootProps()}
-                        className="border-2 border-dashed bg-[#e6626227]  border-[#e6626227] rounded-lg p-8 text-center"
+                        className="border-2 border-dashed    border-[#e6626227] rounded-lg p-8 text-center"
                     >
                         <input {...getBrandGuidelinesInputProps()} />
                         {brandGuidelines ? (
@@ -604,126 +776,22 @@ const CampaignBriefForm: React.FC = () => {
                 </div>
             </div>
 
-            {/* Campaign Objectives */}
-            <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Campaign Objectives</h2>
-
-                <div className="space-y-3">
-                    {['increase-brand-awareness', 'drive-sales', 'generate-leads'].map((opt) => (
-                        <div key={opt} className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-start gap-3">
-                                <div className="flex items-center justify-center w-5 h-5 mt-0.5">
-                                    <input
-                                        type="radio"
-                                        name="objective"
-                                        value={opt}
-                                        checked={formData.objectives === opt}
-                                        onChange={(e) => handleInputChange('objectives', e.target.value)}
-                                        className="w-4 h-4 text-[#e85c51] border-gray-300 focus:ring-red-500"
-                                    />
-                                </div>
-                                <div>
-                                    <h3 className="font-medium text-gray-900">
-                                        {opt === 'increase-brand-awareness'
-                                            ? 'Increase Brand Awareness'
-                                            : opt === 'drive-sales'
-                                            ? 'Drive Sales'
-                                            : 'Generate Leads'}
-                                    </h3>
-                                    <p className="text-sm text-gray-600">
-                                        {opt === 'increase-brand-awareness'
-                                            ? "Expand your brand's reach and visibility."
-                                            : opt === 'drive-sales'
-                                            ? 'Boost product sales and revenue.'
-                                            : 'Collect potential customer information.'}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Target Countries (NEW) */}
-                <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Target Countries</label>
-                    <input
-                        type="text"
-                        placeholder="e.g. United States, Canada, UK"
-                        value={formData.countries}
-                        onChange={(e) => handleInputChange('countries', e.target.value)}
-                        className="w-full px-4 py-3 bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                    />
-                    <p className="text-sm text-gray-500 mt-1">Comma-separated list — used for creator targeting.</p>
-                </div>
-            </div>
-
-            {/* Content Requirements */}
-            <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Content Requirements</h2>
-
-                <div className="space-y-3">
-                    {[
-                        'video-ad',
-                        'social-media-posts',
-                        'blog-articles',
-                        'email-newsletter',
-                        'influencer-collaboration',
-                    ].map((req) => (
-                        <div key={req} className="flex items-center gap-3">
-                            <input
-                                type="checkbox"
-                                id={req}
-                                checked={formData.contentRequirements.includes(req)}
-                                onChange={() => handleContentRequirementToggle(req)}
-                                className="w-4 h-4 text-[#e6626227] bg-[#e6626227] checked:text-[#e6626227]   border-[#e6626227]  rounded focus:ring-[#e6626227]"
-                            />
-                            <label htmlFor={req} className="text-gray-900">
-                                {req
-                                    .split('-')
-                                    .map((s) => s[0].toUpperCase() + s.slice(1))
-                                    .join(' ')}
-                            </label>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Prohibited Content */}
-            <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Prohibited Content</h2>
-                <div className="flex flex-wrap gap-2">
-                    <span className="px-3 py-2 bg-gray-200 text-gray-700 rounded-full text-sm">Offensive Language</span>
-                    <span className="px-3 py-2 bg-gray-200 text-gray-700 rounded-full text-sm">Misleading Claims</span>
-                    <span className="px-3 py-2 bg-gray-200 text-gray-700 rounded-full text-sm">
-                        Political Statements
-                    </span>
-                </div>
-            </div>
-
-            {/* Dos and Don'ts (NEW) */}
+            {/* Dos and Don'ts */}
             <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Dos and Don’ts</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Dos</label>
-                        <textarea
-                            rows={4}
-                            placeholder="List things creators must include (e.g., mention discount code, show product clearly)..."
-                            value={formData.dos}
-                            onChange={(e) => handleInputChange('dos', e.target.value)}
-                            className="w-full px-4 py-3 bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Don’ts</label>
-                        <textarea
-                            rows={4}
-                            placeholder="List restrictions (e.g., avoid profanity, don’t alter brand logos)..."
-                            value={formData.donts}
-                            onChange={(e) => handleInputChange('donts', e.target.value)}
-                            className="w-full px-4 py-3 bg-[#e6626227] border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
-                        />
-                    </div>
+                    <DosDontsList
+                        title="Dos (Things to Include)"
+                        value={formData.dos || ''}
+                        onChange={(v) => handleInputChange('dos', v)}
+                        placeholder="List things creators must include, one item per line (e.g., mention discount code, show product clearly)..."
+                    />
+                    <DosDontsList
+                        title="Don'ts (Restrictions)"
+                        value={formData.donts || ''}
+                        onChange={(v) => handleInputChange('donts', v)}
+                        placeholder="List restrictions, one item per line (e.g., avoid profanity, don’t alter brand logos)..."
+                    />
                 </div>
             </div>
 
@@ -738,18 +806,6 @@ const CampaignBriefForm: React.FC = () => {
                             {formatNumber(formData.estimatedViews)}
                         </span>
                     </div>
-
-                    <div className="relative">
-                        <input
-                            type="range"
-                            min="1000000"
-                            max="10000000"
-                            step="100000"
-                            value={formData.estimatedViews}
-                            onChange={(e) => handleInputChange('estimatedViews', parseInt(e.target.value))}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                        />
-                    </div>
                 </div>
 
                 {/* Payment Inputs */}
@@ -758,7 +814,7 @@ const CampaignBriefForm: React.FC = () => {
                         <label className="block mb-1 font-medium">Number of Creators</label>
                         <input
                             type="number"
-                            min={50}
+                            min={1}
                             value={numCreators}
                             onChange={(e) => setNumCreators(Number(e.target.value))}
                             className="w-full p-2 border rounded"
@@ -769,7 +825,7 @@ const CampaignBriefForm: React.FC = () => {
                         <label className="block mb-1 font-medium">Max Payout per Creator ($)</label>
                         <input
                             type="number"
-                            min={30}
+                            min={0}
                             value={maxPayout}
                             onChange={(e) => setMaxPayout(Number(e.target.value))}
                             className="w-full p-2 border rounded"
@@ -790,69 +846,92 @@ const CampaignBriefForm: React.FC = () => {
 
                 <button
                     onClick={handlePaymentCalculate}
-                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mb-4"
+                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mb-4 disabled:opacity-50"
+                    disabled={progressState === 'calculating'}
                 >
-                    Calculate Payment
+                    {progressState === 'calculating' ? 'Calculating...' : 'Calculate Payment'}
                 </button>
 
                 {paymentError && <p className="text-red-500 font-medium mb-3">{paymentError}</p>}
 
                 {paymentBreakdown && (
-                    <div className="p-4 bg-gray-50 border rounded mb-6">
-                        <p>
-                            <strong>Creators Total Payout:</strong> $
-                            {paymentBreakdown.creatorPayoutTotal.toLocaleString()}
-                        </p>
-                        <p>
-                            <strong>Platform Fee (30%):</strong> ${paymentBreakdown.platformFee.toLocaleString()}
-                        </p>
-                        <p>
-                            <strong>Total Brand Pay:</strong> ${paymentBreakdown.brandTotalPay.toLocaleString()}
-                        </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                <Wallet className="w-5 h-5 text-[#e85c51]" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Total Payments</p>
+                                <p className="text-lg font-semibold text-gray-900">
+                                    ${paymentBreakdown.brandTotalPay.toLocaleString()}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                <Users className="w-5 h-5 text-[#e85c51]" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Creators Total Payout</p>
+                                <p className="text-lg font-semibold text-gray-900">
+                                    ${paymentBreakdown.creatorPayoutTotal.toLocaleString()}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                <Airplay className="w-5 h-5 text-[#e85c51]" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Platform fee (30%)</p>
+                                <p className="text-lg font-semibold text-gray-900">
+                                    ${paymentBreakdown.platformFee.toLocaleString()}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 )}
-
-                {/* Original Budget Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <Wallet className="w-5 h-5 text-[#e85c51]" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600">Total Budget</p>
-                            <p className="text-lg font-semibold text-gray-900">
-                                ${formData.totalBudget.toLocaleString()}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <Users className="w-5 h-5 text-[#e85c51]" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600">Creators per 1M views</p>
-                            <p className="text-lg font-semibold text-gray-900">{formData.creatorsPerMillion}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <DollarSign className="w-5 h-5 text-[#e85c51]" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600">Rate per 1K views</p>
-                            <p className="text-lg font-semibold text-gray-900">${formData.ratePer1K.toFixed(1)}</p>
-                        </div>
-                    </div>
-                </div>
             </div>
+
+            {/* Progress Tracker */}
+            {(loading || progressState === 'complete' || progressState === 'error') &&
+                progressState !== 'idle' &&
+                progressState !== 'calculating' && (
+                    <div className="mb-8">
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Campaign Creation Progress</h2>
+                        <div className="space-y-2">
+                            <ProgressStep
+                                label="Uploading Assets"
+                                state={getProgressStatus('uploading-assets', progressState)}
+                                current={progressState}
+                            />
+                            <ProgressStep
+                                label="Saving Campaign Details"
+                                state={getProgressStatus('inserting-data', progressState)}
+                                current={progressState}
+                            />
+                            <ProgressStep
+                                label="Notifying Admin Team"
+                                state={getProgressStatus('notifying-admin', progressState)}
+                                current={progressState}
+                            />
+                            <ProgressStep
+                                label="Complete"
+                                state={getProgressStatus('complete', progressState)}
+                                current={progressState}
+                            />
+                        </div>
+                    </div>
+                )}
 
             {/* Create Campaign Button */}
             <div className="flex justify-end">
                 <button
                     onClick={handleSubmit}
-                    className="px-8 py-3 bg-[#e85c51] text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
+                    className="px-8 py-3 bg-[#e85c51] text-white font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={loading || progressState === 'complete' || progressState === 'calculating'}
                 >
-                    Create Campaign
+                    {getButtonText(progressState)}
                 </button>
             </div>
 

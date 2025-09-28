@@ -23,9 +23,23 @@ export interface ICampaignDetails {
     campaignAssets: Array<ICampaignAssets>
     campaignObjective?: string
     targetAudience?: string
-    campaignDos?: string[]
-    campaignDonts?: string[]
+    // UPDATED: Changed from string[] to string | null to match DB format
+    campaignDos?: string | null
+    campaignDonts?: string | null
     prohibitedContent?: string[]
+    // Added to store the fetched logo URL for the banner
+    brandLogoUrl?: string | null
+}
+
+// ==================================================================================
+// HELPER FUNCTION: Split a multi-line string into a clean array for display
+// ==================================================================================
+const splitAndFilterList = (listString: string | null | undefined): string[] => {
+    if (!listString) return []
+    return listString
+        .split('\n')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
 }
 
 export default function CampaignOverview() {
@@ -43,14 +57,19 @@ export default function CampaignOverview() {
     const router = useRouter()
 
     useEffect(() => {
+        // Function to check if the creator has payment details saved
         const checkForPaymentDetails = () => {
             checkIFPaymentExists().then((common) => {
                 if (common == 'is_unavailable') {
                     setShowPaymentDetails(true)
+                    toast.warning('Please add your payment details before submitting your work.', {
+                        duration: 5000,
+                    })
                 }
             })
         }
 
+        // Function to fetch campaign details and related brand assets
         const fetchCampaignDetails = async () => {
             if (!campaignId) {
                 setError('Campaign ID not found')
@@ -59,9 +78,15 @@ export default function CampaignOverview() {
             }
 
             try {
+                // Fetch campaign details and join with brand_profiles to get the logo_url
                 const { data, error: fetchError } = await supabaseClient
                     .from('campaigns')
-                    .select('*')
+                    .select(
+                        `
+                        *,
+                        brand_profiles(logo_url)
+                        `
+                    )
                     .eq('id', campaignId)
                     .single()
 
@@ -73,6 +98,11 @@ export default function CampaignOverview() {
                     throw new Error('Campaign not found')
                 }
 
+                const fallbackImage = `https://placehold.co/400x225/e85c51/ffffff?text=${data.campaign_name ?? data.name}`
+
+                // Safely extract the logo URL from the nested join result
+                const brandLogoUrl = (data.brand_profiles as { logo_url: string | null })?.logo_url
+
                 setCampaignDetails({
                     id: data.id,
                     campaignName: data.name || data.campaign_name,
@@ -81,9 +111,11 @@ export default function CampaignOverview() {
                     campaignAssets: data.assets || data.campaign_assets || [],
                     campaignObjective: data.objective,
                     targetAudience: data.audience,
-                    campaignDos: data.dos || [],
-                    campaignDonts: data.donts || [],
+                    // Mapped to be strings (which contain newlines)
+                    campaignDos: data.dos || null,
+                    campaignDonts: data.donts || null,
                     prohibitedContent: data.prohibited_content || [],
+                    brandLogoUrl: brandLogoUrl || fallbackImage, // Store the fetched logo URL
                 })
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch campaign details')
@@ -120,7 +152,15 @@ export default function CampaignOverview() {
         e.preventDefault()
 
         if (!file) {
-            alert('Please upload a video file.')
+            toast.error('Please upload a video file.')
+            return
+        }
+
+        // Block submission if payment details are missing
+        if (willShowPaymentDetails) {
+            toast.error('Payment details required: Please update your payment method to submit.', {
+                duration: 5000,
+            })
             return
         }
 
@@ -128,6 +168,7 @@ export default function CampaignOverview() {
         setUploadStatus('uploading')
         setUploadProgress(0)
 
+        // Simulating upload progress while the actual file upload happens
         const uploadInterval = setInterval(() => {
             setUploadProgress((prev) => {
                 if (prev >= 90) return prev
@@ -149,6 +190,7 @@ export default function CampaignOverview() {
             baseLogger('CREATOR-OPERATIONS', 'DidGetAuthenticatedUser')
             baseLogger('CREATOR-OPERATIONS', 'WillUploadVideoIFAvailable')
 
+            // 1. Upload the video file
             const fileName = `${Date.now()}_${file.name}`
             const { data: uploadData, error: uploadError } = await supabaseClient.storage
                 .from('campaign-videos')
@@ -167,13 +209,17 @@ export default function CampaignOverview() {
             baseLogger('CREATOR-OPERATIONS', 'DidUploadVideoIFAvailable')
             baseLogger('CREATOR-OPERATIONS', 'WillGetVideoPublicURL')
 
+            // 2. Get the public URL
             const {
                 data: { publicUrl },
-            } = supabaseClient.storage.from('campaign-videos').getPublicUrl(fileName)
+            } = supabaseClient.storage.from('campaign-videos')
+            
+            .getPublicUrl(fileName)
 
             baseLogger('CREATOR-OPERATIONS', `DidGetVideoPublicURL:${publicUrl}`)
             baseLogger('CREATOR-OPERATIONS', 'WillSaveCampaignSubmission')
 
+            // 3. Save the submission details to the database
             const { data: submissionData, error: dbError } = await supabaseClient
                 .from('campaign_submissions')
                 .insert([
@@ -196,9 +242,10 @@ export default function CampaignOverview() {
             }
 
             baseLogger('CREATOR-OPERATIONS', 'DidSuccefullySaveCampaignSubmission')
-            toast.success('Submission Successful')
+            toast.success('Submission Successful! It is now pending review.')
             router.push('/main/creator/dashboard')
         } catch (error) {
+            clearInterval(uploadInterval)
             setUploadStatus('failure')
             console.error('Submission error:', error)
             toast.error('Submission failed.')
@@ -229,6 +276,7 @@ export default function CampaignOverview() {
         }
     }
 
+    // --- Loading, Error, and Not Found States ---
     if (loading) {
         return (
             <div className="font-sans p-5 max-w-4xl mx-auto">
@@ -259,10 +307,22 @@ export default function CampaignOverview() {
         )
     }
 
+    // Use the fetched brand logo URL, or a local placeholder as fallback
+    const defaultBannerUrl = campaignDetails.brandLogoUrl! ;
+
+    const dosList = splitAndFilterList(campaignDetails.campaignDos)
+    const dontsList = splitAndFilterList(campaignDetails.campaignDonts)
+
+    // --- Main Campaign Overview & Submission Form ---
     return (
         <div className="font-sans p-5 space-y-12 max-w-4xl mx-auto mb-8">
-            <div className="bg-gray-200 h-[200px] mb-12 rounded-2xl">
-                <img src="/placeholder.png" className="w-full h-[200px] object-cover" alt="Campaign Banner" />
+            {/* Campaign Banner - Uses Brand Logo URL */}
+            <div className="bg-gray-200 h-[200px] mb-12 rounded-2xl overflow-hidden">
+                <img
+                    src={defaultBannerUrl}
+                    className="w-full h-[200px] object-cover"
+                    alt={`${campaignDetails.campaignName} Banner`}
+                />
             </div>
 
             <div>
@@ -307,29 +367,28 @@ export default function CampaignOverview() {
                             </ul>
                         </div>
 
-                        {/* Do's and Don'ts Section */}
-                        {(campaignDetails.campaignDos && campaignDetails.campaignDos.length > 0) ||
-                        (campaignDetails.campaignDonts && campaignDetails.campaignDonts.length > 0) ? (
+                        {/* Do's and Don'ts Section - NOW ALIGNED */}
+                        {(dosList.length > 0 || dontsList.length > 0) && (
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-2">
                                     Creative Guidelines: Do's and Don'ts
                                 </h3>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {campaignDetails.campaignDos && campaignDetails.campaignDos.length > 0 && (
+                                    {dosList.length > 0 && (
                                         <div className="bg-green-50 p-4 rounded-lg">
                                             <h4 className="font-semibold text-green-700 mb-2">Do's ✅</h4>
                                             <ul className="space-y-2 text-green-800 list-disc pl-5">
-                                                {campaignDetails.campaignDos.map((item, id) => (
+                                                {dosList.map((item, id) => (
                                                     <li key={id}>{item}</li>
                                                 ))}
                                             </ul>
                                         </div>
                                     )}
-                                    {campaignDetails.campaignDonts && campaignDetails.campaignDonts.length > 0 && (
+                                    {dontsList.length > 0 && (
                                         <div className="bg-red-50 p-4 rounded-lg">
                                             <h4 className="font-semibold text-red-700 mb-2">Don'ts 🚫</h4>
                                             <ul className="space-y-2 text-red-800 list-disc pl-5">
-                                                {campaignDetails.campaignDonts.map((item, id) => (
+                                                {dontsList.map((item, id) => (
                                                     <li key={id}>{item}</li>
                                                 ))}
                                             </ul>
@@ -337,12 +396,12 @@ export default function CampaignOverview() {
                                     )}
                                 </div>
                             </div>
-                        ) : null}
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* New Prohibited Content Section */}
+            {/* Prohibited Content Section */}
             {campaignDetails.prohibitedContent && campaignDetails.prohibitedContent.length > 0 && (
                 <div className="bg-white p-6 rounded-lg shadow-inner border border-gray-200">
                     <h2 className="text-2xl font-semibold mb-4 text-[#e85c51]">Prohibited Content</h2>
@@ -365,25 +424,41 @@ export default function CampaignOverview() {
                 <span className="text-lg font-bold text-[#e93838]">{campaignDetails.campaignPayout}</span>
             </div>
 
+            {/* Campaign Assets Section */}
             <div>
                 <h2 className="text-2xl font-semibold mb-7">Campaign Assets</h2>
                 <div className="flex gap-2">
                     {campaignDetails.campaignAssets.map((v, index) => {
-                        const isVideo = v.name.endsWith('.mp4')
-                        const imageSrc = isVideo ? '/images/video-placeholder.svg' : '/placeholder.png'
+                        // Logic to determine the display image based on file extension
+                        const assetNameLower = v.name.toLowerCase()
+                        const isVideo =
+                            assetNameLower.endsWith('.mp4') ||
+                            assetNameLower.endsWith('.mov') ||
+                            assetNameLower.endsWith('.avi')
+                        const isImage =
+                            assetNameLower.endsWith('.png') ||
+                            assetNameLower.endsWith('.jpg') ||
+                            assetNameLower.endsWith('.jpeg')
+
+                        // Use the asset URL for the image, or a static placeholder for video/other files
+                        const imageSrc = isImage
+                            ? v.url
+                            : isVideo
+                            ? '/images/video-placeholder.svg'
+                            : '/placeholder.png'
 
                         return (
                             <div className="space-y-5" key={`asset-${index}`}>
-                                <div className="flex border rounded-2xl border-neutral-400 w-[300px] h-[300px] flex-col items-center text-center">
+                                <div className="flex border rounded-2xl border-neutral-400 w-[300px] h-[300px] flex-col items-center justify-center text-center overflow-hidden">
                                     <a
                                         href={v.url}
                                         download={v.name || `asset-${index}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="group no-underline text-black"
+                                        className="group no-underline text-black w-full h-full"
                                     >
                                         <Image
-                                            className="rounded-2xl"
+                                            className="rounded-2xl w-full h-full object-cover"
                                             src={imageSrc}
                                             alt={v.name || 'Campaign Asset'}
                                             width={300}
@@ -394,7 +469,8 @@ export default function CampaignOverview() {
                                 <a
                                     href={v.url}
                                     download={v.name || `asset-${index}`}
-                                    className="text-sm mt-6 text-[#e93838] hover:text-[#e85c51]"
+                                    className="text-sm mt-6 text-[#e93838] hover:text-[#e85c51] block text-center truncate"
+                                    title={v.name}
                                 >
                                     {v.name}
                                 </a>
@@ -404,6 +480,7 @@ export default function CampaignOverview() {
                 </div>
             </div>
 
+            {/* Submission Form */}
             <form className="mb-5 space-y-7" onSubmit={handleSubmit}>
                 <h2 className="text-2xl font-semibold mb-4">Your Submission</h2>
 
@@ -422,7 +499,7 @@ export default function CampaignOverview() {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Video File</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Video File (MP4 only)</label>
                     <div
                         {...getRootProps()}
                         className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-all duration-200 ease-in-out ${
@@ -440,6 +517,8 @@ export default function CampaignOverview() {
                         {renderFileStatus()}
                     </div>
                 </div>
+
+                {/* Payment Dialog - Shown if payment details are missing */}
                 <div
                     style={{
                         display: willShowPaymentDetails ? 'block' : 'none',
@@ -451,7 +530,8 @@ export default function CampaignOverview() {
                 <button
                     type="submit"
                     className="w-[150px] mb-5 float-right bg-[#e93838] text-white font-bold py-3 px-4 rounded-lg hover:bg-[#f17474] transition-colors duration-200"
-                    disabled={uploadStatus === 'uploading' || !file}
+                    // Disabled if uploading, no file, OR payment details are missing
+                    disabled={uploadStatus === 'uploading' || !file || willShowPaymentDetails}
                 >
                     {uploadStatus === 'uploading' ? 'Submitting...' : 'Submit'}
                 </button>

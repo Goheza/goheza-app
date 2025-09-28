@@ -24,7 +24,9 @@ export default function HeaderItemMainCre() {
 
     useEffect(() => {
         const onLoad = async () => {
-            const { data: { user } } = await supabaseClient.auth.getUser()
+            const {
+                data: { user },
+            } = await supabaseClient.auth.getUser()
 
             if (user) {
                 const name =
@@ -47,13 +49,7 @@ export default function HeaderItemMainCre() {
             <div className="flex items-center justify-between h-full max-w-7xl mx-auto">
                 {/* Logo */}
                 <Link href={'/main'} className="flex items-center">
-                    <Image
-                        src={logo.src}
-                        width={100}
-                        height={30}
-                        alt="Goheza Logo"
-                        className="object-contain"
-                    />
+                    <Image src={logo.src} width={100} height={30} alt="Goheza Logo" className="object-contain" />
                 </Link>
 
                 {/* Desktop Menu */}
@@ -61,11 +57,17 @@ export default function HeaderItemMainCre() {
                     <Link href="/main/creator/dashboard" className="text-gray-600 hover:text-[#e85c51]">
                         Dashboard
                     </Link>
+                    <Link href="/main/creator/campaign" className="text-gray-600 hover:text-[#e85c51]">
+                        Campaigns
+                    </Link>
                     <Link href="/main/creator/submissions" className="text-gray-600 hover:text-[#e85c51]">
                         Submissions
                     </Link>
-                    <Link href="/main/creator/help" className="text-gray-600 hover:text-[#e85c51]">
-                        Help
+                    <Link href="/main/creator/tips" className="text-gray-600 hover:text-[#e85c51]">
+                        Tips
+                    </Link>
+                    <Link href="bn" className="text-gray-600 hover:text-[#e85c51]">
+                        Support
                     </Link>
                     <UserAccountItem
                         userEmail={userEmail}
@@ -94,11 +96,17 @@ export default function HeaderItemMainCre() {
                         <Link href="/main/creator/dashboard" className="text-gray-600 hover:text-[#e85c51]">
                             Dashboard
                         </Link>
+                        <Link href="/main/creator/campaign" className="text-gray-600 hover:text-[#e85c51]">
+                            Campaigns
+                        </Link>
                         <Link href="/main/creator/submissions" className="text-gray-600 hover:text-[#e85c51]">
                             Submissions
                         </Link>
+                        <Link href="/main/creator/tips" className="text-gray-600 hover:text-[#e85c51]">
+                            Tips
+                        </Link>
                         <Link href="/main/creator/help" className="text-gray-600 hover:text-[#e85c51]">
-                            Help
+                            Support
                         </Link>
                         <div className="pt-2 border-t mt-2">
                             <UserAccountItem

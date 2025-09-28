@@ -83,16 +83,16 @@ export default function Dashboard() {
                     .from('campaigns')
                     .select(
                         `
-              id,
-              name,
-              status,
-              budget,
-              payout,
-              created_at,
-              campaign_submissions(count),
-              approved:campaign_submissions(count)
-                .eq(status, 'approved')
-            `
+                            id,
+                            name,
+                            status,
+                            budget,
+                            payout,
+                            created_at,
+                            campaign_submissions(count),
+                            approved:campaign_submissions(count)
+                            .eq(status, 'approved')
+                        `
                     )
                     .eq('created_by', user.id)
                     .order('created_at', { ascending: false })
@@ -112,13 +112,15 @@ export default function Dashboard() {
                     submissionsCount: campaign.campaign_submissions?.[0]?.count || 0,
                     approvedSubmissions: campaign.approved?.[0]?.count || 0,
                 }))
+                
                 baseLogger('BRAND-OPERATIONS', 'WillSetBrandCampaigns')
                 setRecentCampaigns(campaigns)
                 baseLogger('BRAND-OPERATIONS', 'DidSetBrandCampaigns')
 
+                console.log("dds",campaigns.filter((c) => c.status === 'active').length)
 
                 // Calculate stats
-                setActiveCampaigns(campaigns.filter((c) => c.status === 'active').length)
+                setActiveCampaigns(campaigns.length)
                 setCompletedCampaigns(campaigns.filter((c) => c.status === 'completed').length)
             } catch (err) {
                 console.error('Error fetching brand data:', err)
@@ -217,28 +219,30 @@ export default function Dashboard() {
                     onClick={handleCreateCampaign}
                     className="bg-[#e93838] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#ff8080] transition-colors"
                 >
-                     New Campaign
+                    New Campaign
                 </button>
             </div>
 
-            {/* Campaign Stats */}
+            {/* Campaign Stats: Active Campaigns and Completed Campaigns UI elements */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-                <div className="p-6 rounded-lg bg-neutral-100">
+                {/* Active Campaigns */}
+                <div className="p-6 rounded-lg bg-neutral-100 shadow-sm">
                     <h2 className="text-xl font-semibold text-gray-700">Active Campaigns</h2>
-                    <p className="text-4xl font-bold text-[#0a755e] mt-2">{activeCampaigns}</p>
+                    <p className="text-4xl font-bold text-[#e93838] mt-2">{activeCampaigns}</p>
                 </div>
-                <div className="bg-neutral-100 p-6 rounded-lg">
+                {/* Completed Campaigns */}
+                <div className="bg-neutral-100 p-6 rounded-lg shadow-sm">
                     <h2 className="text-xl font-semibold text-gray-700">Completed Campaigns</h2>
                     <p className="text-4xl font-bold text-[#0a755e] mt-2">{completedCampaigns}</p>
                 </div>
             </div>
 
             {/* Recent Campaigns Table */}
-            <div className="bg-white p-6 rounded-lg border border-[#ee9d9d]">
+            <div className="bg-white p-6 rounded-lg border border-[#ee9d9d] shadow-md">
                 <h2 className="text-2xl font-semibold mb-4">Recent Campaigns</h2>
                 {recentCampaigns.length > 0 ? (
                     <div className="overflow-x-auto">
-                        <table className="min-w-full ">
+                        <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
@@ -261,9 +265,9 @@ export default function Dashboard() {
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white  divide-[#e93838] ">
+                            <tbody className="bg-white divide-y divide-gray-200">
                                 {recentCampaigns.map((campaign) => (
-                                    <tr key={campaign.id} className="hover:bg-gray-50 ">
+                                    <tr key={campaign.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                             {campaign.name}
                                         </td>
