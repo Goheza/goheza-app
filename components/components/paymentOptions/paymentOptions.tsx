@@ -34,8 +34,6 @@ export default function PaymentDialog() {
                     payment_account_number: payload.accountNumber,
                     payment_frequency: payload.frequency,
                     payment_mobilemoney_number: payload.mobileNumber,
-                    has_instagram: payload.hasInstagram,
-                    has_tiktok: payload.hasTiktok,
                 },
             ])
 
