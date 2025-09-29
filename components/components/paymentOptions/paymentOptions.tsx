@@ -26,9 +26,6 @@ export default function PaymentDialog() {
         if (user) {
             const { error: profileError } = await supabaseClient.from('creator_profiles').insert([
                 {
-                    user_id: user.id,
-                    full_name: user.identities![0]?.identity_data?.full_name || user.user_metadata?.fullName,
-                    email: user.email!,
                     payment_method: payload.paymentMethod,
                     payment_account_name: payload.accountName,
                     payment_account_number: payload.accountNumber,
