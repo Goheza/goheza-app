@@ -30,11 +30,8 @@ export default function PaymentDialog() {
             const { error: profileError } = await supabaseClient.from('creator_profiles').upsert(
                 {
                     user_id: user.id,
-                    // Use a fallback for full_name/email, but often best to check if these already exist in the profile
                     full_name: user.identities![0]?.identity_data?.full_name || user.user_metadata?.fullName,
                     email: user.email!,
-
-                    // Payment Data (will be inserted or updated)
                     payment_method: payload.paymentMethod,
                     payment_account_name: payload.accountName,
                     payment_account_number: payload.accountNumber,
