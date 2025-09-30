@@ -98,7 +98,9 @@ export default function CampaignOverview() {
                     throw new Error('Campaign not found')
                 }
 
-                const fallbackImage = `https://placehold.co/400x225/e85c51/ffffff?text=${data.campaign_name ?? data.name}`
+                const fallbackImage = `https://placehold.co/400x225/e85c51/ffffff?text=${
+                    data.campaign_name ?? data.name
+                }`
 
                 // Safely extract the logo URL from the nested join result
                 const brandLogoUrl = (data.brand_profiles as { logo_url: string | null })?.logo_url
@@ -164,8 +166,10 @@ export default function CampaignOverview() {
             return
         }
 
+
         baseLogger('CREATOR-OPERATIONS', 'WillMakeCampaignSubmission')
         setUploadStatus('uploading')
+        toast.success("Uploading Submission")
         setUploadProgress(0)
 
         // Simulating upload progress while the actual file upload happens
@@ -212,12 +216,15 @@ export default function CampaignOverview() {
             // 2. Get the public URL
             const {
                 data: { publicUrl },
-            } = supabaseClient.storage.from('campaign-videos')
-            
-            .getPublicUrl(fileName)
+            } = supabaseClient.storage
+                .from('campaign-videos')
+
+                .getPublicUrl(fileName)
 
             baseLogger('CREATOR-OPERATIONS', `DidGetVideoPublicURL:${publicUrl}`)
             baseLogger('CREATOR-OPERATIONS', 'WillSaveCampaignSubmission')
+
+            toast.success("Please Wait....")
 
             // 3. Save the submission details to the database
             const { data: submissionData, error: dbError } = await supabaseClient
@@ -308,7 +315,7 @@ export default function CampaignOverview() {
     }
 
     // Use the fetched brand logo URL, or a local placeholder as fallback
-    const defaultBannerUrl = campaignDetails.brandLogoUrl! ;
+    const defaultBannerUrl = campaignDetails.brandLogoUrl!
 
     const dosList = splitAndFilterList(campaignDetails.campaignDos)
     const dontsList = splitAndFilterList(campaignDetails.campaignDonts)

@@ -111,30 +111,7 @@ export default function ContactForm() {
                         </div>
                     </div>
 
-                    {/* Question Type */}
-                    <div>
-                        <label className="block text-white text-sm font-medium mb-3">
-                            Type of question <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                            <select
-                                name="questionType"
-                                value={formData.questionType}
-                                onChange={handleInputChange}
-                                className="w-full px-4 py-4 rounded-lg text-black border focus:outline-none focus:ring-2 focus:ring-[#e85c51] appearance-none cursor-pointer"
-                            >
-                                {questionTypes.map((type, index) => (
-                                    <option key={index} value={index === 0 ? '' : type} disabled={index === 0}>
-                                        {type}
-                                    </option>
-                                ))}
-                            </select>
-                            <ChevronDown
-                                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
-                                size={20}
-                            />
-                        </div>
-                    </div>
+                   
 
                     {/* Description */}
                     <div>

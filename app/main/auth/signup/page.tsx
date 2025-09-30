@@ -18,7 +18,7 @@ import { supabaseClient } from '@/lib/supabase/client'
 
 type UserRole = 'creator' | 'brand' | null
 
-const ALL_COUNTRIES = [
+export const ALL_COUNTRIES = [
     'Afghanistan',
     'Albania',
     'Algeria',
@@ -408,7 +408,7 @@ export default function SignUpForm() {
                     <div>
                         <input
                             type="text"
-                            placeholder={selectedRole == 'brand' ? 'Brand Name' : 'Full name'}
+                            placeholder={ 'Full name'}
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
                             className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
@@ -420,7 +420,7 @@ export default function SignUpForm() {
                     <div>
                         <input
                             type="email"
-                            placeholder={selectedRole == 'brand' ? 'Brand Email' : 'Email Address'}
+                            placeholder={selectedRole == 'brand' ? 'Company Email' : 'Email Address'}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
@@ -489,11 +489,11 @@ export default function SignUpForm() {
                                 <select
                                     value={country}
                                     onChange={(e) => setCountry(e.target.value)}
-                                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                                    className=" px-4 py-3 text-sm w-full border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                                     required
                                 >
                                     {/* The initial disabled option acts as a placeholder */}
-                                    <option value="" disabled>
+                                    <option value="" disabled className='w-full'>
                                         Select a Country
                                     </option>
 

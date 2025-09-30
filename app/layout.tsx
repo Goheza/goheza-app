@@ -1,40 +1,26 @@
+// app/layout.tsx (server component)
 import type { Metadata } from 'next'
-import { GeistSans } from 'geist/font/sans'
-import { GeistMono } from 'geist/font/mono'
-import { Analytics } from '@vercel/analytics/next'
-import { Toaster } from "@/components/ui/sonner"
-import { Manrope } from "next/font/google"
-
+import { Roboto } from 'next/font/google'
+import { Toaster } from '@/components/ui/sonner'
+import Header from '@/components/layout/header'
 import './globals.css'
-import { useEffect } from 'react'
-
-
-export const sans = Manrope({
-    preload : true,
-    subsets : ["latin"],
-})
-
 
 export const metadata: Metadata = {
     title: 'Goheza',
     description: 'Connecting Brands and Creators',
 }
 
-export default function RootLayout({
-    
-    children,
-}: Readonly<{
-    children: React.ReactNode
+const sans = Roboto({ subsets: ['latin'], preload: true })
 
+export default function RootLayout({ children }: { children: React.ReactNode }) {
 
-    
-}>) {
 
     return (
         <html lang="en">
-            <body className={`font-sans ${sans.className} `}>
+            <body className={sans.className}>
+                <Header /> {/* <-- client component */}
                 {children}
-                <Toaster/>
+                <Toaster />
             </body>
         </html>
     )

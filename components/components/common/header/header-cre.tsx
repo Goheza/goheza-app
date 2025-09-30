@@ -66,7 +66,7 @@ export default function HeaderItemMainCre() {
                     <Link href="/main/creator/tips" className="text-gray-600 hover:text-[#e85c51]">
                         Tips
                     </Link>
-                    <Link href="bn" className="text-gray-600 hover:text-[#e85c51]">
+                    <Link href="/main/creator/support" className="text-gray-600 hover:text-[#e85c51]">
                         Support
                     </Link>
                     <UserAccountItem

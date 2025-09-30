@@ -3,8 +3,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
-import brandImage from '@/assets/brand_item.png'
-import creatorImage from '@/assets/creatorn.png'
+import brandImageDesktop from '@/assets/brand_desktop.png'
+import creatorImageDesktop from '@/assets/creators_desktop.png'
+import brandMobile from '@/assets/brandmobile.png'
+import creatorMobile from '@/assets/creatormobile.png'
 
 export function BrandCreatorTabs() {
     const fadeUp = {
@@ -23,16 +25,13 @@ export function BrandCreatorTabs() {
                         transition={{ duration: 0.4, ease: 'easeOut', delay: 0.15 }}
                     >
                         <TabsList className="space-x-4">
-                            <TabsTrigger value="brands" >
-                                <span className=" font-bold">For Brands</span>
+                            <TabsTrigger value="brands">
+                                <span className="font-bold">For Brands</span>
                             </TabsTrigger>
 
                             <TabsTrigger value="creators">
                                 <span className="text-black font-bold">For Creators</span>
                             </TabsTrigger>
-
-                            {/* Sliding underline (desktop only) */}
-                           
                         </TabsList>
                     </motion.div>
 
@@ -45,10 +44,18 @@ export function BrandCreatorTabs() {
                             variants={fadeUp}
                             className="flex justify-center items-center p-4 sm:p-8 rounded-xl"
                         >
+                            {/* Mobile Image */}
                             <Image
-                                src={brandImage}
+                                src={brandMobile}
                                 alt="Brand reaching out to creators"
-                                className="w-full max-w-[600px] h-auto object-contain"
+                                className="block sm:hidden w-full max-w-[400px] h-auto object-contain"
+                                priority
+                            />
+                            {/* Desktop Image */}
+                            <Image
+                                src={brandImageDesktop}
+                                alt="Brand reaching out to creators"
+                                className="hidden sm:block w-full max-w-[600px] h-auto object-contain"
                                 priority
                             />
                         </motion.div>
@@ -63,10 +70,17 @@ export function BrandCreatorTabs() {
                             variants={fadeUp}
                             className="flex justify-center items-center p-4 sm:p-8 rounded-xl"
                         >
+                            {/* Mobile Image */}
                             <Image
-                                src={creatorImage}
+                                src={creatorMobile}
                                 alt="Creator making content and earning money"
-                                className="w-full max-w-[600px] h-auto object-contain"
+                                className="block sm:hidden w-full max-w-[400px] h-auto object-contain"
+                            />
+                            {/* Desktop Image */}
+                            <Image
+                                src={creatorImageDesktop}
+                                alt="Creator making content and earning money"
+                                className="hidden sm:block w-full max-w-[600px] h-auto object-contain"
                             />
                         </motion.div>
                     </TabsContent>

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { supabaseClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import logo from '@/assets/GOHEZA-02.png'
+import { ALL_COUNTRIES } from '../signup/page'
 
 const supabase = supabaseClient
 
@@ -14,7 +15,6 @@ type CreatorData = {
     phone: string
     country: string
     paymentMethod: string
-    socialLinks: string
 }
 
 // Type for Brand-specific fields in our React state
@@ -36,7 +36,6 @@ export default function OnboardingDialog() {
         phone: '',
         country: '',
         paymentMethod: 'unknown',
-        socialLinks: '',
         brandName: '',
     })
 
@@ -65,7 +64,7 @@ export default function OnboardingDialog() {
             if (creatorProfile || brandProfile) {
                 // Profile found, redirect to dashboard and show a message
                 toast.info('Your profile is already set up!', { style: { fontSize: 14 } })
-                router.push('/main/dashboard')
+                router.push('/main/')
             }
         }
         checkUserProfile()
@@ -102,7 +101,6 @@ export default function OnboardingDialog() {
                     user_id: user.id, // ✅ correct column
                     phone: onboardingData.phone,
                     country: onboardingData.country,
-                    sociallinks: onboardingData.socialLinks,
                 },
                 { onConflict: 'user_id' } // ✅ conflict should be on user_id, not id
             )
@@ -162,21 +160,24 @@ export default function OnboardingDialog() {
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
                                 required
                             />
+
                             <select
-                                name="country"
                                 value={onboardingData.country}
                                 onChange={handleInputChange}
-                                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
+                                className=" px-4 py-3 text-sm w-full border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                                 required
                             >
-                                <option value="" disabled>
-                                    Country
+                                {/* The initial disabled option acts as a placeholder */}
+                                <option value="" disabled className="w-full">
+                                    Select a Country
                                 </option>
-                                <option value="uganda">Uganda</option>
-                                <option value="kenya">Kenya</option>
-                                <option value="tanzania">Tanzania</option>
-                                <option value="rwanda">Rwanda</option>
-                                <option value="burundi">Burundi</option>
+
+                                {/* Map over the array to create all the country options */}
+                                {ALL_COUNTRIES.map((countryName) => (
+                                    <option key={countryName} value={countryName}>
+                                        {countryName}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     )}
@@ -226,24 +227,11 @@ export default function OnboardingDialog() {
         if (role === 'creator' && step === 2) {
             return (
                 <div>
-                    <h2 className="text-xl font-bold text-center mb-2">Connect Your Channels</h2>
-                    <p className="text-gray-600 text-center mb-6">This helps brands see your work and audience.</p>
-                    <div className="space-y-4">
-                        <textarea
-                            name="socialLinks"
-                            placeholder="Enter your social media links (e.g., Instagram, TikTok, YouTube)"
-                            value={onboardingData.socialLinks}
-                            onChange={handleInputChange}
-                            rows={4}
-                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
-                            required
-                        />
-                    </div>
                     <button
                         onClick={handleSubmit}
-                        disabled={!onboardingData.socialLinks || !onboardingData.paymentMethod || loading}
+                        disabled={!onboardingData.paymentMethod || loading}
                         className={`w-full py-3 px-4 mt-6 rounded-2xl text-sm font-medium transition-all duration-200 ${
-                            onboardingData.socialLinks && onboardingData.paymentMethod
+                            onboardingData.paymentMethod
                                 ? 'bg-[#e85c51] hover:bg-[#f3867e] text-white '
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         }`}
@@ -260,7 +248,7 @@ export default function OnboardingDialog() {
                     <p className="text-gray-600 text-center mb-6">Please confirm your brand details to finish setup.</p>
                     <div className="space-y-4">
                         <p>
-                            <strong>Brand Name:</strong> {onboardingData.brandName}
+                            <strong>Company Name:</strong> {onboardingData.brandName}
                         </p>
                         <p>
                             <strong>Phone:</strong> {onboardingData.phone}

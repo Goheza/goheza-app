@@ -7,11 +7,11 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 
 // --- Configuration ---
-const ACTIVATION_CODE_SEQ = 'gohezawasmadebypius'
+const ACTIVATION_CODE_SEQ = process.env.NEXT_PUBLIC_PRIEM!;
 const SEQ_LENGTH = ACTIVATION_CODE_SEQ.length
 const ACCESS_KEY = 'admin_access_granted'
 // !!! WARNING: This must be replaced with a secure server-side check !!!
-const SECRET_BACKEND_CODE = '4dminP@ss'
+const SECRET_BACKEND_CODE = process.env.NEXT_PUBLIC_KUO
 // ----------------------
 
 interface AdminAccessGateProps {
