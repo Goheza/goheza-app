@@ -239,6 +239,8 @@ export default function CampaignOverview() {
                         file_name: file.name,
                         file_size: file.size,
                         submitted_at: new Date().toISOString(),
+                         // ✨ NEW: Explicitly set the initial status to 'draft'
+                        status: 'draft', 
                     },
                 ])
                 .select()

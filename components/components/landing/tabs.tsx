@@ -48,14 +48,14 @@ export function BrandCreatorTabs() {
                             <Image
                                 src={brandMobile}
                                 alt="Brand reaching out to creators"
-                                className="block sm:hidden w-full max-w-[400px] h-auto object-contain"
+                                className="block sm:hidden w-full max-w-[450px] h-auto object-contain"
                                 priority
                             />
                             {/* Desktop Image */}
                             <Image
                                 src={brandImageDesktop}
                                 alt="Brand reaching out to creators"
-                                className="hidden sm:block w-full max-w-[600px] h-auto object-contain"
+                                className="hidden sm:block w-full max-w-[650px] h-auto object-contain"
                                 priority
                             />
                         </motion.div>
@@ -74,13 +74,13 @@ export function BrandCreatorTabs() {
                             <Image
                                 src={creatorMobile}
                                 alt="Creator making content and earning money"
-                                className="block sm:hidden w-full max-w-[400px] h-auto object-contain"
+                                className="block sm:hidden w-full max-w-[450px] h-auto object-contain"
                             />
                             {/* Desktop Image */}
                             <Image
                                 src={creatorImageDesktop}
                                 alt="Creator making content and earning money"
-                                className="hidden sm:block w-full max-w-[600px] h-auto object-contain"
+                                className="hidden sm:block w-full max-w-[650px] h-auto object-contain"
                             />
                         </motion.div>
                     </TabsContent>

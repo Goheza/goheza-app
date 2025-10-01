@@ -456,7 +456,7 @@ export default function GohezaLanding() {
                                 <li>
                                     <Link
                                         target="_blank"
-                                        href="/policies/GohezaPrivacyPolicy.pdf"
+                                        href="/privacy-policy"
                                         className="hover:text-white transition-colors"
                                     >
                                         Privacy Policy
@@ -465,7 +465,7 @@ export default function GohezaLanding() {
                                 <li>
                                     <Link
                                         target="_blank"
-                                        href="/policies/GohezaTerms&Conditions.pdf"
+                                        href="/terms"
                                         className="hover:text-white transition-colors"
                                     >
                                         Terms & Conditions

@@ -7,6 +7,7 @@ export default function ContactForm() {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
+        phone: '',
         questionType: '',
         description: '',
     })
@@ -30,6 +31,8 @@ export default function ContactForm() {
         }))
     }
 
+    const receivingDomain = process.env.NEXT_PUBLIC_RESIEVING_DOMAIN! as string
+
     const handleSubmit = async () => {
         setStatus('Sending...')
 
@@ -38,15 +41,16 @@ export default function ContactForm() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    to: 'youremail@yourdomain.com', // <-- replace with your receiving email
+                    to: receivingDomain,
                     subject: `New Contact Form: ${formData.questionType || 'Message'}`,
                     message: `
-            <p><strong>Name:</strong> ${formData.name}</p>
-            <p><strong>Email:</strong> ${formData.email}</p>
-            <p><strong>Type:</strong> ${formData.questionType}</p>
-            <p><strong>Message:</strong></p>
-            <p>${formData.description}</p>
-          `,
+                        <p><strong>Name:</strong> ${formData.name}</p>
+                        <p><strong>Email:</strong> ${formData.email}</p>
+                        <p><strong>Phone:</strong> ${formData.phone}</p>
+                        <p><strong>Type:</strong> ${formData.questionType}</p>
+                        <p><strong>Message:</strong></p>
+                        <p>${formData.description}</p>
+                    `,
                 }),
             })
 
@@ -57,6 +61,7 @@ export default function ContactForm() {
                 setFormData({
                     name: '',
                     email: '',
+                    phone: '',
                     questionType: '',
                     description: '',
                 })
@@ -81,8 +86,8 @@ export default function ContactForm() {
 
                 {/* Form */}
                 <div className="space-y-8">
-                    {/* Name + Email */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Name + Email + Phone */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label className="block text-white text-sm font-medium mb-3">
                                 Name <span className="text-red-500">*</span>
@@ -109,9 +114,20 @@ export default function ContactForm() {
                                 className="w-full px-4 py-4 rounded-lg text-black border placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
                             />
                         </div>
+                        <div>
+                            <label className="block text-white text-sm font-medium mb-3">
+                                Phone
+                            </label>
+                            <input
+                                type="tel"
+                                name="phone"
+                                value={formData.phone}
+                                onChange={handleInputChange}
+                                placeholder="Enter your phone number"
+                                className="w-full px-4 py-4 rounded-lg text-black border placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
+                            />
+                        </div>
                     </div>
-
-                   
 
                     {/* Description */}
                     <div>

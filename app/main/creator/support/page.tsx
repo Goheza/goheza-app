@@ -9,6 +9,11 @@ const useAuth = () => ({
     isLoading: false,
 })
 
+/**
+ * The receiving Domain
+ */
+const receivingDomain = process.env.NEXT_PUBLIC_RESIEVING_DOMAIN! as string
+
 const SupportPage = () => {
     const { user, isLoading } = useAuth()
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -21,6 +26,7 @@ const SupportPage = () => {
 
         const form = e.currentTarget
         const formData = {
+            to: receivingDomain,
             name: (form.querySelector('#name') as HTMLInputElement)?.value,
             email: (form.querySelector('#email') as HTMLInputElement)?.value,
             role: form.querySelector<HTMLInputElement>("input[name='userRole']")?.value,

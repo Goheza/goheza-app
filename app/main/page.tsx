@@ -22,10 +22,18 @@ export default function InitalPage() {
                 data: { user },
             } = await supabaseClient.auth.getUser()
 
+            /*********
+             * 
+             * 
+             * 
+             * 
+             * @@@Bug
+             */
+
             if (!user) {
                 baseLogger('AUTHENTICATION', 'DidFailToFindLoggedInUser')
                 baseLogger('AUTHENTICATION', 'WillNavigateToSignIn')
-                router.replace('/main/auth/signin')
+                router.replace('/main/auth/signin?user=absent')
                 return
             }
             baseLogger('AUTHENTICATION', 'didFindLoggedInUSer')

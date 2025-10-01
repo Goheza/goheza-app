@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Eye, EyeOff, CheckCircle, AlertCircle, Sparkles } from 'lucide-react'
 import { signInUser, signInWithGoogle } from '@/lib/supabase/auth/signin' // we defined earlier
 import { baseURL } from '@/lib/env'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -16,6 +16,7 @@ export default function SignInForm() {
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
+    const searchParams = useSearchParams()
     const router = useRouter()
 
     //@ts-ignore
@@ -87,12 +88,21 @@ export default function SignInForm() {
             if (user) {
                 /**
                  * If there is a user present, we take them to autoLogin
+                 *
+                 * But a bug can occur here when there is constant going back and forth
                  */
-                router.push('/main')
+
+                const queryString = searchParams.get('user')
+
+                if (queryString && queryString == 'absent') {
+                    toast.success("Please Sign In")
+                } else {
+                    router.push('/main')
+                }
             }
         }
         InitaliStartup()
-    }, [router])
+    }, [router, searchParams])
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex justify-center py-8">
