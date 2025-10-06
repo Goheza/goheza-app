@@ -55,7 +55,7 @@ export function BrandCreatorTabs() {
                             <Image
                                 src={brandImageDesktop}
                                 alt="Brand reaching out to creators"
-                                className="hidden sm:block w-full max-w-[1800px] h-auto object-contain"
+                                className="hidden sm:block w-full max-w-[650px] h-auto object-contain"
                                 priority
                             />
                         </motion.div>

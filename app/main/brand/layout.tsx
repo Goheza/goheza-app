@@ -6,14 +6,10 @@ import HeaderItemMainBre from '@/components/components/common/header/header-bre'
 import { useEffect, useState } from 'react'
 
 export default function RootLayout(props: { children: React.ReactNode }) {
- 
-   
-
     return (
         <div>
-          
             <HeaderItemMainBre />
-        
+
             <div className="translate-y-14 ">{props.children}</div>
         </div>
     )
