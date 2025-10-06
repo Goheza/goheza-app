@@ -2,33 +2,26 @@ import HelpTicket, { IHelpTicket } from '@/components/components/common/help-tic
 
 const sampleData: IHelpTicket[] = [
     {
-        redirectLink: 'https://bing.com',
-        shortNote: 'Welcome to London',
+        redirectLink: 'https://youtu.be/t-Xf12o4jt4?si=c4B_RxLAWSpjHW_d',
+        shortNote: 'Tip 1',
     },
     {
-        redirectLink: 'https://bing.com',
-        shortNote: 'Welcome to London',
+        redirectLink: 'https://youtu.be/u7Sb-GIdBqw?si=aLi2921b7d-gldy9',
+        shortNote: 'Tip 2',
     },
     {
-        redirectLink: 'https://bing.com',
-        shortNote: 'Welcome to London',
+        redirectLink: 'https://youtu.be/L2W3JzHobjU?si=6aT-vIBJ7tK70UsP',
+        shortNote: 'Tip 3',
     },
     {
-        redirectLink: 'https://bing.com',
-        shortNote: 'Welcome to London',
+        redirectLink: 'https://youtu.be/-jbjQW6XuDs?si=lbw1A4PMSKJKGkzs',
+        shortNote: 'Tip 4',
     },
     {
-        redirectLink: 'https://bing.com',
-        shortNote: 'Welcome to London',
+        redirectLink: 'https://youtu.be/xnOe8aA9Pmw?si=14kveNtKRPboEGhw',
+        shortNote: 'Tip 5',
     },
-    {
-        redirectLink: 'https://bing.com',
-        shortNote: 'Welcome to London',
-    },
-    {
-        redirectLink: 'https://bing.com',
-        shortNote: 'Welcome to London',
-    },
+  
 ]
 
 export default function HelpPage() {

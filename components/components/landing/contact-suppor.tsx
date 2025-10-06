@@ -89,8 +89,8 @@ export default function ContactForm() {
                     {/* Name + Email + Phone */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                            <label className="block text-white text-sm font-medium mb-3">
-                                Name <span className="text-red-500">*</span>
+                            <label className="block text-black text-sm font-medium mb-3">
+                                Name 
                             </label>
                             <input
                                 type="text"
@@ -102,8 +102,8 @@ export default function ContactForm() {
                             />
                         </div>
                         <div>
-                            <label className="block text-white text-sm font-medium mb-3">
-                                Email <span className="text-red-500">*</span>
+                            <label className="block text-black text-sm font-medium mb-3">
+                                Email 
                             </label>
                             <input
                                 type="email"
@@ -115,7 +115,7 @@ export default function ContactForm() {
                             />
                         </div>
                         <div>
-                            <label className="block text-white text-sm font-medium mb-3">
+                            <label className="block text-black text-sm font-medium mb-3">
                                 Phone
                             </label>
                             <input
@@ -131,8 +131,8 @@ export default function ContactForm() {
 
                     {/* Description */}
                     <div>
-                        <label className="block text-white text-sm font-medium mb-3">
-                            Project description <span className="text-red-500">*</span>
+                        <label className="block text-black text-sm font-medium mb-3">
+                        Description 
                         </label>
                         <textarea
                             name="description"

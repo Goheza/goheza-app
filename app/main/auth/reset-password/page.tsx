@@ -51,7 +51,7 @@ export default function ResetPasswordFormComponent() {
                 })
 
                 setTimeout(() => {
-                    router.push('/auth/signin')
+                    router.push('/main/auth/signin')
                 }, 2500)
             })
         }

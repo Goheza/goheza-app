@@ -65,7 +65,7 @@ export default function CreatorCampaigns() {
                 
                 // Logic to prioritize image_url, then brand_profiles.logo_url, then default
                 const imageSource = 
-                    campaign.image_url || 
+                    campaign.cover_image_url|| 
                     campaign.brand_profiles?.logo_url || 
                     null
 

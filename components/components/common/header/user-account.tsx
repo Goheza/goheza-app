@@ -58,7 +58,7 @@ export default function UserAccountItem(props: IUserAccountItem) {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 p-2 text-lg" align="start">
                 <DropdownMenuLabel className=" cursor-default">My Goheza</DropdownMenuLabel>
-                <DropdownMenuLabel className="text-[#e85c51] cursor-default">{props.userEmail}</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-[#e85c51] cursor-default">{props.userName}</DropdownMenuLabel>
                
                 <DropdownMenuItem onClick={props.signOutUser}>
                     <LogOut />

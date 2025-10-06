@@ -5,11 +5,12 @@ interface PaymentBreakdown {
     creatorPayoutTotal: number
     platformFee: number
     brandTotalPay: number
+    perCreatorTotal:number;
 }
 
 export function calculateGohezaPayment(numCreators: number, maxPayout: number, flatFee: number = 0): PaymentBreakdown {
     // ✅ enforce constraints
-    if (numCreators < 50) {
+    if (numCreators < 80) {
         throw new Error('Minimum number of creators is 50')
     }
     if (maxPayout < 30) {
@@ -29,6 +30,7 @@ export function calculateGohezaPayment(numCreators: number, maxPayout: number, f
     const brandTotalPay = creatorPayoutTotal + platformFee
 
     return {
+        perCreatorTotal,
         numCreators,
         maxPayout,
         flatFee,

@@ -9,11 +9,9 @@ import Image from 'next/image'
 import logo from '@/assets/GOHEZA-02.png'
 import { Bell, Menu, X } from 'lucide-react'
 
-interface IHeaderComponentProps {
-    onWillOpenFunc: () => void
-}
 
-export default function HeaderItemMainBre(props: IHeaderComponentProps) {
+
+export default function HeaderItemMainBre() {
     const router = useRouter()
     const [userName, setUserName] = useState<string>('Goheza')
     const [userEmail, setUserEmail] = useState<string>('Goheza')
@@ -52,7 +50,6 @@ export default function HeaderItemMainBre(props: IHeaderComponentProps) {
         { name: 'Dashboard', href: '/main/brand/dashboard' },
         { name: 'Campaigns', href: '/main/brand/campaigns' },
         { name: 'Help', href: '/main/brand/help' },
-        { name: 'Payments', href: '/main/brand/campaigns' },
         { name: 'Settings', href: '/main/brand/profile' },
     ]
 
@@ -82,12 +79,7 @@ export default function HeaderItemMainBre(props: IHeaderComponentProps) {
                                 {link.name}
                             </Link>
                         ))}
-                        <button
-                            onClick={props.onWillOpenFunc}
-                            className="bg-[#f7beba41] cursor-default hover:bg-[#f7beba9a] p-2 rounded-full"
-                        >
-                            <Bell className="h-5 w-5" />
-                        </button>
+                        
                     </div>
                     <UserAccountItem
                         userEmail={userEmail}
@@ -123,23 +115,15 @@ export default function HeaderItemMainBre(props: IHeaderComponentProps) {
                                 {link.name}
                             </Link>
                         ))}
-                        <button
-                            onClick={() => {
-                                props.onWillOpenFunc()
-                                setMenuOpen(false)
-                            }}
-                            className="flex items-center space-x-2 bg-[#f7beba41] hover:bg-[#f7beba9a] p-2 rounded-full mt-2"
-                        >
-                            <Bell className="h-5 w-5" />
-                            <span className="text-gray-600">Notifications</span>
-                        </button>
-                        <div className="pt-2 border-t mt-2">
+                        
+                        <div className="pt-2 border-t mt-2 space-x-2 flex items-center ">
                             <UserAccountItem
                                 userEmail={userEmail}
                                 userImageSource={userImage}
                                 userName={userName}
                                 signOutUser={onWillSignOutUser}
                             />
+                            <span className='font-bold'>{userName}</span>
                         </div>
                     </nav>
                 </div>

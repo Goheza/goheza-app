@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 // ⭐ Assuming these components are available in your project setup
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 
 // --- Configuration ---
-const ACTIVATION_CODE_SEQ = process.env.NEXT_PUBLIC_PRIEM!;
+const ACTIVATION_CODE_SEQ = process.env.NEXT_PUBLIC_PRIEM || 'admin'; // Added fallback for safety
 const SEQ_LENGTH = ACTIVATION_CODE_SEQ.length
 const ACCESS_KEY = 'admin_access_granted'
 // !!! WARNING: This must be replaced with a secure server-side check !!!
@@ -26,35 +26,76 @@ export default function AdminAccessGate({ children }: AdminAccessGateProps) {
     const [isSequenceComplete, setIsSequenceComplete] = useState(false)
     const [validationCode, setValidationCode] = useState('')
     const [isAuthenticating, setIsAuthenticating] = useState(false)
+    
+    // 💡 NEW STATE for Mobile Access
+    const [isMobileInputActive, setIsMobileInputActive] = useState(false) 
+    const [mobileSequenceInput, setMobileSequenceInput] = useState('')
 
-    // --- Key-Stroke Listener useEffect ---
-    useEffect(() => {
+
+    // --- Core Sequence Logic (Reusable for Keyboard and Mobile Input) ---
+    const checkSequence = useCallback((pressedKey: string) => {
         if (hasAccess || isSequenceComplete) return
 
-        const handleKeyPress = (event: KeyboardEvent) => {
-            const pressedKey = event.key.toLowerCase()
-            const expectedKey = ACTIVATION_CODE_SEQ[keyIndex]
+        // Ensure key is treated as lowercase for case-insensitive matching
+        const normalizedKey = pressedKey.toLowerCase()
+        const expectedKey = ACTIVATION_CODE_SEQ[keyIndex]
 
-            if (pressedKey === expectedKey) {
-                const nextIndex = keyIndex + 1
+        if (normalizedKey === expectedKey) {
+            const nextIndex = keyIndex + 1
 
-                if (nextIndex === SEQ_LENGTH) {
-                    setIsSequenceComplete(true)
-                    toast.success('Sequence correct. Enter validation code to proceed.')
-                } else {
-                    setKeyIndex(nextIndex)
-                }
+            if (nextIndex === SEQ_LENGTH) {
+                setIsSequenceComplete(true)
+                setIsMobileInputActive(false) // Hide mobile input on success
+                toast.success('Sequence correct. Enter validation code to proceed.')
             } else {
-                // Key mismatch: reset the sequence
-                setKeyIndex(0)
+                setKeyIndex(nextIndex)
             }
+            return true // Key accepted
+        } else {
+            // Key mismatch: reset the sequence
+            setKeyIndex(0)
+            toast.info('Sequence reset.')
+            return false // Key rejected
+        }
+    }, [hasAccess, keyIndex, isSequenceComplete])
+
+
+    // --- Desktop Key-Stroke Listener useEffect ---
+    useEffect(() => {
+        if (hasAccess || isSequenceComplete || isMobileInputActive) return
+
+        const handleKeyPress = (event: KeyboardEvent) => {
+            // Prevent sequence from being typed if a regular input is focused
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+                return
+            }
+            checkSequence(event.key)
         }
 
         window.addEventListener('keydown', handleKeyPress)
         return () => {
             window.removeEventListener('keydown', handleKeyPress)
         }
-    }, [hasAccess, keyIndex, isSequenceComplete])
+    }, [hasAccess, isSequenceComplete, isMobileInputActive, checkSequence])
+
+
+    // --- Mobile Input Handler ---
+    const handleMobileSequenceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.toLowerCase()
+        setMobileSequenceInput(value)
+        
+        // Check only the last typed character
+        if (value.length > mobileSequenceInput.length && value.length > 0) {
+             const lastKey = value[value.length - 1]
+             const success = checkSequence(lastKey);
+
+             if (!success) {
+                 // Reset the visual input after failure to ensure the user restarts
+                 setMobileSequenceInput('');
+             }
+        }
+    }
+
 
     // --- Validation Handler ---
     const handleValidation = async () => {
@@ -72,6 +113,8 @@ export default function AdminAccessGate({ children }: AdminAccessGateProps) {
             setValidationCode('')
             setIsSequenceComplete(false)
             setKeyIndex(0)
+            setIsMobileInputActive(false); // Reset mobile state
+            setMobileSequenceInput('');
         }
         // --- END: Simulated Backend/API Check ---
 
@@ -100,7 +143,7 @@ export default function AdminAccessGate({ children }: AdminAccessGateProps) {
                 ></path>
             </svg>
             <h1 className="text-4xl font-extrabold mb-4">ACCESS DENIED</h1>
-            <p className="text-xl text-gray-400 mb-8">
+            <p className="text-xl text-gray-400 mb-8 text-center">
                 {isSequenceComplete
                     ? 'Sequence accepted. Enter validation code.'
                     : 'Unauthorized area. Start typing the secret sequence.'}
@@ -108,12 +151,44 @@ export default function AdminAccessGate({ children }: AdminAccessGateProps) {
 
             {/* Visual Feedback for Key Sequence */}
             {!isSequenceComplete && (
-                <div className="text-lg font-mono text-center">
+                <div className="text-lg font-mono text-center mb-6">
                     <p className="text-green-400">{ACTIVATION_CODE_SEQ.substring(0, keyIndex)}</p>
-                    {/* <p className="text-gray-600">{ACTIVATION_CODE_SEQ.substring(keyIndex)}</p> */}
-                    <p className="mt-4 text-sm text-[#e85c51]">* Start typing the secret phrase now.</p>
+                    <p className="text-gray-600">
+                         {keyIndex > 0 ? ACTIVATION_CODE_SEQ.substring(keyIndex) : '...'}
+                    </p>
                 </div>
             )}
+
+            {/* 💡 Mobile Input Section */}
+            {!isSequenceComplete && (
+                <div className="w-full max-w-xs space-y-4">
+                    {!isMobileInputActive && (
+                        <Button
+                            onClick={() => setIsMobileInputActive(true)}
+                            className="w-full bg-[#3c3c3c] hover:bg-gray-700 text-white"
+                        >
+                            Activate Mobile Input
+                        </Button>
+                    )}
+                    
+                    {isMobileInputActive && (
+                        <>
+                            <Input
+                                type="text"
+                                placeholder="Type the secret sequence here..."
+                                value={mobileSequenceInput}
+                                onChange={handleMobileSequenceChange}
+                                className="w-full bg-gray-800 border-gray-700 text-white focus:ring-[#e85c51]"
+                                autoFocus
+                            />
+                            <p className="text-sm text-[#e85c51] text-center">
+                                * Type the sequence character by character.
+                            </p>
+                        </>
+                    )}
+                </div>
+            )}
+
 
             {/* Validation Input */}
             {isSequenceComplete && (

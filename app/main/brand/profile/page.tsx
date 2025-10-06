@@ -217,46 +217,7 @@ export default function BrandProfile() {
                     </div>
                 </div>
 
-                {/* --- BRAND ASSETS UPLOAD --- */}
-                <div>
-                    <h2 className="text-xl font-semibold text-gray-700 mb-4">Brand Assets</h2>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-white">
-                        {/* 👈 Display Existing Asset or New Selection */}
-                        {existingAssetsUrl || brandAssetsFile ? (
-                            <div className="flex items-center justify-center space-x-4 mb-4">
-                                <FileText className="w-8 h-8 text-[#e85c51]" />
-                                <p className="text-sm text-gray-700 font-medium">
-                                    {brandAssetsFile
-                                        ? `New: ${brandAssetsFile.name}`
-                                        : 'Existing Brand Assets file is set'}
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                <p className="text-sm text-gray-500 mb-2">
-                                    Drag and drop your brand assets document here, or browse to upload.
-                                </p>
-                                <p className="text-xs text-gray-400 mb-4">
-                                    Accepted formats: PDF, DOCX, AI, PSD. Max size: 20MB.
-                                </p>
-                            </>
-                        )}
-
-                        <label
-                            htmlFor="assets-upload"
-                            className="cursor-pointer bg-transparent border border-[#e85c51] text-[#e85c51] font-medium py-2 px-4 rounded-md hover:bg-red-50 transition duration-200"
-                        >
-                            {existingAssetsUrl || brandAssetsFile ? 'Change Files' : 'Browse Files'}
-                        </label>
-                        <input
-                            id="assets-upload"
-                            type="file"
-                            onChange={handleBrandAssetsChange}
-                            accept=".pdf,.docx,.ai,.psd"
-                            className="sr-only"
-                        />
-                    </div>
-                </div>
+             
 
                 <div className="flex justify-end">
                     <button

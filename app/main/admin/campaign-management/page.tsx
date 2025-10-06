@@ -177,7 +177,7 @@ const CampaignDetailsModal = ({
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         // ⭐ ENSURES DOWNLOAD: Forces the browser to download the file
-                                        download={asset.file_name} 
+                                        download={asset.file_name}
                                         className="inline-flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors p-2 border rounded-md bg-white shadow-sm"
                                     >
                                         {/* Icon for file link */}
@@ -197,14 +197,17 @@ const CampaignDetailsModal = ({
                                         </svg>
                                         <span>{asset.file_name || `Asset ${index + 1}`}</span>
                                         {/* Optional: Add file type badge */}
-                                        {asset.type && <Badge variant="outline" className="text-xs">{asset.type}</Badge>}
+                                        {asset.type && (
+                                            <Badge variant="outline" className="text-xs">
+                                                {asset.type}
+                                            </Badge>
+                                        )}
                                     </a>
                                 ))}
                             </div>
                         </div>
                     )}
                     {/* END ASSETS SECTION */}
-
 
                     {/* Do's and Don'ts */}
                     {(dosList.length > 0 || dontsList.length > 0) && (
@@ -336,7 +339,7 @@ export default function CampaignManagementPage() {
                 return
             }
 
-            console.log("received-campaign",data)
+            console.log('received-campaign', data)
 
             // CRITICAL: Ensure `brand_name` is correctly mapped from the nested object
             const formattedCampaigns = data.map((c: any) => ({

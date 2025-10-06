@@ -61,8 +61,7 @@ export default function InitalPage() {
                     }
                     
                     // A Google user with no profile and no role param needs to select a role.
-                    toast.info("Please select your role to continue.", { style: { fontSize: 14 } });
-                    router.replace('/main/auth/signin');
+                    router.replace('/main/auth/signin?user=absent');
                     return;
                 }
 

@@ -117,7 +117,7 @@ export default function CampaignOverview() {
                     campaignDos: data.dos || null,
                     campaignDonts: data.donts || null,
                     prohibitedContent: data.prohibited_content || [],
-                    brandLogoUrl: brandLogoUrl || fallbackImage, // Store the fetched logo URL
+                    brandLogoUrl:data.cover_image_url, // Store the fetched logo URL
                 })
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch campaign details')
@@ -252,7 +252,7 @@ export default function CampaignOverview() {
 
             baseLogger('CREATOR-OPERATIONS', 'DidSuccefullySaveCampaignSubmission')
             toast.success('Submission Successful! It is now pending review.')
-            router.push('/main/creator/dashboard')
+            router.push('/main/creator/dashboard/submissions')
         } catch (error) {
             clearInterval(uploadInterval)
             setUploadStatus('failure')

@@ -10,6 +10,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import logo from '@/assets/GOHEZA-02.png'
 import { supabaseClient } from '@/lib/supabase/client'
+import signOutUser from '@/lib/supabase/auth/signout'
 
 export default function SignInForm() {
     const [email, setEmail] = useState('')
@@ -95,7 +96,14 @@ export default function SignInForm() {
                 const queryString = searchParams.get('user')
 
                 if (queryString && queryString == 'absent') {
-                    toast.success("Please Sign In")
+                    /**
+                     * This happens with a mistoken placement
+                     */
+
+                    console.log("User doesn't have a profile")
+
+                    signOutUser()
+                    router.push('/main/auth/signup')
                 } else {
                     router.push('/main')
                 }

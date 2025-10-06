@@ -10,7 +10,7 @@ import NotificationsDialog from '@/components/components/brand/notifications'
 interface Campaign {
     id: string
     name: string
-    status: 'active' | 'paused' | 'completed'
+    status: "approved" | "inreview" | "cancelled"
     budget: string
     createdAt: string
     submissionsCount: number
@@ -117,11 +117,17 @@ export default function Dashboard() {
                 setRecentCampaigns(campaigns)
                 baseLogger('BRAND-OPERATIONS', 'DidSetBrandCampaigns')
 
-                console.log("dds",campaigns.filter((c) => c.status === 'active').length)
+
+                /**
+                 * Set the Active Campaigns as only the ones that have been approved
+                 */
+
+                let _approvedCampaigns = campaigns.map((v)=>{
+                    return v.status == "approved"
+                })
 
                 // Calculate stats
                 setActiveCampaigns(campaigns.length)
-                setCompletedCampaigns(campaigns.filter((c) => c.status === 'completed').length)
             } catch (err) {
                 console.error('Error fetching brand data:', err)
                 setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
@@ -150,9 +156,9 @@ export default function Dashboard() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'active':
+            case 'approved':
                 return 'bg-green-100 text-green-800'
-            case 'paused':
+            case 'cancelled':
                 return 'bg-yellow-100 text-yellow-800'
             case 'completed':
                 return 'bg-gray-100 text-gray-800'

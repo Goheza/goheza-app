@@ -124,19 +124,19 @@ export default function CampaignSubmissionsPage() {
         toast.info('Scheduling post...')
         await new Promise((resolve) => setTimeout(resolve, 2000))
 
-        const { error } = await supabaseClient
-            .from('campaign_submissions')
-            .update({ status: 'posted' })
-            .eq('id', selectedSubmission.id)
+        // const { error } = await supabaseClient
+        //     .from('campaign_submissions')
+        //     .update({ status: 'posted' })
+        //     .eq('id', selectedSubmission.id)
 
-        if (error) {
-            console.error('Error scheduling post:', error)
-            toast.error('Failed to schedule post.')
-        } else {
-            toast.success('Post scheduled successfully!')
-            fetchSubmissions()
-            setViewSubmissionModal(false)
-        }
+        // if (error) {
+        //     console.error('Error scheduling post:', error)
+        //     toast.error('Failed to schedule post.')
+        // } else {
+        //     toast.success('Post scheduled successfully!')
+        //     fetchSubmissions()
+        //     setViewSubmissionModal(false)
+        // }
     }
 
     const handleViewSubmission = (submission: Submission) => {

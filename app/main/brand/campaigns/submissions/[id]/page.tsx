@@ -3,22 +3,22 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Check, X, Eye, UploadCloud, AlertTriangle } from 'lucide-react'
+import { Eye, UploadCloud, AlertTriangle } from 'lucide-react'
+import { format } from 'date-fns'
 
 type SubmissionStatus = 'pending' | 'approved' | 'rejected'
-type CampaignStatus = 'inreview' | 'active' | 'approved' | 'closed' // Added 'approved' for consistency
+type CampaignStatus = 'inreview' | 'active' | 'approved' | 'closed' 
 
 interface Submission {
     id: string
-    creator_id: string
+    user_id: string
     campaign_id: string
     status: SubmissionStatus
-    content_url: string
-    notes: string | null
-    created_at: string
+    // We only need basic display data here. The review page fetches full details.
+    submitted_at: string // Maps to DB's 'submitted_at'
     creator_name: string
 }
 
@@ -30,38 +30,32 @@ interface CampaignMeta {
 
 const SubmissionsView: React.FC = () => {
     const params = useParams()
+    const router = useRouter()
     const campaignId = params.id as string
 
     const [submissions, setSubmissions] = useState<Submission[]>([])
     const [campaignMeta, setCampaignMeta] = useState<CampaignMeta | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    // State to track the number of currently approved submissions
     const [approvedCount, setApprovedCount] = useState(0)
 
-    // ------------------------------------------
-    // 1. Core Logic to Close Campaign in Supabase
-    // ------------------------------------------
+    // NOTE: The Campaign Close logic has been moved to the approval flow 
+    // on the ContentReviewPage, but the utility remains here just in case 
+    // a separate close action is added later.
     const closeCampaign = async () => {
-        // Only attempt to close if the campaign is currently open (active or approved)
         if (campaignMeta && (campaignMeta.status === 'active' || campaignMeta.status === 'approved')) {
             const { error } = await supabaseClient
                 .from('campaigns')
                 .update({ status: 'closed' })
                 .eq('id', campaignId)
-                .select() // Use select() to get the updated row or simply check for error
+                .select()
 
             if (error) {
                 toast.error('Campaign Closure Failed', {
                     description: 'Could not automatically close campaign: ' + error.message,
                 })
             } else {
-                // Update local state to reflect the closure
                 setCampaignMeta((prev) => (prev ? { ...prev, status: 'closed' } : null))
-                toast.success('Campaign Auto-Closed! 🎉', {
-                    description:
-                        'The max submission quota has been met. The campaign is now closed to new creator submissions.',
-                })
             }
         }
     }
@@ -85,27 +79,30 @@ const SubmissionsView: React.FC = () => {
         setCampaignMeta(metaData as CampaignMeta)
 
         // 2. Fetch Submissions and calculate count
+        // FIX: Explicitly use the foreign key constraint name (campaign_submissions_creator_fkey)
+        // to resolve the PostgREST relationship error.
         const { data: subsData, error: subsError } = await supabaseClient
-            .from('submissions')
-            .select(
-                `
-                id, creator_id, campaign_id, status, content_url, notes, created_at,
-                profiles(name) 
-            `
-            )
+            .from('campaign_submissions')
+            .select(`
+                id, user_id, campaign_id, status, submitted_at,
+                creator_profiles!campaign_submissions_creator_fkey(full_name) 
+            `)
             .eq('campaign_id', campaignId)
-            .order('created_at', { ascending: false })
-            .returns<Array<Omit<Submission, 'creator_name'> & { profiles: { name: string } | null }>>()
+            .order('submitted_at', { ascending: false })
+
 
         if (subsError) {
             setError('Failed to load submissions: ' + subsError.message)
         } else {
-            const formattedSubmissions: Submission[] = subsData.map((sub) => ({
-                ...sub,
-                creator_name: sub.profiles?.name || 'Unknown Creator',
+            const formattedSubmissions: Submission[] = subsData.map((sub: any) => ({
+                id: sub.id,
+                user_id: sub.user_id,
+                campaign_id: sub.campaign_id,
+                status: sub.status,
+                submitted_at: sub.submitted_at,
+                creator_name: sub.creator_profiles?.full_name || 'Unknown Creator',
             }))
 
-            // Calculate the current approved count from the fetched submissions
             const currentApprovedCount = formattedSubmissions.filter((sub) => sub.status === 'approved').length
             setApprovedCount(currentApprovedCount)
             setSubmissions(formattedSubmissions)
@@ -115,65 +112,20 @@ const SubmissionsView: React.FC = () => {
 
     useEffect(() => {
         fetchSubmissionsAndMeta()
+        
+        // Optional: Re-check campaign closure status if max_submissions is hit
+        if (campaignMeta && campaignMeta.max_submissions && approvedCount >= campaignMeta.max_submissions) {
+             closeCampaign()
+        }
+
     }, [fetchSubmissionsAndMeta])
 
-    // ------------------------------------------
-    // 2. Logic to Handle Status Change (Approve/Reject)
-    // ------------------------------------------
-    const handleStatusChange = async (submissionId: string, newStatus: SubmissionStatus) => {
-        const submissionToUpdate = submissions.find((s) => s.id === submissionId)
-        if (!submissionToUpdate || !campaignMeta) return
-
-        const oldStatus = submissionToUpdate.status
-        const maxSubmissions = campaignMeta.max_submissions
-        const isLimited = maxSubmissions !== null && maxSubmissions > 0
-        let newApprovedCount = approvedCount
-
-        // If the campaign is already closed by status, prevent changes
-        if (campaignMeta.status === 'closed') {
-            toast.warning('Campaign is closed.', {
-                description: 'Cannot change submission status for a closed campaign.',
-            })
-            return
-        }
-
-        // CORE LOGIC: CHECK LIMIT BEFORE APPROVAL
-        if (newStatus === 'approved' && oldStatus !== 'approved' && isLimited) {
-            if (approvedCount >= maxSubmissions) {
-                toast.error('Limit Reached', {
-                    description: `You have already approved ${approvedCount} submissions, which meets the campaign limit of ${maxSubmissions}. Please reject an existing approved submission first.`,
-                })
-                return // Stop the action
-            }
-            newApprovedCount = approvedCount + 1 // Pre-calculate new count
-        } else if (oldStatus === 'approved' && newStatus !== 'approved') {
-            // Decrement if an approved submission is now being rejected/set pending
-            newApprovedCount = approvedCount - 1
-        }
-
-        // Optimistic update of local state
-        setSubmissions((prev) => prev.map((sub) => (sub.id === submissionId ? { ...sub, status: newStatus } : sub)))
-        setApprovedCount(newApprovedCount)
-
-        // Update status in Supabase
-        const { error } = await supabaseClient.from('submissions').update({ status: newStatus }).eq('id', submissionId)
-
-        if (error) {
-            toast.error('Update Failed', { description: error.message })
-            // Revert local state on failure
-            fetchSubmissionsAndMeta()
-        } else {
-            toast.success(`Submission ${newStatus}!`, { description: `Content status updated to ${newStatus}.` })
-
-            // CORE LOGIC: CLOSE CAMPAIGN AFTER APPROVAL IF LIMIT IS MET
-            if (newStatus === 'approved' && isLimited && newApprovedCount >= maxSubmissions) {
-                closeCampaign()
-            }
-        }
+    const handleNavigateToReview = (submissionId: string) => {
+        router.push(`/main/brand/campaigns/submissions/review/${submissionId}`)
     }
 
     if (loading) return <div className="text-center p-8">Loading submissions...</div>
-    if (error) return <div className="text-center p-8 text-red-600">{error}</div>
+    if (error) return <div className="text-center p-8 text-red-600">Error: {error}</div>
     if (!campaignMeta) return <div className="text-center p-8 text-red-600">Campaign details missing.</div>
 
     const maxSubmissions = campaignMeta.max_submissions
@@ -212,7 +164,7 @@ const SubmissionsView: React.FC = () => {
                                 : quotaMet
                                 ? "Approval quota met. Approving any new submission requires rejecting an existing one. The campaign will remain OPEN until the status is 'closed'."
                                 : isLimited
-                                ? `You can approve ${remainingSlots} more submission(s). Approving the final one will automatically close the campaign.`
+                                ? `You can approve ${remainingSlots} more submission(s). The campaign status will update upon final approval.`
                                 : 'No submission limit is currently set for this campaign.'}
                         </p>
                     </div>
@@ -240,7 +192,7 @@ const SubmissionsView: React.FC = () => {
                                 <div className="flex-grow">
                                     <p className="font-semibold text-gray-900">{submission.creator_name}</p>
                                     <p className="text-sm text-gray-500">
-                                        Submitted: {new Date(submission.created_at).toLocaleDateString()}
+                                        Submitted: {format(new Date(submission.submitted_at), 'PPP')}
                                     </p>
                                     <span
                                         className={`text-xs font-medium px-2 py-0.5 rounded-full mt-1 inline-block ${
@@ -256,49 +208,12 @@ const SubmissionsView: React.FC = () => {
                                 </div>
 
                                 <div className="flex items-center space-x-3">
-                                    <a
-                                        href={submission.content_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:text-blue-800 transition-colors flex items-center text-sm"
-                                    >
-                                        <Eye className="w-4 h-4 mr-1" /> View Content
-                                    </a>
-
-                                    {/* Action Buttons */}
+                                    {/* Link to the dedicated ContentReviewPage */}
                                     <button
-                                        onClick={() => handleStatusChange(submission.id, 'approved')}
-                                        // Disable if campaign is globally closed OR if already approved
-                                        disabled={submissionsClosed || submission.status === 'approved'}
-                                        className={`p-2 rounded-full transition-colors ${
-                                            submission.status === 'approved'
-                                                ? 'bg-green-500 text-white'
-                                                : submissionsClosed
-                                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                                : 'bg-green-100 text-green-700 hover:bg-green-200'
-                                        }`}
-                                        title={
-                                            submissionsClosed
-                                                ? 'Campaign is closed'
-                                                : submission.status === 'approved'
-                                                ? 'Approved'
-                                                : 'Approve Content'
-                                        }
+                                        onClick={() => handleNavigateToReview(submission.id)}
+                                        className="text-blue-600 hover:text-blue-800 transition-colors flex items-center text-sm font-semibold p-2 rounded-lg bg-blue-50 hover:bg-blue-100"
                                     >
-                                        <Check className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleStatusChange(submission.id, 'rejected')}
-                                        disabled={submissionsClosed || submission.status === 'rejected'}
-                                        className={`p-2 rounded-full transition-colors ${
-                                            submission.status === 'rejected'
-                                                ? 'bg-red-500 text-white'
-                                                : submissionsClosed
-                                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                                : 'bg-red-100 text-red-700 hover:bg-red-200'
-                                        }`}
-                                    >
-                                        <X className="w-5 h-5" />
+                                        <Eye className="w-4 h-4 mr-1" /> Review Content
                                     </button>
                                 </div>
                             </div>

@@ -11,4 +11,9 @@ interface IFeedbackToCreator {
     decision: string
 }
 
-export function sendFeedbackToCreator(args: IFeedbackToCreator) {}
+export function sendFeedbackToCreator(args: IFeedbackToCreator) {
+
+    
+
+
+}

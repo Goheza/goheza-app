@@ -22,6 +22,10 @@ export default function HeaderItemMainCre() {
         router.push('/main/auth/signin')
     }
 
+    const onDidNavigate = () => {
+        setMenuOpen(false)
+    }
+
     useEffect(() => {
         const onLoad = async () => {
             const {
@@ -54,20 +58,48 @@ export default function HeaderItemMainCre() {
 
                 {/* Desktop Menu */}
                 <div className="hidden md:flex items-center space-x-6">
-                    <Link href="/main/creator/dashboard" className="text-gray-600 hover:text-[#e85c51]">
-                        Dashboard
+                    <Link
+                        onNavigate={onDidNavigate}
+                        href="/main/creator/dashboard"
+                        className="text-gray-600 hover:text-[#e85c51]"
+                    >
+                        Earnings
                     </Link>
-                    <Link href="/main/creator/campaign" className="text-gray-600 hover:text-[#e85c51]">
+                    <Link
+                        onNavigate={onDidNavigate}
+                        href="/main/creator/campaign"
+                        className="text-gray-600 hover:text-[#e85c51]"
+                    >
                         Campaigns
                     </Link>
-                    <Link href="/main/creator/submissions" className="text-gray-600 hover:text-[#e85c51]">
+                    <Link
+                        onNavigate={onDidNavigate}
+                        href="/main/creator/submissions"
+                        className="text-gray-600 hover:text-[#e85c51]"
+                    >
                         Submissions
                     </Link>
-                    <Link href="/main/creator/tips" className="text-gray-600 hover:text-[#e85c51]">
+                    <Link
+                        onNavigate={onDidNavigate}
+                        href="/main/creator/support"
+                        className="text-gray-600 hover:text-[#e85c51]"
+                    >
+                        Support
+                    </Link>
+                    <Link
+                        onNavigate={onDidNavigate}
+                        href="/main/creator/tips"
+                        className="text-gray-600 hover:text-[#e85c51]"
+                    >
                         Tips
                     </Link>
-                    <Link href="/main/creator/support" className="text-gray-600 hover:text-[#e85c51]">
-                        Support
+
+                    <Link
+                        onNavigate={onDidNavigate}
+                        href="/main/creator/settings"
+                        className="text-gray-600 hover:text-[#e85c51]"
+                    >
+                        Settings
                     </Link>
                     <UserAccountItem
                         userEmail={userEmail}
@@ -93,20 +125,48 @@ export default function HeaderItemMainCre() {
             {menuOpen && (
                 <div className="md:hidden bg-white border-t shadow-md">
                     <nav className="flex flex-col space-y-2 px-4 py-3">
-                        <Link href="/main/creator/dashboard" className="text-gray-600 hover:text-[#e85c51]">
-                            Dashboard
+                        <Link
+                            onNavigate={onDidNavigate}
+                            href="/main/creator/dashboard"
+                            className="text-gray-600 hover:text-[#e85c51]"
+                        >
+                            Earnings
                         </Link>
-                        <Link href="/main/creator/campaign" className="text-gray-600 hover:text-[#e85c51]">
+                        <Link
+                            onNavigate={onDidNavigate}
+                            href="/main/creator/campaign"
+                            className="text-gray-600 hover:text-[#e85c51]"
+                        >
                             Campaigns
                         </Link>
-                        <Link href="/main/creator/submissions" className="text-gray-600 hover:text-[#e85c51]">
+                        <Link
+                            onNavigate={onDidNavigate}
+                            href="/main/creator/submissions"
+                            className="text-gray-600 hover:text-[#e85c51]"
+                        >
                             Submissions
                         </Link>
-                        <Link href="/main/creator/tips" className="text-gray-600 hover:text-[#e85c51]">
+                        <Link
+                            onNavigate={onDidNavigate}
+                            href="/main/creator/support"
+                            className="text-gray-600 hover:text-[#e85c51]"
+                        >
+                            Support
+                        </Link>
+                        <Link
+                            onNavigate={onDidNavigate}
+                            href="/main/creator/tips"
+                            className="text-gray-600 hover:text-[#e85c51]"
+                        >
                             Tips
                         </Link>
-                        <Link href="/main/creator/help" className="text-gray-600 hover:text-[#e85c51]">
-                            Support
+
+                        <Link
+                            onNavigate={onDidNavigate}
+                            href="/main/creator/settings"
+                            className="text-gray-600 hover:text-[#e85c51]"
+                        >
+                            Settings
                         </Link>
                         <div className="pt-2 border-t mt-2">
                             <UserAccountItem

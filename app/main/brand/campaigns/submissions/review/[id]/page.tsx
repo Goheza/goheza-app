@@ -70,31 +70,32 @@ export default function ContentReviewPage() {
             setError(null)
 
             try {
-                // Select submission and join campaign (campaigns.name) and creator_profiles (full_name,email)
+                // FIX: Explicitly use the foreign key constraint name (campaign_submissions_creator_fkey)
+                // for the creator_profiles join to avoid the relationship ambiguity error.
                 const { data, error } = await supabase
                     .from('campaign_submissions')
                     .select(
                         `
-            id,
-            user_id,
-            campaign_id,
-            video_url,
-            caption,
-            file_name,
-            file_size,
-            status,
-            submitted_at,
-            reviewed_by,
-            reviewed_at,
-            campaigns (
-              name,
-              description
-            ),
-            creator_profiles (
-              full_name,
-              email
-            )
-          `
+                            id,
+                            user_id,
+                            campaign_id,
+                            video_url,
+                            caption,
+                            file_name,
+                            file_size,
+                            status,
+                            submitted_at,
+                            reviewed_by,
+                            reviewed_at,
+                            campaigns (
+                                name,
+                                description
+                            ),
+                            creator_profiles!campaign_submissions_creator_fkey ( 
+                                full_name,
+                                email
+                            )
+                        `
                     )
                     .eq('id', submissionId)
                     .single()
@@ -292,7 +293,7 @@ export default function ContentReviewPage() {
     if (!submission) return <div className="p-8">Submission not found</div>
 
     return (
-        <div className="p-8 max-w-7xl mx-auto  bg-gray-50">
+        <div className="p-8 max-w-7xl mx-auto  bg-gray-50">
             <div className="mb-6">
                 <button onClick={() => router.back()} className="text-blue-600 hover:text-blue-800 mb-4">
                     ← Back to submissions
@@ -321,7 +322,7 @@ export default function ContentReviewPage() {
                     </div>
 
                     <div className="mt-8">
-                        <label htmlFor="feedback" className="block  font-bold text-xl text-black mb-2">
+                        <label htmlFor="feedback" className="block  font-bold text-xl text-black mb-2">
                             Provide Feedback
                         </label>
                         <textarea
@@ -384,12 +385,12 @@ export default function ContentReviewPage() {
 
                     {/* Action Buttons */}
                     {submission.status === 'pending' && (
-                        <div className="flex flex-col  space-y-4">
+                        <div className="flex   space-y-4   flex-col">
                             <span className=" font-bold text-xl mb-4">Actions</span>
                             <button
                                 onClick={() => handleDecision('approved')}
                                 disabled={actionLoading}
-                                className="flex-1 bg-[#f06262] text-white py-2 w-[290px] px-2 rounded-lg hover:bg-[#a55959] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="flex-1 bg-[#f06262] text-white py-2 px-2 w-[290px] rounded-lg hover:bg-[#a55959] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 {actionLoading ? 'Processing...' : 'Approve'}
                             </button>

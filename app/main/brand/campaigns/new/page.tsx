@@ -1,3 +1,5 @@
+// src/components/CampaignBriefForm.tsx (Updated)
+
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
@@ -14,6 +16,7 @@ import {
     Users,
     DollarSign,
     Airplay,
+    Video, // Added Video icon for assets
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { useRouter } from 'next/navigation'
@@ -22,18 +25,14 @@ import { baseLogger } from '@/lib/logger'
 import { calculateGohezaPayment } from '@/lib/ats/payment-calculator'
 import { toast } from 'sonner'
 import { addNotificationToTheAdmin } from '@/lib/ats/adminNotifications'
-
-/**
- * NEW: Define the possible states for the campaign creation process
- */
-type ProgressState =
-    | 'idle'
-    | 'calculating'
-    | 'uploading-assets'
-    | 'inserting-data'
-    | 'notifying-admin'
-    | 'complete'
-    | 'error'
+import {
+    ProgressState,
+    ProgressStep,
+    getButtonText,
+    getProgressStatus,
+} from '@/components/components/brand/new-campaign/progress-step'
+import DosDontsList from '@/components/components/brand/new-campaign/DosDonts'
+import { uploadFilesToStorage } from '@/components/components/brand/new-campaign/lib/uploadFilesToStorage'
 
 interface CampaignFormData {
     title: string
@@ -43,8 +42,6 @@ interface CampaignFormData {
     contentRequirements: string[]
     estimatedViews: number
     totalBudget: number
-    creatorsPerMillion: number
-    ratePer1K: number
     // fields pulled from older component
     budget?: string // string representation used for DB (e.g., "$5,000")
     payout?: string
@@ -58,8 +55,11 @@ interface CampaignFormData {
     countries?: string // comma separated input
     numCreators?: number
     maxPay?: string
-    max_submissions?:number;
+    max_submissions?: number
     flatFee?: string
+
+    // REQUESTED: Field for Brand Cover Image URL
+    coverImageUrl?: string
 }
 
 interface PaymentBreakdown {
@@ -69,175 +69,8 @@ interface PaymentBreakdown {
     creatorPayoutTotal: number
     platformFee: number
     brandTotalPay: number
+    perCreatorTotal: number
 }
-
-// ==================================================================================
-// HELPER COMPONENT: DosDontsList
-// ==================================================================================
-
-/**
- * Helper component to handle Dos/Don'ts input and display as a numbered list.
- */
-const DosDontsList: React.FC<{
-    title: string
-    value: string
-    onChange: (value: string) => void
-    placeholder: string
-}> = ({ title, value, onChange, placeholder }) => {
-    // Splits the value by new lines to create an array of list items
-    const items = value.split('\n').filter((item) => item.trim() !== '')
-
-    // State to toggle between the input mode and the structured list view
-    const [isEditing, setIsEditing] = useState(!value) // Start in editing mode if value is empty
-
-    useEffect(() => {
-        // Automatically switch to edit mode if the list is empty
-        if (!value) {
-            setIsEditing(true)
-        }
-    }, [value])
-
-    return (
-        <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm h-full flex flex-col">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{title}</label>
-            <div className="flex-grow">
-                {' '}
-                {/* Allows the content area to expand */}
-                {!isEditing && items.length > 0 ? (
-                    // Display Mode: Show the formatted numbered list
-                    <div className="p-2">
-                        <ol className="list-decimal list-inside space-y-1 ml-4">
-                            {items.map((item, index) => (
-                                <li key={index} className="text-gray-800 text-sm">
-                                    {item.trim()}
-                                </li>
-                            ))}
-                        </ol>
-                    </div>
-                ) : (
-                    // Edit Mode: Show the textarea for editing
-                    <textarea
-                        rows={6}
-                        placeholder={placeholder}
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        className="w-full px-4 py-3 border border-red-500/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/50 resize-none h-full"
-                    />
-                )}
-            </div>
-
-            <div className="mt-4 flex justify-between items-center">
-                <p className="text-xs text-gray-400">Use new lines (Enter) for 1., 2., 3. formatting.</p>
-                {/* Button toggles edit state, or shows 'Save' if editing, or shows 'Add' if empty */}
-                <button
-                    type="button"
-                    onClick={() => setIsEditing(!isEditing)}
-                    className={`px-4 py-1 text-sm rounded-lg transition-colors ${
-                        isEditing
-                            ? 'bg-[#e85c51] text-white hover:bg-red-700'
-                            : 'bg-gray-100 text-red-500 hover:bg-gray-200'
-                    }`}
-                >
-                    {isEditing ? 'Save List' : 'Edit List'}
-                </button>
-            </div>
-        </div>
-    )
-}
-
-// ==================================================================================
-// HELPER COMPONENT: ProgressStep
-// ==================================================================================
-
-interface ProgressStepProps {
-    label: string
-    state: 'pending' | 'active' | 'done' | 'error'
-    current: ProgressState
-}
-
-const ProgressStep: React.FC<ProgressStepProps> = ({ label, state, current }) => {
-    const icon = {
-        done: (
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-            </svg>
-        ),
-        active: (
-            <svg
-                className="animate-spin h-5 w-5 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-            >
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-            </svg>
-        ),
-        error: (
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-        ),
-        pending: <div className="w-3 h-3 rounded-full bg-gray-400"></div>,
-    }[state]
-
-    const color = {
-        done: 'bg-green-500',
-        active: 'bg-red-500',
-        error: 'bg-red-500',
-        pending: 'bg-white border-2 border-gray-400',
-    }[state]
-
-    const textColor =
-        state === 'active' ? 'text-red-600 font-medium' : state === 'done' ? 'text-gray-900' : 'text-gray-500'
-
-    return (
-        <div className="flex items-center space-x-3">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center ${color} shadow-lg`}>
-                {state === 'done' || state === 'active' || state === 'error' ? icon : null}
-            </div>
-            <span className={`text-sm ${textColor}`}>{label}</span>
-        </div>
-    )
-}
-
-const getProgressStatus = (step: ProgressState, current: ProgressState) => {
-    const order: ProgressState[] = ['uploading-assets', 'inserting-data', 'notifying-admin', 'complete']
-    const stepIndex = order.indexOf(step)
-    const currentIndex = order.indexOf(current)
-
-    if (current === 'error') return 'error'
-    if (stepIndex < currentIndex) return 'done'
-    if (stepIndex === currentIndex) return 'active'
-    return 'pending'
-}
-
-const getButtonText = (state: ProgressState): string => {
-    switch (state) {
-        case 'calculating':
-            return 'Calculating...'
-        case 'uploading-assets':
-            return 'Uploading Assets...'
-        case 'inserting-data':
-            return 'Saving Campaign...'
-        case 'notifying-admin':
-            return 'Finalizing...'
-        case 'complete':
-            return 'Campaign Posted!'
-        case 'error':
-            return 'Try Again'
-        default:
-            return 'Create Campaign'
-    }
-}
-
-// ==================================================================================
-// MAIN COMPONENT: CampaignBriefForm
-// ==================================================================================
 
 const CampaignBriefForm: React.FC = () => {
     const router = useRouter()
@@ -250,44 +83,56 @@ const CampaignBriefForm: React.FC = () => {
         contentRequirements: ['video-ad', 'social-media-posts'],
         estimatedViews: 1000000,
         totalBudget: 1500,
-        creatorsPerMillion: 20,
-        ratePer1K: 3.0,
         budget: '$1,500',
         payout: '$500',
         timeline: '1 month',
         requirementsText: [''],
-
-        // defaults for new fields
-        information: '',
         dos: '',
         donts: '',
         countries: '',
-        numCreators: 1,
+        numCreators: 80, // sensible default
         maxPay: '',
         flatFee: '',
+        max_submissions: 5, // sensible default
     })
 
-    // Local file states
+    /**
+     * Used for handling the assets that are going to the brand
+     */
+    const [brandCoverImage, setBrandCoverImage] = useState<File | null>(null)
     const [brandAssets, setBrandAssets] = useState<File[]>([])
     const [referenceImages, setReferenceImages] = useState<File[]>([])
     const [brandGuidelines, setBrandGuidelines] = useState<File | null>(null)
 
-    // NEW: Progress and Error States
+    /**
+     * Used for progress errors and states
+     */
     const [progressState, setProgressState] = useState<ProgressState>('idle')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
-    // Payment Calculator States
-    const [numCreators, setNumCreators] = useState(50)
-    const [maxPayout, setMaxPayout] = useState(80)
+    /**
+     * Used for Calculating Payments (for the brand)
+     */
+    const [numCreators, setNumCreators] = useState(formData.numCreators || 50)
+    const [maxPayout, setMaxPayout] = useState(250) // $250 max per creator (example)
     const [flatFee, setFlatFee] = useState(0)
+    const [estimatedViewsInput, setEstimatedViewsInput] = useState(formData.estimatedViews.toLocaleString())
     const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentBreakdown | null>(null)
     const [paymentError, setPaymentError] = useState<string | null>(null)
 
     // Local previews (object URLs) so users can download/view before upload
     const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
 
-    // --- Dropzone Handlers (useCallback for stability) ---
+    /**
+     *
+     * Assets DropZones Handlers for the campaign
+     *
+     */
+
+    const onDropBrandCoverImage = useCallback((acceptedFiles: File[]) => {
+        if (acceptedFiles.length > 0) setBrandCoverImage(acceptedFiles[0])
+    }, [])
 
     const onDropBrandAssets = useCallback((acceptedFiles: File[]) => {
         setBrandAssets((prev) => [...prev, ...acceptedFiles])
@@ -301,15 +146,24 @@ const CampaignBriefForm: React.FC = () => {
         if (acceptedFiles.length > 0) setBrandGuidelines(acceptedFiles[0])
     }, [])
 
+    /**
+     * DropZone handlers Placed And Attached Evenly
+     */
+    const { getRootProps: getCoverImageRootProps, getInputProps: getCoverImageInputProps } = useDropzone({
+        onDrop: onDropBrandCoverImage,
+        accept: { 'image/*': ['.jpg', '.jpeg', '.png'] },
+        multiple: false,
+    })
+
     const { getRootProps: getBrandAssetsRootProps, getInputProps: getBrandAssetsInputProps } = useDropzone({
         onDrop: onDropBrandAssets,
-        accept: { 'image/*': [] },
+        accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.gif'], 'video/*': ['.mp4', '.mov', '.avi', '.webm'] },
         multiple: true,
     })
 
     const { getRootProps: getReferenceImagesRootProps, getInputProps: getReferenceImagesInputProps } = useDropzone({
         onDrop: onDropReferenceImages,
-        accept: { 'image/*': [] },
+        accept: { 'image/*': ['.jpg', '.jpeg', '.png'] },
         multiple: true,
     })
 
@@ -324,25 +178,46 @@ const CampaignBriefForm: React.FC = () => {
 
     // --- File URL Effect ---
     useEffect(() => {
-        // generate object URLs for easy download/preview and clean them up
-        const urls: Record<string, string> = {}
+        /**
+         * Generate Object URLs for Easy download and Preview
+         * @returns
+         */
 
-        brandAssets.forEach((f, i) => {
-            const key = `brand-${i}-${f.name}`
-            urls[key] = URL.createObjectURL(f)
-        })
+        const generateObjectURLSForEasyDownloadAndPreview = () => {
+            const urls: Record<string, string> = {}
 
-        referenceImages.forEach((f, i) => {
-            const key = `ref-${i}-${f.name}`
-            urls[key] = URL.createObjectURL(f)
-        })
+            brandAssets.forEach((f, i) => {
+                const key = `brand-${i}-${f.name}`
+                urls[key] = URL.createObjectURL(f)
+            })
 
-        if (brandGuidelines) {
-            const key = `guidelines-${brandGuidelines.name}`
-            urls[key] = URL.createObjectURL(brandGuidelines)
+            referenceImages.forEach((f, i) => {
+                const key = `ref-${i}-${f.name}`
+                urls[key] = URL.createObjectURL(f)
+            })
+
+            // Handle Brand Cover Image
+            if (brandCoverImage) {
+                const key = `cover-${brandCoverImage.name}`
+                urls[key] = URL.createObjectURL(brandCoverImage)
+            }
+
+            if (brandGuidelines) {
+                const key = `guidelines-${brandGuidelines.name}`
+                urls[key] = URL.createObjectURL(brandGuidelines)
+            }
+
+            return urls
         }
 
-        // revoke previous urls
+        /**
+         * Generated URLS
+         */
+        let urls = generateObjectURLSForEasyDownloadAndPreview()
+
+        /**
+         * Used to Revoke the Object URLS
+         */
         Object.values(assetUrls).forEach((u) => {
             try {
                 URL.revokeObjectURL(u)
@@ -363,9 +238,17 @@ const CampaignBriefForm: React.FC = () => {
             })
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [brandAssets, referenceImages, brandGuidelines])
+    }, [brandAssets, referenceImages, brandGuidelines, brandCoverImage])
 
     // --- Core Functions ---
+
+    // Helper to safely parse any input string into a number
+    const parseToNumber = (value: string): number => {
+        // Remove all non-digit characters (e.g., commas, letters)
+        const cleanedValue = value.replace(/[^0-9]/g, '')
+        // Parse to integer, default to 0 if empty
+        return parseInt(cleanedValue) || 0
+    }
 
     /**
      * Handles payment calculation and aligns the result with the main formData.
@@ -373,6 +256,10 @@ const CampaignBriefForm: React.FC = () => {
     const handlePaymentCalculate = () => {
         setProgressState('calculating') // Set state
         try {
+            if (numCreators <= 0 || maxPayout <= 0) {
+                throw new Error('Number of creators and Max Payout must be greater than zero.')
+            }
+
             const result = calculateGohezaPayment(numCreators, maxPayout, flatFee)
             setPaymentBreakdown(result)
             setPaymentError(null)
@@ -382,16 +269,21 @@ const CampaignBriefForm: React.FC = () => {
                 ...prev,
                 totalBudget: result.brandTotalPay,
                 budget: `$${result.brandTotalPay.toLocaleString()}`,
-                maxPay: `$${maxPayout.toLocaleString()}`,
+                maxPay: `$${result.maxPayout}`,
                 flatFee: `$${flatFee.toLocaleString()}`,
+                payout: `$${result.perCreatorTotal}`,
                 numCreators: numCreators,
-                max_submissions : numCreators
+                max_submissions: numCreators,
             }))
             setProgressState('idle') // Reset state
+            toast.success('Budget Calculated!', {
+                description: `Total cost: $${result.brandTotalPay.toLocaleString()}`,
+            })
         } catch (err: any) {
             setPaymentBreakdown(null)
             setPaymentError(err.message)
             setProgressState('error') // Set error state
+            toast.error('Calculation Failed', { description: err.message })
         }
     }
 
@@ -425,33 +317,14 @@ const CampaignBriefForm: React.FC = () => {
         }
     }
 
-    const uploadFilesToStorage = async (files: File[], folder: string) => {
-        const uploadPromises = files.map(async (file) => {
-            const fileName = `${Date.now()}_${file.name}`
-            const filePath = `${folder}/${fileName}`
-
-            const { data, error } = await supabaseClient.storage.from('campaign-assets').upload(filePath, file)
-
-            if (error) throw error
-
-            const {
-                data: { publicUrl },
-            } = supabaseClient.storage.from('campaign-assets').getPublicUrl(filePath)
-
-            return {
-                name: file.name,
-                url: publicUrl,
-                type: file.type,
-                size: file.size,
-            }
-        })
-
-        return Promise.all(uploadPromises)
-    }
-
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault()
         baseLogger('BRAND-OPERATIONS', 'WillSubmitCampaignDetails')
+
+        if (!paymentBreakdown) {
+            toast.error('Missing Budget Calculation', { description: 'Please calculate the budget before submitting.' })
+            return
+        }
 
         setLoading(true)
         setProgressState('uploading-assets') // START: Initial progress state
@@ -489,16 +362,39 @@ const CampaignBriefForm: React.FC = () => {
             let brandAssetsData: any[] = []
             let referenceImagesData: any[] = []
             let brandGuidelinesData: any = null
+            // REQUESTED: Brand Cover Image upload setup
+            let coverImageUrl: string | null = null
 
             // --- ASSET UPLOADS ---
             if (brandAssets.length > 0) {
                 baseLogger('BRAND-OPERATIONS', 'WillUploadAssets')
+                // uploadFilesToStorage handles video/image type detection now
                 brandAssetsData = await uploadFilesToStorage(brandAssets, 'brand-assets')
             }
 
             if (referenceImages.length > 0) {
                 baseLogger('BRAND-OPERATIONS', 'WillUploadReferenceImages')
                 referenceImagesData = await uploadFilesToStorage(referenceImages, 'reference-images')
+            }
+
+            // REQUESTED: Brand Cover Image Upload
+            if (brandCoverImage) {
+                baseLogger('BRAND-OPERATIONS', 'WillUploadBrandCoverImage')
+                const fileName = `${Date.now()}_${brandCoverImage.name}`
+                const filePath = `brand-covers/${fileName}`
+
+                const { error: coverImageError } = await supabaseClient.storage
+                    .from('campaign-assets')
+                    .upload(filePath, brandCoverImage)
+
+                if (coverImageError) throw coverImageError
+
+                const {
+                    data: { publicUrl },
+                } = supabaseClient.storage.from('campaign-assets').getPublicUrl(filePath)
+
+                coverImageUrl = publicUrl
+                setFormData((prev) => ({ ...prev, coverImageUrl: publicUrl })) // Store URL in local state
             }
 
             if (brandGuidelines) {
@@ -523,6 +419,7 @@ const CampaignBriefForm: React.FC = () => {
                     url: publicUrl,
                     type: brandGuidelines.type,
                     size: brandGuidelines.size,
+                    media_type: 'document', // Guidelines are a document
                 }
             }
 
@@ -554,7 +451,6 @@ const CampaignBriefForm: React.FC = () => {
                         timeline: formData.timeline || null,
                         requirements: filteredRequirements,
                         objectives: formData.objectivesArray,
-                        estimated_views: formData.estimatedViews,
                         status: 'inreview',
                         created_by: user.id,
                         assets: assets,
@@ -563,9 +459,20 @@ const CampaignBriefForm: React.FC = () => {
                         dos: formData.dos || null,
                         donts: formData.donts || null,
                         target_countries: targetCountries,
+
+                        /**
+                         * Payment Details
+                         */
+
                         num_creators: formData.numCreators ?? null,
                         max_pay: formData.maxPay || null,
                         flat_fee: formData.flatFee || null,
+
+                        /**
+                         * Cover Image
+                         */
+                        cover_image_url: coverImageUrl,
+                        max_submissions: formData.max_submissions,
                     },
                 ])
                 .select()
@@ -594,7 +501,7 @@ const CampaignBriefForm: React.FC = () => {
             setProgressState('complete') // FINAL State
 
             // redirect
-            if (campaignData && campaignData.id) router.push(`/main/brand/campaigns/${campaignData.id}`)
+            if (campaignData && campaignData.id) router.push(`/main/brand/campaigns`)
         } catch (err) {
             console.error('Error creating campaign:', err)
             setError(err instanceof Error ? err.message : 'Failed to create campaign')
@@ -615,328 +522,410 @@ const CampaignBriefForm: React.FC = () => {
         <div className="max-w-4xl mx-auto p-6 bg-white mt-2">
             <h1 className="text-3xl font-semibold text-gray-900 mb-8">New Campaign Brief</h1>
 
-            {/* Campaign Title */}
-            <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campaign Title (Max 60 characters)
-                </label>
-                <input
-                    type="text"
-                    placeholder="Enter campaign title"
-                    maxLength={60}
-                    value={formData.title}
-                    onChange={(e) => handleInputChange('title', e.target.value)}
-                    className="w-full px-4 py-3  border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                    SEO Suggestion: Include keywords related to your product or service.
-                </p>
-            </div>
-
-            {/* Campaign Details: add budget/payout/timeline from older file */}
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Timeline</label>
-                    <select
-                        value={formData.timeline}
-                        onChange={(e) => handleInputChange('timeline', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                        <option value="1 week">1 Week</option>
-                        <option value="2 weeks">2 Weeks</option>
-                        <option value="1 month">1 Month</option>
-                        <option value="2 months">2 Months</option>
-                        <option value="3 months">3 Months</option>
-                        <option value="flexible">Flexible</option>
-                    </select>
-                </div>
-            </div>
-
-            {/* Campaign Description */}
-            <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Campaign Description</label>
-                <textarea
-                    rows={6}
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    className="w-full px-4 py-3    border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                />
-            </div>
-
-            {/* Media Uploads */}
-            <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Media Uploads</h2>
-
+            <form onSubmit={handleSubmit}>
+                {/* Campaign Title */}
                 <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Reference Images</label>
-                    <div
-                        {...getReferenceImagesRootProps()}
-                        className="border-2 border-dashed    border-[#e6626227] rounded-lg p-8 text-center"
-                    >
-                        <input {...getReferenceImagesInputProps()} />
-                        <p className="text-gray-500">Drag and drop images here</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Campaign Title (Max 60 characters)
+                    </label>
+                    <input
+                        type="text"
+                        placeholder="Enter campaign title"
+                        maxLength={60}
+                        value={formData.title}
+                        onChange={(e) => handleInputChange('title', e.target.value)}
+                        className="w-full px-4 py-3 border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        required
+                    />
+                    <p className="text-sm text-gray-500 mt-1">
+                        SEO Suggestion: Include keywords related to your product or service.
+                    </p>
+                </div>
+
+                {/* Campaign Details: add budget/payout/timeline from older file */}
+                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Timeline</label>
+                        <select
+                            value={formData.timeline}
+                            onChange={(e) => handleInputChange('timeline', e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                        >
+                            <option value="1 week">1 Week</option>
+                            <option value="2 weeks">2 Weeks</option>
+                            <option value="1 month">1 Month</option>
+                            <option value="2 months">2 Months</option>
+                            <option value="3 months">3 Months</option>
+                            <option value="flexible">Flexible</option>
+                        </select>
                     </div>
-
-                    {referenceImages.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                            {referenceImages.map((file, index) => (
-                                <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
-                                    <span className="text-sm text-gray-700">{file.name}</span>
-                                    <div className="flex items-center space-x-2">
-                                        <a
-                                            href={getPreviewUrlForFile('ref', index)}
-                                            download={file.name}
-                                            className="text-sm text-blue-600 hover:underline"
-                                        >
-                                            Download
-                                        </a>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeFile('referenceImages', index)}
-                                            className="text-[#e85c51] hover:text-red-800 text-xs"
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
 
+                {/* Campaign Description */}
                 <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Brand Assets</label>
-                    <div
-                        {...getBrandAssetsRootProps()}
-                        className="border-2 border-dashed    border-[#e6626227] rounded-lg p-8 text-center"
-                    >
-                        <input {...getBrandAssetsInputProps()} />
-                        <p className="text-gray-500">Drag and drop brand assets here</p>
-                    </div>
-
-                    {brandAssets.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                            {brandAssets.map((file, index) => (
-                                <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
-                                    <span className="text-sm text-gray-700">{file.name}</span>
-                                    <div className="flex items-center space-x-2">
-                                        <a
-                                            href={getPreviewUrlForFile('brand', index)}
-                                            download={file.name}
-                                            className="text-sm text-blue-600 hover:underline"
-                                        >
-                                            Download
-                                        </a>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeFile('brandAssets', index)}
-                                            className="text-[#e85c51] hover:text-red-800 text-xs"
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Campaign Description</label>
+                    <textarea
+                        rows={6}
+                        value={formData.description}
+                        onChange={(e) => handleInputChange('description', e.target.value)}
+                        className="w-full px-4 py-3 border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                        required
+                    />
                 </div>
 
-                <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Brand Guidelines (PDF/DOCX)</label>
-                    <div
-                        {...getBrandGuidelinesRootProps()}
-                        className="border-2 border-dashed    border-[#e6626227] rounded-lg p-8 text-center"
-                    >
-                        <input {...getBrandGuidelinesInputProps()} />
-                        {brandGuidelines ? (
-                            <div className="flex items-center justify-center space-x-2">
-                                <p className="text-gray-900">{brandGuidelines.name}</p>
-                                <a
-                                    href={getPreviewUrlForFile('guidelines', 0, brandGuidelines.name)}
-                                    download={brandGuidelines.name}
-                                    className="text-sm text-blue-600 hover:underline"
-                                >
-                                    Download
-                                </a>
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        setBrandGuidelines(null)
-                                    }}
-                                    className="text-[#e85c51] hover:text-red-800 text-sm"
-                                >
-                                    Remove
-                                </button>
-                            </div>
-                        ) : (
-                            <p className="text-gray-500">Drag and drop PDF or DOCX here</p>
+                {/* --- Media Uploads (Updated) --- */}
+                <div className="mb-8">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Media Uploads</h2>
+
+                    {/* REQUESTED: Brand Cover Image Upload */}
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Brand Cover Image (Optional)
+                        </label>
+                        <div
+                            {...getCoverImageRootProps()}
+                            className="border-2 border-dashed border-[#e6626227] rounded-lg p-8 text-center cursor-pointer"
+                        >
+                            <input {...getCoverImageInputProps()} />
+                            {brandCoverImage ? (
+                                <div className="flex items-center justify-center space-x-2">
+                                    <p className="text-gray-900 font-medium">✅ {brandCoverImage.name}</p>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setBrandCoverImage(null)
+                                        }}
+                                        className="text-[#e85c51] hover:text-red-800 text-sm"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ) : (
+                                <p className="text-gray-500">Drag and drop a single **cover image** (JPG/PNG)</p>
+                            )}
+                        </div>
+                        {brandCoverImage && (
+                            <p className="text-xs text-gray-500 mt-2">
+                                Tip: This image will be the primary visual for your campaign listing.
+                            </p>
                         )}
                     </div>
-                </div>
-            </div>
 
-            {/* Dos and Don'ts */}
-            <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Dos and Don’ts</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Reference Images */}
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Reference Images</label>
+                        <div
+                            {...getReferenceImagesRootProps()}
+                            className="border-2 border-dashed border-[#e6626227] rounded-lg p-8 text-center cursor-pointer"
+                        >
+                            <input {...getReferenceImagesInputProps()} />
+                            <p className="text-gray-500">Drag and drop images here</p>
+                        </div>
+
+                        {referenceImages.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                {referenceImages.map((file, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex items-center justify-between bg-gray-100 p-2 rounded"
+                                    >
+                                        <span className="text-sm text-gray-700">{file.name}</span>
+                                        <div className="flex items-center space-x-2">
+                                            <a
+                                                href={getPreviewUrlForFile('ref', index)}
+                                                download={file.name}
+                                                className="text-sm text-blue-600 hover:underline"
+                                            >
+                                                Download
+                                            </a>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeFile('referenceImages', index)}
+                                                className="text-[#e85c51] hover:text-red-800 text-xs"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Brand Assets (Now includes Video support) */}
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Brand Assets (Images **and Videos**)
+                        </label>
+                        <div
+                            {...getBrandAssetsRootProps()}
+                            className="border-2 border-dashed border-[#e6626227] rounded-lg p-8 text-center cursor-pointer"
+                        >
+                            <input {...getBrandAssetsInputProps()} />
+                            <p className="text-gray-500">Drag and drop brand assets here</p>
+                        </div>
+
+                        {brandAssets.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                {brandAssets.map((file, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex items-center justify-between bg-gray-100 p-2 rounded"
+                                    >
+                                        <span className="text-sm text-gray-700 flex items-center">
+                                            {file.type.startsWith('video/') ? (
+                                                <Video className="w-4 h-4 mr-1 text-blue-500" />
+                                            ) : (
+                                                <ImageIcon className="w-4 h-4 mr-1 text-green-500" />
+                                            )}
+                                            {file.name}
+                                        </span>
+                                        <div className="flex items-center space-x-2">
+                                            <a
+                                                href={getPreviewUrlForFile('brand', index)}
+                                                download={file.name}
+                                                className="text-sm text-blue-600 hover:underline"
+                                            >
+                                                Download
+                                            </a>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeFile('brandAssets', index)}
+                                                className="text-[#e85c51] hover:text-red-800 text-xs"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Brand Guidelines */}
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Brand Guidelines (PDF/DOCX)
+                        </label>
+                        <div
+                            {...getBrandGuidelinesRootProps()}
+                            className="border-2 border-dashed border-[#e6626227] rounded-lg p-8 text-center cursor-pointer"
+                        >
+                            <input {...getBrandGuidelinesInputProps()} />
+                            {brandGuidelines ? (
+                                <div className="flex items-center justify-center space-x-2">
+                                    <p className="text-gray-900">{brandGuidelines.name}</p>
+                                    <a
+                                        href={getPreviewUrlForFile('guidelines', 0, brandGuidelines.name)}
+                                        download={brandGuidelines.name}
+                                        className="text-sm text-blue-600 hover:underline"
+                                    >
+                                        Download
+                                    </a>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setBrandGuidelines(null)
+                                        }}
+                                        className="text-[#e85c51] hover:text-red-800 text-sm"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ) : (
+                                <p className="text-gray-500">Drag and drop PDF or DOCX here</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                {/* --- End Media Uploads --- */}
+
+                {/* Additional Information */}
+                <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Additional Information (Key instructions, contact, etc.)
+                    </label>
+                    <textarea
+                        rows={4}
+                        placeholder="Any other details the creators or admin should know."
+                        value={formData.information}
+                        onChange={(e) => handleInputChange('information', e.target.value)}
+                        className="w-full px-4 py-3 border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                    />
+                </div>
+
+                {/* Dos and Don'ts */}
+                <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <DosDontsList
-                        title="Dos (Things to Include)"
+                        title="Content Dos (What to include)"
                         value={formData.dos || ''}
                         onChange={(v) => handleInputChange('dos', v)}
-                        placeholder="List things creators must include, one item per line (e.g., mention discount code, show product clearly)..."
+                        placeholder="1. Use our new logo in the corner.\n2. Mention the discount code 'GOHEZA20' clearly.\n3. Keep video under 60 seconds."
                     />
                     <DosDontsList
-                        title="Don'ts (Restrictions)"
+                        title="Content Don'ts (What to avoid)"
                         value={formData.donts || ''}
                         onChange={(v) => handleInputChange('donts', v)}
-                        placeholder="List restrictions, one item per line (e.g., avoid profanity, don’t alter brand logos)..."
+                        placeholder="1. Do not mention competitor brand X.\n2. Do not use background music with explicit lyrics.\n3. Do not show the product package."
                     />
                 </div>
-            </div>
 
-            {/* Views and Budget Calculator */}
-            <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Views and Budget Calculator</h2>
+                {/* --- Views and Budget Calculator (Implemented as requested) --- */}
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Views & Budget Calculator</h2>
+                <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        {/* Number of Creators Input */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Number of Creators</label>
+                            <input
+                                type="number"
+                                min="30"
+                                placeholder="e.g., 30"
+                                value={numCreators}
+                                onChange={(e) => setNumCreators(parseInt(e.target.value) || 0)}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                required
+                            />
+                        </div>
 
-                <div className="mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600">Estimated Views</span>
-                        <span className="text-sm font-medium text-gray-900">
-                            {formatNumber(formData.estimatedViews)}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Payment Inputs */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <label className="block mb-1 font-medium">Number of Creators</label>
-                        <input
-                            type="number"
-                            min={1}
-                            value={numCreators}
-                            onChange={(e) => setNumCreators(Number(e.target.value))}
-                            className="w-full p-2 border rounded"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block mb-1 font-medium">Max Payout per Creator ($)</label>
-                        <input
-                            type="number"
-                            min={0}
-                            value={maxPayout}
-                            onChange={(e) => setMaxPayout(Number(e.target.value))}
-                            className="w-full p-2 border rounded"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block mb-1 font-medium">Flat Fee per Creator ($, optional)</label>
-                        <input
-                            type="number"
-                            min={0}
-                            value={flatFee}
-                            onChange={(e) => setFlatFee(Number(e.target.value))}
-                            className="w-full p-2 border rounded"
-                        />
-                    </div>
-                </div>
-
-                <button
-                    onClick={handlePaymentCalculate}
-                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mb-4 disabled:opacity-50"
-                    disabled={progressState === 'calculating'}
-                >
-                    {progressState === 'calculating' ? 'Calculating...' : 'Calculate Payment'}
-                </button>
-
-                {paymentError && <p className="text-red-500 font-medium mb-3">{paymentError}</p>}
-
-                {paymentBreakdown && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                                <Wallet className="w-5 h-5 text-[#e85c51]" />
+                        {/* Max Payout Input */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Max Payout per Creator ($)
+                            </label>
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                    $
+                                </span>
+                                <input
+                                    type="number"
+                                    min="30"
+                                    placeholder="e.g., 250"
+                                    value={maxPayout}
+                                    onChange={(e) => setMaxPayout(parseInt(e.target.value) || 0)}
+                                    className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    required
+                                />
                             </div>
-                            <div>
-                                <p className="text-sm text-gray-600">Total Payments</p>
-                                <p className="text-lg font-semibold text-gray-900">
+                        </div>
+
+                        {/* Flat Fee Input (Optional) */}
+                        <div className="md:col-span-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Additional Flat Fee for ALL Creators ($) (Optional)
+                            </label>
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                    $
+                                </span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    placeholder="e.g., 500 (for product cost, etc.)"
+                                    value={flatFee}
+                                    onChange={(e) => setFlatFee(parseInt(e.target.value) || 0)}
+                                    className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handlePaymentCalculate}
+                        className="w-full py-3 bg-[#e85c51] text-white font-semibold rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+                        disabled={loading || progressState === 'calculating'}
+                    >
+                        <Wallet className="w-5 h-5" />
+                        <span>Calculate Total Budget</span>
+                    </button>
+
+                    {paymentBreakdown && (
+                        <div className="mt-4 p-4 bg-white border border-green-200 rounded-lg">
+                            <h3 className="text-lg font-semibold text-green-700 mb-2">Budget Breakdown</h3>
+                            <div className="grid grid-cols-2 gap-2 text-sm text-gray-700">
+                                <p>Creator Payout Total:</p>
+                                <p className="font-semibold text-right">
+                                    ${paymentBreakdown.creatorPayoutTotal.toLocaleString()}
+                                </p>
+                                <p>
+                                    Goheza Platform Fee (
+                                    {Math.round(
+                                        (paymentBreakdown.platformFee / paymentBreakdown.creatorPayoutTotal) * 100
+                                    )}
+                                    %):
+                                </p>
+                                <p className="font-semibold text-right">
+                                    ${paymentBreakdown.platformFee.toLocaleString()}
+                                </p>
+                                <p className="pt-2 font-bold text-base border-t border-gray-300">
+                                    Max Payment Per Creator:
+                                </p>
+                                <p className="pt-2 font-bold text-base text-right border-t border-gray-300 text-[#e85c51]">
+                                    ${paymentBreakdown.perCreatorTotal.toLocaleString()}
+                                </p>
+                                <p className="pt-2 font-bold text-base border-t border-gray-300">
+                                    Total Brand Payment:
+                                </p>
+                                <p className="pt-2 font-bold text-base text-right border-t border-gray-300 text-[#e85c51]">
                                     ${paymentBreakdown.brandTotalPay.toLocaleString()}
                                 </p>
                             </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                                This total will be set as the **Campaign Budget** in your brief.
+                            </p>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                                <Users className="w-5 h-5 text-[#e85c51]" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-600">Creators Total Payout</p>
-                                <p className="text-lg font-semibold text-gray-900">
-                                    ${paymentBreakdown.creatorPayoutTotal.toLocaleString()}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                                <Airplay className="w-5 h-5 text-[#e85c51]" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-600">Platform fee (30%)</p>
-                                <p className="text-lg font-semibold text-gray-900">
-                                    ${paymentBreakdown.platformFee.toLocaleString()}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
+                    )}
+                    {paymentError && <p className="mt-4 text-sm text-red-600">Error: {paymentError}</p>}
+                </div>
+                {/* --- End Views and Budget Calculator --- */}
 
-            {/* Progress Tracker */}
-            {(loading || progressState === 'complete' || progressState === 'error') &&
-                progressState !== 'idle' &&
-                progressState !== 'calculating' && (
-                    <div className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Campaign Creation Progress</h2>
-                        <div className="space-y-2">
+                {/* Form Progress and Submission */}
+                <div className="border-t border-gray-200 pt-6">
+                    {progressState !== 'idle' && progressState !== 'calculating' && (
+                        <div className="mb-6 space-y-3">
                             <ProgressStep
-                                label="Uploading Assets"
+                                label="Upload Assets"
                                 state={getProgressStatus('uploading-assets', progressState)}
                                 current={progressState}
                             />
                             <ProgressStep
-                                label="Saving Campaign Details"
+                                label="Save Campaign Data"
                                 state={getProgressStatus('inserting-data', progressState)}
                                 current={progressState}
                             />
                             <ProgressStep
-                                label="Notifying Admin Team"
+                                label="Notify Admin"
                                 state={getProgressStatus('notifying-admin', progressState)}
                                 current={progressState}
                             />
-                            <ProgressStep
-                                label="Complete"
-                                state={getProgressStatus('complete', progressState)}
-                                current={progressState}
-                            />
                         </div>
-                    </div>
-                )}
+                    )}
 
-            {/* Create Campaign Button */}
-            <div className="flex justify-end">
-                <button
-                    onClick={handleSubmit}
-                    className="px-8 py-3 bg-[#e85c51] text-white font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={loading || progressState === 'complete' || progressState === 'calculating'}
-                >
-                    {getButtonText(progressState)}
-                </button>
-            </div>
+                    {error && (
+                        <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg mb-4">
+                            <p className="font-semibold">Submission Error:</p>
+                            <p className="text-sm">{error}</p>
+                        </div>
+                    )}
 
-            {/* Error display */}
-            {error && <div className="mt-4 text-sm text-[#e85c51]">{error}</div>}
+                    <button
+                        type="submit"
+                        className="w-full py-4 bg-[#e85c51] text-white font-bold text-lg rounded-lg shadow-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                        disabled={loading || progressState !== 'idle' || !paymentBreakdown}
+                    >
+                        {getButtonText(progressState)}
+                    </button>
+
+                    {progressState === 'complete' && (
+                        <div className="mt-3 text-center text-green-600 font-medium">
+                            Redirecting you to your new campaign in a moment...
+                        </div>
+                    )}
+                </div>
+            </form>
         </div>
     )
 }

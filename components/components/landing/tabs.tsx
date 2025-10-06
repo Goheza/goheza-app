@@ -15,9 +15,9 @@ export function BrandCreatorTabs() {
     }
 
     return (
-        <section className="py-12 sm:py-20 ">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                <Tabs defaultValue="brands" className="max-w-5xl mx-auto bg-transparent">
+        <section className="  ">
+            <div className="container     text-center">
+                <Tabs defaultValue="brands" className="w-full mx-auto bg-transparent">
                     <motion.div
                         initial={{ opacity: 0, y: 12 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -42,20 +42,20 @@ export function BrandCreatorTabs() {
                             initial="hidden"
                             animate="visible"
                             variants={fadeUp}
-                            className="flex justify-center items-center p-4 sm:p-8 rounded-xl"
+                            className="flex justify-center items-center  sm:p-8 rounded-xl"
                         >
                             {/* Mobile Image */}
                             <Image
                                 src={brandMobile}
                                 alt="Brand reaching out to creators"
-                                className="block sm:hidden w-full max-w-[450px] h-auto object-contain"
+                                className="block sm:hidden w-[1200px]   h-auto"
                                 priority
                             />
                             {/* Desktop Image */}
                             <Image
                                 src={brandImageDesktop}
                                 alt="Brand reaching out to creators"
-                                className="hidden sm:block w-full max-w-[650px] h-auto object-contain"
+                                className="hidden sm:block w-full max-w-[1800px] h-auto object-contain"
                                 priority
                             />
                         </motion.div>
@@ -74,7 +74,7 @@ export function BrandCreatorTabs() {
                             <Image
                                 src={creatorMobile}
                                 alt="Creator making content and earning money"
-                                className="block sm:hidden w-full max-w-[450px] h-auto object-contain"
+                                className="block sm:hidden w-[1200px]  h-auto"
                             />
                             {/* Desktop Image */}
                             <Image

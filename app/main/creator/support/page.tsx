@@ -101,8 +101,7 @@ const SupportPage = () => {
                             <input
                                 type="text"
                                 id="name"
-                                defaultValue={user?.name || ''}
-                                readOnly={!!user}
+                                
                                 className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 ${
                                     user ? 'bg-gray-100' : 'focus:ring-[#e85c51] focus:border-[#e85c51]'
                                 }`}
@@ -116,8 +115,7 @@ const SupportPage = () => {
                             <input
                                 type="email"
                                 id="email"
-                                defaultValue={user?.email || ''}
-                                readOnly={!!user}
+                                
                                 className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 ${
                                     user ? 'bg-gray-100' : 'focus:ring-[#e85c51] focus:border-[#e85c51]'
                                 }`}

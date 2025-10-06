@@ -12,7 +12,7 @@ export async function POST(req: Request) {
         }
 
         const data = await resend.emails.send({
-            from: 'Your Name <onboarding@resend.dev>', // or your verified domain
+            from: 'Your Name <info@goheza.com>', // or your verified domain
             to,
             subject,
             html: `<p>${message}</p>`,
