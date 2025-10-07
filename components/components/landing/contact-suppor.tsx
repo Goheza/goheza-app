@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
 
 export default function ContactForm() {
     const [formData, setFormData] = useState({
@@ -13,25 +12,10 @@ export default function ContactForm() {
     })
     const [status, setStatus] = useState('')
 
-    const questionTypes = [
-        'What is your question about?',
-        'General Inquiry',
-        'Technical Support',
-        'Business Partnership',
-        'Feature Request',
-        'Bug Report',
-        'Billing Question',
-    ]
-
-    const handleInputChange = (e: any) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }))
+        setFormData((prev) => ({ ...prev, [name]: value }))
     }
-
-    const receivingDomain = process.env.NEXT_PUBLIC_RESIEVING_DOMAIN! as string
 
     const handleSubmit = async () => {
         setStatus('Sending...')
@@ -41,16 +25,18 @@ export default function ContactForm() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    to: receivingDomain,
+                    name: formData.name,
+                    email: formData.email,
+                    role: formData.questionType,
                     subject: `New Contact Form: ${formData.questionType || 'Message'}`,
                     message: `
-                        <p><strong>Name:</strong> ${formData.name}</p>
-                        <p><strong>Email:</strong> ${formData.email}</p>
-                        <p><strong>Phone:</strong> ${formData.phone}</p>
-                        <p><strong>Type:</strong> ${formData.questionType}</p>
-                        <p><strong>Message:</strong></p>
-                        <p>${formData.description}</p>
-                    `,
+            <p><strong>Name:</strong> ${formData.name}</p>
+            <p><strong>Email:</strong> ${formData.email}</p>
+            <p><strong>Phone:</strong> ${formData.phone}</p>
+            <p><strong>Type:</strong> ${formData.questionType}</p>
+            <p><strong>Message:</strong></p>
+            <p>${formData.description}</p>
+          `,
                 }),
             })
 
@@ -58,82 +44,59 @@ export default function ContactForm() {
 
             if (result.success) {
                 setStatus('✅ Your message has been sent!')
-                setFormData({
-                    name: '',
-                    email: '',
-                    phone: '',
-                    questionType: '',
-                    description: '',
-                })
+                setFormData({ name: '', email: '', phone: '', questionType: '', description: '' })
             } else {
                 setStatus(`❌ Error: ${result.error}`)
             }
-        } catch (error: any) {
-            setStatus('❌ Failed to send. Please try again later.')
+        } catch (error) {
             console.error(error)
+            setStatus('❌ Failed to send. Please try again later.')
         }
     }
 
     return (
         <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
             <div className="w-full max-w-2xl">
-                {/* Form Header */}
                 <div className="text-center mb-12">
                     <h1 className="text-5xl font-bold text-black mb-4">
                         Send us a <span className="text-[#e85c51]">message</span>
                     </h1>
                 </div>
 
-                {/* Form */}
                 <div className="space-y-8">
                     {/* Name + Email + Phone */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className="block text-black text-sm font-medium mb-3">
-                                Name 
-                            </label>
-                            <input
-                                type="text"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleInputChange}
-                                placeholder="Enter your name"
-                                className="w-full px-4 py-4 rounded-lg text-black border placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-black text-sm font-medium mb-3">
-                                Email 
-                            </label>
-                            <input
-                                type="email"
-                                name="email"
-                                value={formData.email}
-                                onChange={handleInputChange}
-                                placeholder="Enter your email"
-                                className="w-full px-4 py-4 rounded-lg text-black border placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-black text-sm font-medium mb-3">
-                                Phone
-                            </label>
-                            <input
-                                type="tel"
-                                name="phone"
-                                value={formData.phone}
-                                onChange={handleInputChange}
-                                placeholder="Enter your phone number"
-                                className="w-full px-4 py-4 rounded-lg text-black border placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
-                            />
-                        </div>
+                        {['name', 'email', 'phone'].map((field) => (
+                            <div key={field}>
+                                <label className="block text-black text-sm font-medium mb-3 capitalize">{field}</label>
+                                <input
+                                    type={field === 'email' ? 'email' : 'text'}
+                                    name={field}
+                                    value={(formData as any)[field]}
+                                    onChange={handleInputChange}
+                                    placeholder={`Enter your ${field}`}
+                                    className="w-full px-4 py-4 rounded-lg text-black border placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
+                                />
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Question Type */}
+                    <div>
+                        <label className="block text-black text-sm font-medium mb-3">Question Type</label>
+                        <input
+                            type="text"
+                            name="questionType"
+                            value={formData.questionType}
+                            onChange={handleInputChange}
+                            placeholder="e.g. Technical Support, Billing, Bug Report"
+                            className="w-full px-4 py-4 rounded-lg text-black border placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
+                        />
                     </div>
 
                     {/* Description */}
                     <div>
-                        <label className="block text-black text-sm font-medium mb-3">
-                        Description 
-                        </label>
+                        <label className="block text-black text-sm font-medium mb-3">Description</label>
                         <textarea
                             name="description"
                             value={formData.description}
@@ -152,7 +115,7 @@ export default function ContactForm() {
                         >
                             Submit →
                         </button>
-                        {status && <p className="mt-4 text-sm text-white">{status}</p>}
+                        {status && <p className="mt-4 text-sm text-black">{status}</p>}
                     </div>
                 </div>
             </div>

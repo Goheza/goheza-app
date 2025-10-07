@@ -5,17 +5,23 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: Request) {
     try {
-        const { to, name, email, role, subject, message } = await req.json()
+        const { name, email, role, subject, message } = await req.json()
 
-        if (!to || !email || !subject || !message) {
+        // Validate required fields
+        if (!email || !subject || !message) {
             return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
         }
 
+        // All messages go to info@goheza.com
         const data = await resend.emails.send({
-            from: 'Support <info@goheza.com>',
-            to: [to],
-            subject: `[${role}] ${subject}`,
-            text: `From: ${name} (${email})\nRole: ${role}\n\nMessage:\n${message}`,
+            from: 'Support <info@goheza.com>', // must match your verified sender domain in Resend
+            to: ['info@goheza.com'],
+            subject: `[${role || 'General'}] ${subject}`,
+            text: `From: ${name || 'Anonymous'} (${email})
+Role: ${role || 'N/A'}
+
+Message:
+${message}`,
         })
 
         if (data.error) {
