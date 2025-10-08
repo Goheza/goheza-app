@@ -167,6 +167,10 @@ export default function Dashboard() {
         }
     }
 
+    const gotoCampaigns = () =>{
+        router.push("/main/brand/campaigns")
+    }
+
     const handleCreateCampaign = () => {
         router.push('/main/brand/campaigns/new')
     }
@@ -232,7 +236,7 @@ export default function Dashboard() {
             {/* Campaign Stats: Active Campaigns and Completed Campaigns UI elements */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
                 {/* Active Campaigns */}
-                <div className="p-6 rounded-lg bg-neutral-100 shadow-sm">
+                <div className="p-6 rounded-lg border transition-all bg-neutral-100 shadow-sm cursor-pointer hover:border-[#e93838]" onClick={gotoCampaigns}>
                     <h2 className="text-xl font-semibold text-gray-700">Active Campaigns</h2>
                     <p className="text-4xl font-bold text-[#e93838] mt-2">{activeCampaigns}</p>
                 </div>

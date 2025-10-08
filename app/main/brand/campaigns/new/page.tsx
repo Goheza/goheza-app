@@ -1,5 +1,3 @@
-// src/components/CampaignBriefForm.tsx (Updated)
-
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
@@ -70,6 +68,7 @@ interface PaymentBreakdown {
     platformFee: number
     brandTotalPay: number
     perCreatorTotal: number
+    totalViews: number
 }
 
 const CampaignBriefForm: React.FC = () => {
@@ -274,6 +273,7 @@ const CampaignBriefForm: React.FC = () => {
                 payout: `$${result.perCreatorTotal}`,
                 numCreators: numCreators,
                 max_submissions: numCreators,
+                estimatedViews: result.totalViews,
             }))
             setProgressState('idle') // Reset state
             toast.success('Budget Calculated!', {
@@ -783,8 +783,8 @@ const CampaignBriefForm: React.FC = () => {
                                 type="number"
                                 min="30"
                                 placeholder="e.g., 30"
-                                value={numCreators}
-                                onChange={(e) => setNumCreators(parseInt(e.target.value) || 0)}
+                                value={numCreators === 0 ? '' : numCreators}
+                                onChange={(e) => setNumCreators(e.target.value === '' ? 0 : parseInt(e.target.value))}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                                 required
                             />
@@ -803,8 +803,8 @@ const CampaignBriefForm: React.FC = () => {
                                     type="number"
                                     min="30"
                                     placeholder="e.g., 250"
-                                    value={maxPayout}
-                                    onChange={(e) => setMaxPayout(parseInt(e.target.value) || 0)}
+                                    value={maxPayout === 0 ? '' : maxPayout}
+                                    onChange={(e) => setMaxPayout(e.target.value === '' ? 0 : parseInt(e.target.value))}
                                     className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                                     required
                                 />
@@ -824,7 +824,7 @@ const CampaignBriefForm: React.FC = () => {
                                     type="number"
                                     min="0"
                                     placeholder="e.g., 500 (for product cost, etc.)"
-                                    value={flatFee}
+                                    value={flatFee === 0 ? '' : flatFee}
                                     onChange={(e) => setFlatFee(parseInt(e.target.value) || 0)}
                                     className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                                 />
@@ -865,6 +865,10 @@ const CampaignBriefForm: React.FC = () => {
                                 </p>
                                 <p className="pt-2 font-bold text-base text-right border-t border-gray-300 text-[#e85c51]">
                                     ${paymentBreakdown.perCreatorTotal.toLocaleString()}
+                                </p>
+                                <p className="pt-2 font-bold text-base border-t border-gray-300">Estimated Views:</p>
+                                <p className="pt-2 font-bold text-base text-right border-t border-gray-300 text-[#e85c51]">
+                                    {paymentBreakdown.totalViews.toLocaleString()}
                                 </p>
                                 <p className="pt-2 font-bold text-base border-t border-gray-300">
                                     Total Brand Payment:

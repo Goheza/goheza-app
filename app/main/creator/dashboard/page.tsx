@@ -95,7 +95,7 @@ export default function AnalyticsDashboard() {
                 <div className="mb-10">
                     <h1 className="text-3xl flex item-center justify-between font-semibold text-gray-900 mb-2">
                         <span> Earnings</span>
-                        <span>Hello {userNameI} </span>
+                        <span>Hello {userNameI}, </span>
                        
                     </h1>
                     <p className="text-gray-600 mb-6">Performance metrics for your submissions and campaigns.</p>

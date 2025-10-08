@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner'
 import Header from '@/components/layout/header'
 import './globals.css'
 import Script from 'next/script'
+import FooterComponent from '@/components/components/landing/footertc'
 
 export const metadata: Metadata = {
     title: 'Goheza',
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </Script>
                 <Header /> {/* <-- client component */}
                 {children}
+                <FooterComponent/>
                 <Toaster />
             </body>
         </html>

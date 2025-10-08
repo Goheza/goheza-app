@@ -6,7 +6,6 @@ import Image from 'next/image'
 import { supabaseClient } from '@/lib/supabase/client'
 import { baseLogger } from '@/lib/logger'
 import { fetchBrandProfile } from '@/lib/supabase/common/getProfile'
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 
@@ -20,6 +19,7 @@ interface Campaign {
     status: 'approved' | 'cancelled' | 'inreview'
     image_url: string | null
     created_at: string
+    cover_image_url: string
 }
 
 const filterOptions: { value: CampaignStatus; label: string }[] = [
@@ -41,32 +41,53 @@ export default function Campaigns() {
         const fetchCurrentBrandProfile = async () => {
             const data = await fetchBrandProfile()
             let logo = data.logo_url! as string
-            if (logo && logo.charAt(0)) {
-                setCampaignBrandLogo(logo)
-            }
+            if (logo && logo.charAt(0)) setCampaignBrandLogo(logo)
         }
         fetchCurrentBrandProfile()
     }, [])
 
     const fetchCampaigns = useCallback(async () => {
-        baseLogger('BRAND-OPERATIONS', `WillFetchCampaignsForCampaignsPage with status: ${filterStatus}`)
+        baseLogger('BRAND-OPERATIONS', `Fetching campaigns for current user with status: ${filterStatus}`)
         setLoading(true)
         setError(null)
 
-        let query = supabase.from('campaigns').select('id, name, status, image_url, created_at')
-        if (filterStatus !== 'all') query = query.eq('status', filterStatus) as any
+        try {
+            // 1️⃣ Get current logged-in user
+            const {
+                data: { user },
+                error: userError,
+            } = await supabase.auth.getUser()
 
-        const { data, error } = await query.order('created_at', { ascending: false })
+            if (userError || !user) {
+                setError('User not logged in.')
+                setLoading(false)
+                return
+            }
 
-        if (error) {
-            baseLogger('BRAND-OPERATIONS', 'DidFailToFetchCampaignsForCampaignsPage')
-            console.error('Error fetching campaigns:', error)
-            setError('Failed to fetch campaigns.')
-        } else {
-            baseLogger('BRAND-OPERATIONS', 'DidFetchCampaignsForCampaignsPage')
-            setCampaigns(data as Campaign[])
+            // 2️⃣ Fetch campaigns only belonging to this user
+            let query = supabase
+                .from('campaigns')
+                .select('id, name, status, image_url, created_at, cover_image_url')
+                .eq('created_by', user.id)
+
+            if (filterStatus !== 'all') {
+                query = query.eq('status', filterStatus)
+            }
+
+            const { data, error } = await query.order('created_at', { ascending: false })
+
+            if (error) {
+                console.error('Error fetching campaigns:', error)
+                setError('Failed to fetch campaigns.')
+            } else {
+                setCampaigns(data as Campaign[])
+            }
+        } catch (err) {
+            console.error('Unexpected error:', err)
+            setError('An unexpected error occurred.')
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }, [filterStatus])
 
     useEffect(() => {
@@ -74,13 +95,13 @@ export default function Campaigns() {
     }, [fetchCampaigns])
 
     const handleCampaignClick = (campaignId: string) => {
-        baseLogger('BRAND-OPERATIONS', 'WillNavigateToCampaignPage')
+        baseLogger('BRAND-OPERATIONS', 'Navigating to campaign page')
         router.push(`/main/brand/campaigns/${campaignId}`)
     }
 
     const handleViewSubmissions = (e: React.MouseEvent, campaignId: string) => {
-        e.stopPropagation() // Prevents triggering the parent click
-        baseLogger('BRAND-OPERATIONS', 'WillNavigateToCampaignSubmissionsPage')
+        e.stopPropagation()
+        baseLogger('BRAND-OPERATIONS', 'Navigating to campaign submissions page')
         router.push(`/main/brand/campaigns/submissions/${campaignId}`)
     }
 
@@ -131,7 +152,9 @@ export default function Campaigns() {
                             <div className="relative w-full h-48 bg-gray-200">
                                 <Image
                                     src={
-                                        campaignBrandLogo || `https://placehold.co/400x225?text=${campaign.name.at(0)}`
+                                        campaignBrandLogo ||
+                                        campaign.cover_image_url ||
+                                        `https://placehold.co/400x225?text=${campaign.name.at(0)}`
                                     }
                                     alt={campaign.name}
                                     fill
@@ -155,11 +178,10 @@ export default function Campaigns() {
                                     Created: {new Date(campaign.created_at).toLocaleDateString()}
                                 </p>
 
-                                {/* ✅ New Button */}
                                 <Button
                                     size="sm"
                                     onClick={(e) => handleViewSubmissions(e, campaign.id)}
-                                    className="w-full mt-2 bg-[#e85c51]  text-white"
+                                    className="w-full cursor-pointer mt-2 bg-[#e85c51] text-white"
                                 >
                                     View Submissions
                                 </Button>

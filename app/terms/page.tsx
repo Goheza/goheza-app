@@ -256,12 +256,7 @@ const TermsAndConditions: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Download/Print Section */}
-                <div className="mt-6 flex justify-center">
-                    <button className="px-6 py-2 bg-[#e85c51] text-white rounded-lg hover:bg-[#d64a40] transition-colors text-sm font-medium">
-                        Download PDF
-                    </button>
-                </div>
+                
             </div>
         </div>
     )

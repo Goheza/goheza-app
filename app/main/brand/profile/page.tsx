@@ -1,30 +1,61 @@
 // components/main/brandProfile.tsx
 'use client'
 
-import { useState, useEffect } from 'react' // 👈 Import useEffect
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { FileText, Image as ImageIcon } from 'lucide-react' // 👈 Import icons for previews
+import { Image as ImageIcon } from 'lucide-react'
 
-// Define an interface for the brand profile structure from Supabase
+// --- Types/Interfaces ---
+/**
+ * REVISED: Removed 'asset_url'.
+ */
 interface IBrandProfile {
     contact: string
     logo_url: string | null
-    assets_url: string | null
+    // asset_url: string | null // Removed
 }
 
-export default function BrandProfile() {
-    // State for form inputs (new uploads)
-    const [companyContact, setCompanyContact] = useState('')
-    const [brandAssetsFile, setBrandAssetsFile] = useState<File | null>(null)
-    const [companyLogoFile, setCompanyLogoFile] = useState<File | null>(null)
+// --- Helper Function for Upload Logic ---
 
-    // State for existing data fetched from Supabase
+/**
+ * Handles logo upload to Supabase Storage and returns the public URL.
+ * @param file The File object (logo) to upload.
+ * @param userId The current user's ID to scope the file path.
+ * @returns The full public URL of the uploaded file.
+ */
+const uploadLogoFileAndGetUrl = async (file: File, userId: string): Promise<string> => {
+    const bucketName = 'brand-assets' 
+    // Simplified path: {user_id}/logos/{timestamp}-{filename}
+    const filePath = `${userId}/logos/${Date.now()}-${file.name}`
+
+    const { data, error } = await supabaseClient.storage
+        .from(bucketName)
+        .upload(filePath, file, {
+            upsert: true,
+        })
+
+    if (error) {
+        console.error(`Supabase Storage Upload Error (Logo):`, error)
+        throw new Error(`Failed to upload logo. RLS or network issue.`)
+    }
+
+    return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${data.path}`
+}
+
+// --- Main Component ---
+export default function BrandProfile() {
+    const [companyContact, setCompanyContact] = useState('')
+    
+    // State for the new logo file only
+    const [companyLogoFile, setCompanyLogoFile] = useState<File | null>(null)
+    
+    // State for the existing logo URL only
     const [existingLogoUrl, setExistingLogoUrl] = useState<string | null>(null)
-    const [existingAssetsUrl, setExistingAssetsUrl] = useState<string | null>(null)
 
     const [loading, setLoading] = useState(true)
+    const [isSaving, setIsSaving] = useState(false)
     const router = useRouter()
 
     /**
@@ -34,19 +65,23 @@ export default function BrandProfile() {
         try {
             const { data, error } = await supabaseClient
                 .from('brand_profiles')
-                .select('contact, logo_url, asset_url')
-                .eq('user_id', userId) // Assuming brand_profiles is linked by a 'user_id' column
+                // Selecting only contact and logo_url
+                .select('contact, logo_url') 
+                .eq('user_id', userId)
+                .returns<Omit<IBrandProfile, 'asset_url'>>() // Use a utility type for safety
                 .single()
 
             if (error && error.code !== 'PGRST116') {
-                // PGRST116 is "No rows found"
                 throw error
             }
 
             if (data) {
+                //@ts-ignore
                 setCompanyContact(data.contact || '')
+                //@ts-ignore
+
                 setExistingLogoUrl(data.logo_url)
-                setExistingAssetsUrl(data.asset_url)
+                // Existing Assets URL logic removed
             }
         } catch (error: any) {
             console.error('Error fetching brand profile:', error.message)
@@ -55,12 +90,11 @@ export default function BrandProfile() {
             setLoading(false)
         }
     }
-
+    
+    // --- Initial Load Effect ---
     useEffect(() => {
         const init = async () => {
-            const {
-                data: { user },
-            } = await supabaseClient.auth.getUser()
+            const { data: { user } } = await supabaseClient.auth.getUser()
 
             if (!user) {
                 router.replace('/main/auth/signin')
@@ -70,76 +104,48 @@ export default function BrandProfile() {
             fetchBrandProfile(user.id)
         }
         init()
-    }, [])
+    }, [router])
 
-    // --- Handlers for New File Inputs ---
+    // --- Handlers for File Inputs ---
 
-    const handleBrandAssetsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files && event.target.files[0]) {
-            setBrandAssetsFile(event.target.files[0])
-            setExistingAssetsUrl(null) // Clear existing URL if user selects a new file
-        }
-    }
+    // Brand Assets handler removed
 
     const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files && event.target.files[0]) {
-            setCompanyLogoFile(event.target.files[0])
-            setExistingLogoUrl(null) // Clear existing URL if user selects a new file
+        const file = event.target.files?.[0]
+        if (file) {
+            setCompanyLogoFile(file)
+            setExistingLogoUrl(null)
         }
     }
-
-    // NOTE: Removed handleMediaChange and campaignMedia state since they weren't fully integrated.
-    // If you need them, you would add similar logic for existing URLs.
 
     /**
      * Handle Form Submission (Upload new files and save contact)
      */
     const handleSave = async (event: React.FormEvent) => {
         event.preventDefault()
+        setIsSaving(true)
 
         try {
-            const {
-                data: { user },
-            } = await supabaseClient.auth.getUser()
+            const { data: { user } } = await supabaseClient.auth.getUser()
             if (!user) throw new Error('User not authenticated.')
 
-            // --- 1. Upload Company Logo (if a NEW file is selected) ---
-            let finalLogoUrl = existingLogoUrl // Start with existing URL
+            // --- 1. Upload Company Logo ---
+            let finalLogoUrl = existingLogoUrl
             if (companyLogoFile) {
-                const { data, error } = await supabaseClient.storage
-                    .from('brand-assets')
-                    .upload(`logos/${user.id}/${Date.now()}-${companyLogoFile.name}`, companyLogoFile, {
-                        upsert: true, // Overwrite if same file name/path
-                    })
-
-                if (error) throw error
-                // Use the correct public URL construction
-                finalLogoUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/brand-assets/${data.path}`
+                finalLogoUrl = await uploadLogoFileAndGetUrl(companyLogoFile, user.id)
             }
 
-            // --- 2. Upload Brand Assets File (if a NEW file is selected) ---
-            let finalAssetUrl = existingAssetsUrl // Start with existing URL
-            if (brandAssetsFile) {
-                const { data, error } = await supabaseClient.storage
-                    .from('brand-assets')
-                    .upload(`docs/${user.id}/${Date.now()}-${brandAssetsFile.name}`, brandAssetsFile, {
-                        upsert: true,
-                    })
-
-                if (error) throw error
-                finalAssetUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/brand-assets/${data.path}`
-            }
-
+            // --- 2. Brand Assets Upload removed ---
+            
             // --- 3. Update/Insert into brand_profiles table ---
             const { error: upsertError } = await supabaseClient.from('brand_profiles').upsert(
                 {
-                    user_id: user.id, // Primary key to update the right row
+                    user_id: user.id,
                     contact: companyContact,
                     logo_url: finalLogoUrl,
-                    assets_url: finalAssetUrl,
-                    // Add any other required columns here
+                    // asset_url removed from upsert
                 },
-                { onConflict: 'user_id' } // Tell Supabase to update if user_id exists
+                { onConflict: 'user_id' }
             )
 
             if (upsertError) throw upsertError
@@ -147,8 +153,14 @@ export default function BrandProfile() {
             toast.success('Profile Saved Successfully')
             router.push('/main/brand/dashboard')
         } catch (err: any) {
-            console.error('Error saving profile:', err.message)
-            toast.error(`Failed to save profile: ${err.message}`)
+            console.error('Error saving profile:', err)
+            const errorMessage = err.message.includes('row-level security') 
+                ? 'Security Error: You do not have permission to upload files. Please ensure your RLS policies are correct.'
+                : `Failed to save profile: ${err.message}`
+            
+            toast.error(errorMessage)
+        } finally {
+            setIsSaving(false)
         }
     }
 
@@ -156,10 +168,28 @@ export default function BrandProfile() {
         return <div className="p-8 text-center text-gray-500">Loading profile...</div>
     }
 
+    // --- Render Helper Component (Out of Main Function) ---
+
+    // A helper to show the name of the file currently selected
+    const getFileDisplay = (file: File | null, existingUrl: string | null) => {
+        if (file) {
+            return { name: `New: ${file.name}`, isExisting: false }
+        }
+        if (existingUrl) {
+            return { name: `Existing Logo is set`, isExisting: true }
+        }
+        return null
+    }
+
+    const logoDisplay = getFileDisplay(companyLogoFile, existingLogoUrl)
+    
+    // --- JSX (HTML) ---
     return (
         <div className="p-8 max-w-4xl mx-auto bg-gray-50 min-h-screen">
             <h1 className="text-3xl font-bold text-gray-900 mb-6">Profile Setup</h1>
             <form onSubmit={handleSave} className="space-y-12">
+                
+                {/* 1. COMPANY CONTACT INPUT */}
                 <div>
                     <h2 className="text-xl font-semibold text-gray-700 mb-4">Company Contact</h2>
                     <input
@@ -168,6 +198,7 @@ export default function BrandProfile() {
                         onChange={(e) => setCompanyContact(e.target.value)}
                         className="w-full p-3 border border-gray-300 rounded-md focus:ring-[#e85c51] focus:border-[#e85c51] "
                         placeholder="Enter company contact information..."
+                        required
                     />
                 </div>
 
@@ -175,19 +206,16 @@ export default function BrandProfile() {
                 <div>
                     <h2 className="text-xl font-semibold text-gray-700 mb-4">Company Logo</h2>
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-white">
-                        {/* 👈 Display Existing Logo or New Selection */}
-                        {existingLogoUrl || companyLogoFile ? (
+                        {logoDisplay ? (
                             <div className="flex items-center justify-center space-x-4 mb-4">
                                 <ImageIcon className="w-8 h-8 text-[#e85c51]" />
-                                <p className="text-sm text-gray-700 font-medium">
-                                    {companyLogoFile ? `New: ${companyLogoFile.name}` : 'Existing Logo is set'}
-                                </p>
+                                <p className="text-sm text-gray-700 font-medium">{logoDisplay.name}</p>
                                 {existingLogoUrl && !companyLogoFile && (
-                                    <img
-                                        src={existingLogoUrl}
-                                        alt="Current Logo"
-                                        className="h-12 w-12 object-contain border rounded"
-                                    />
+                                     <img
+                                         src={existingLogoUrl}
+                                         alt="Current Logo"
+                                         className="h-12 w-12 object-contain border rounded"
+                                     />
                                 )}
                             </div>
                         ) : (
@@ -205,7 +233,7 @@ export default function BrandProfile() {
                             htmlFor="logo-upload"
                             className="cursor-pointer border border-[#e85c51] text-[#e85c51] font-medium py-2 px-4 rounded-md hover:bg-red-50 transition duration-200"
                         >
-                            {existingLogoUrl || companyLogoFile ? 'Change Logo' : 'Browse Logo'}
+                            {logoDisplay ? 'Change Logo' : 'Browse Logo'}
                         </label>
                         <input
                             id="logo-upload"
@@ -216,15 +244,16 @@ export default function BrandProfile() {
                         />
                     </div>
                 </div>
-
-             
+                
+                {/* --- BRAND ASSETS UPLOAD section completely removed --- */}
 
                 <div className="flex justify-end">
                     <button
                         type="submit"
-                        className="bg-[#e85c51] text-white font-bold py-3 px-6 rounded-md hover:bg-[#d46f6f] transition duration-200"
+                        disabled={isSaving}
+                        className="bg-[#e85c51] text-white font-bold py-3 px-6 rounded-md hover:bg-[#d46f6f] transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                        Save Profile
+                        {isSaving ? 'Saving...' : 'Save Profile'}
                     </button>
                 </div>
             </form>

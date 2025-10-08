@@ -1,3 +1,5 @@
+// src/app/main/brand/campaigns/[id]/submissions/CampaignOverview.tsx
+
 'use client'
 
 import Image from 'next/image'
@@ -23,11 +25,9 @@ export interface ICampaignDetails {
     campaignAssets: Array<ICampaignAssets>
     campaignObjective?: string
     targetAudience?: string
-    // UPDATED: Changed from string[] to string | null to match DB format
     campaignDos?: string | null
     campaignDonts?: string | null
     prohibitedContent?: string[]
-    // Added to store the fetched logo URL for the banner
     brandLogoUrl?: string | null
 }
 
@@ -54,10 +54,12 @@ export default function CampaignOverview() {
     const [file, setFile] = useState<File | null>(null)
     const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'failure'>('idle')
     const [uploadProgress, setUploadProgress] = useState<number>(0)
+    // ✅ NEW STATE: For terms agreement checkbox
+    const [isAgreedToTerms, setIsAgreedToTerms] = useState<boolean>(false)
     const router = useRouter()
 
     useEffect(() => {
-        // Function to check if the creator has payment details saved
+        // ... (API fetch logic remains the same)
         const checkForPaymentDetails = () => {
             checkIFPaymentExists().then((common) => {
                 if (common == 'is_unavailable') {
@@ -69,7 +71,6 @@ export default function CampaignOverview() {
             })
         }
 
-        // Function to fetch campaign details and related brand assets
         const fetchCampaignDetails = async () => {
             if (!campaignId) {
                 setError('Campaign ID not found')
@@ -78,7 +79,6 @@ export default function CampaignOverview() {
             }
 
             try {
-                // Fetch campaign details and join with brand_profiles to get the logo_url
                 const { data, error: fetchError } = await supabaseClient
                     .from('campaigns')
                     .select(
@@ -97,14 +97,13 @@ export default function CampaignOverview() {
                 if (!data) {
                     throw new Error('Campaign not found')
                 }
-
                 const fallbackImage = `https://placehold.co/400x225/e85c51/ffffff?text=${
-                    data.campaign_name ?? data.name
+                    (data.name || data.campaign_name)?.charAt(0) ?? 'C'
                 }`
 
-                // Safely extract the logo URL from the nested join result
                 const brandLogoUrl = (data.brand_profiles as { logo_url: string | null })?.logo_url
 
+                const imageSource = data.cover_image_url || data.brand_profiles?.logo_url || fallbackImage
                 setCampaignDetails({
                     id: data.id,
                     campaignName: data.name || data.campaign_name,
@@ -113,11 +112,10 @@ export default function CampaignOverview() {
                     campaignAssets: data.assets || data.campaign_assets || [],
                     campaignObjective: data.objective,
                     targetAudience: data.audience,
-                    // Mapped to be strings (which contain newlines)
                     campaignDos: data.dos || null,
                     campaignDonts: data.donts || null,
                     prohibitedContent: data.prohibited_content || [],
-                    brandLogoUrl:data.cover_image_url, // Store the fetched logo URL
+                    brandLogoUrl: imageSource,
                 })
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch campaign details')
@@ -150,6 +148,11 @@ export default function CampaignOverview() {
         setCaption(e.target.value)
     }
 
+    // ✅ NEW HANDLER: To toggle the terms agreement state
+    const handleAgreementChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setIsAgreedToTerms(e.target.checked)
+    }
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
 
@@ -158,7 +161,12 @@ export default function CampaignOverview() {
             return
         }
 
-        // Block submission if payment details are missing
+        // ✅ NEW CHECK: Block submission if terms are not accepted
+        if (!isAgreedToTerms) {
+            toast.error('You must agree to the Campaign Terms and Guidelines before submitting.')
+            return
+        }
+
         if (willShowPaymentDetails) {
             toast.error('Payment details required: Please update your payment method to submit.', {
                 duration: 5000,
@@ -166,10 +174,9 @@ export default function CampaignOverview() {
             return
         }
 
-
         baseLogger('CREATOR-OPERATIONS', 'WillMakeCampaignSubmission')
         setUploadStatus('uploading')
-        toast.success("Uploading Submission")
+        toast.success('Uploading Submission')
         setUploadProgress(0)
 
         // Simulating upload progress while the actual file upload happens
@@ -216,15 +223,12 @@ export default function CampaignOverview() {
             // 2. Get the public URL
             const {
                 data: { publicUrl },
-            } = supabaseClient.storage
-                .from('campaign-videos')
-
-                .getPublicUrl(fileName)
+            } = supabaseClient.storage.from('campaign-videos').getPublicUrl(fileName)
 
             baseLogger('CREATOR-OPERATIONS', `DidGetVideoPublicURL:${publicUrl}`)
             baseLogger('CREATOR-OPERATIONS', 'WillSaveCampaignSubmission')
 
-            toast.success("Please Wait....")
+            toast.success('Please Wait....')
 
             // 3. Save the submission details to the database
             const { data: submissionData, error: dbError } = await supabaseClient
@@ -239,8 +243,7 @@ export default function CampaignOverview() {
                         file_name: file.name,
                         file_size: file.size,
                         submitted_at: new Date().toISOString(),
-                         // ✨ NEW: Explicitly set the initial status to 'draft'
-                        status: 'draft', 
+                        status: 'draft',
                     },
                 ])
                 .select()
@@ -252,7 +255,7 @@ export default function CampaignOverview() {
 
             baseLogger('CREATOR-OPERATIONS', 'DidSuccefullySaveCampaignSubmission')
             toast.success('Submission Successful! It is now pending review.')
-            router.push('/main/creator/dashboard/submissions')
+            router.push('/main/creator/submissions')
         } catch (error) {
             clearInterval(uploadInterval)
             setUploadStatus('failure')
@@ -316,7 +319,6 @@ export default function CampaignOverview() {
         )
     }
 
-    // Use the fetched brand logo URL, or a local placeholder as fallback
     const defaultBannerUrl = campaignDetails.brandLogoUrl!
 
     const dosList = splitAndFilterList(campaignDetails.campaignDos)
@@ -340,6 +342,7 @@ export default function CampaignOverview() {
             </div>
 
             <div className="bg-white">
+                {/* ... (Brief navigation and content sections remain the same) ... */}
                 <div className="border-b border-gray-200">
                     <nav className="flex space-x-8">
                         <button className="py-3 px-1 border-b-2 border-red-500 text-[#e85c51] font-bold text-sm transition-colors">
@@ -433,12 +436,11 @@ export default function CampaignOverview() {
                 <span className="text-lg font-bold text-[#e93838]">{campaignDetails.campaignPayout}</span>
             </div>
 
-            {/* Campaign Assets Section */}
+            {/* Campaign Assets Section (No changes needed here) */}
             <div>
                 <h2 className="text-2xl font-semibold mb-7">Campaign Assets</h2>
                 <div className="flex gap-2">
                     {campaignDetails.campaignAssets.map((v, index) => {
-                        // Logic to determine the display image based on file extension
                         const assetNameLower = v.name.toLowerCase()
                         const isVideo =
                             assetNameLower.endsWith('.mp4') ||
@@ -449,7 +451,6 @@ export default function CampaignOverview() {
                             assetNameLower.endsWith('.jpg') ||
                             assetNameLower.endsWith('.jpeg')
 
-                        // Use the asset URL for the image, or a static placeholder for video/other files
                         const imageSrc = isImage
                             ? v.url
                             : isVideo
@@ -527,6 +528,21 @@ export default function CampaignOverview() {
                     </div>
                 </div>
 
+                {/* ✅ NEW: Terms and Agreement Checkbox */}
+                <div className="flex items-start pt-2">
+                    <input
+                        id="terms-agreement"
+                        type="checkbox"
+                        checked={isAgreedToTerms}
+                        onChange={handleAgreementChange}
+                        className="h-4 w-4 text-[#e93838] border-gray-300 rounded focus:ring-[#e93838]"
+                    />
+                    <label htmlFor="terms-agreement" className="ml-2 text-sm text-gray-900">
+                        I have read and agree to the **Campaign Brief, Creative Guidelines, and Prohibited Content**
+                        outlined above.
+                    </label>
+                </div>
+
                 {/* Payment Dialog - Shown if payment details are missing */}
                 <div
                     style={{
@@ -538,9 +554,13 @@ export default function CampaignOverview() {
 
                 <button
                     type="submit"
-                    className="w-[150px] mb-5 float-right bg-[#e93838] text-white font-bold py-3 px-4 rounded-lg hover:bg-[#f17474] transition-colors duration-200"
-                    // Disabled if uploading, no file, OR payment details are missing
-                    disabled={uploadStatus === 'uploading' || !file || willShowPaymentDetails}
+                    className={`w-[150px] mb-5 float-right font-bold py-3 px-4 rounded-lg transition-colors duration-200 ${
+                        // Disabled if uploading, no file, payment details missing, OR terms not agreed
+                        uploadStatus === 'uploading' || !file || willShowPaymentDetails || !isAgreedToTerms
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-[#e93838] hover:bg-[#f17474]'
+                    }`}
+                    disabled={uploadStatus === 'uploading' || !file || willShowPaymentDetails || !isAgreedToTerms}
                 >
                     {uploadStatus === 'uploading' ? 'Submitting...' : 'Submit'}
                 </button>

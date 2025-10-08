@@ -23,6 +23,10 @@ export default function HeaderItemMainBre() {
         router.push('/main/auth/signin')
     }
 
+    const onDidNavigate = () => {
+        setMenuOpen(false)
+    }
+
     useEffect(() => {
         const onLoad = async () => {
             const { data: { user } } = await supabaseClient.auth.getUser()
@@ -49,8 +53,9 @@ export default function HeaderItemMainBre() {
     const navLinks = [
         { name: 'Dashboard', href: '/main/brand/dashboard' },
         { name: 'Campaigns', href: '/main/brand/campaigns' },
-        { name: 'Help', href: '/main/brand/help' },
+        { name: 'Support', href: '/main/brand/support' },
         { name: 'Settings', href: '/main/brand/profile' },
+
     ]
 
     return (
