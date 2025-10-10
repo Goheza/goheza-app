@@ -31,13 +31,5 @@ export const contactChannels: ContactChannel[] = [
     href: 'https://wa.me/256776007962?text=Hi%20Goheza%20Support,', // Replace with your number
     isExternal: true,
   },
-  {
-    id: 'form',
-    icon: 'file-text',
-    title: 'Submit a Request',
-    description: 'For structured inquiries like feature requests, reporting abuse, or custom integration questions.',
-    ctaText: 'Open Contact Form',
-    href: '/main/#contactus', // Internal link to a dedicated form page
-    isExternal: false,
-  },
+  
 ];

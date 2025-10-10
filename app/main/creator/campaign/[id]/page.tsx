@@ -11,6 +11,8 @@ import { baseLogger } from '@/lib/logger'
 import { toast } from 'sonner'
 import PaymentDialog from '@/components/components/paymentOptions/paymentOptions'
 import { checkIFPaymentExists } from '@/lib/ats/checkForPaymentMethod'
+import Link from 'next/link'
+import { hasPresentPaymentMethod } from '@/components/components/paymentOptions/hasPayment'
 
 interface ICampaignAssets {
     name: string
@@ -60,16 +62,6 @@ export default function CampaignOverview() {
 
     useEffect(() => {
         // ... (API fetch logic remains the same)
-        const checkForPaymentDetails = () => {
-            checkIFPaymentExists().then((common) => {
-                if (common == 'is_unavailable') {
-                    setShowPaymentDetails(true)
-                    toast.warning('Please add your payment details before submitting your work.', {
-                        duration: 5000,
-                    })
-                }
-            })
-        }
 
         const fetchCampaignDetails = async () => {
             if (!campaignId) {
@@ -124,7 +116,6 @@ export default function CampaignOverview() {
             }
         }
 
-        checkForPaymentDetails()
         fetchCampaignDetails()
     }, [campaignId])
 
@@ -156,111 +147,116 @@ export default function CampaignOverview() {
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
 
-        if (!file) {
-            toast.error('Please upload a video file.')
-            return
-        }
+        /**
+         * We will check if the payment method, is present here,
+         */
 
-        // ✅ NEW CHECK: Block submission if terms are not accepted
-        if (!isAgreedToTerms) {
-            toast.error('You must agree to the Campaign Terms and Guidelines before submitting.')
-            return
-        }
+        toast.success('Checking For Payment Method...')
+        const hasPaymentMethod = await hasPresentPaymentMethod()
 
-        if (willShowPaymentDetails) {
-            toast.error('Payment details required: Please update your payment method to submit.', {
-                duration: 5000,
-            })
-            return
-        }
-
-        baseLogger('CREATOR-OPERATIONS', 'WillMakeCampaignSubmission')
-        setUploadStatus('uploading')
-        toast.success('Uploading Submission')
-        setUploadProgress(0)
-
-        // Simulating upload progress while the actual file upload happens
-        const uploadInterval = setInterval(() => {
-            setUploadProgress((prev) => {
-                if (prev >= 90) return prev
-                return prev + 10
-            })
-        }, 500)
-
-        try {
-            baseLogger('CREATOR-OPERATIONS', 'WillGetAuthenticatedUser')
-            const {
-                data: { user },
-                error: userError,
-            } = await supabaseClient.auth.getUser()
-
-            if (userError || !user) {
-                throw new Error('User not authenticated')
+        if (hasPaymentMethod) {
+            if (!file) {
+                toast.error('Please upload a video file.')
+                return
             }
 
-            baseLogger('CREATOR-OPERATIONS', 'DidGetAuthenticatedUser')
-            baseLogger('CREATOR-OPERATIONS', 'WillUploadVideoIFAvailable')
+            // ✅ NEW CHECK: Block submission if terms are not accepted
+            if (!isAgreedToTerms) {
+                toast.error('You must agree to the Campaign Terms and Guidelines before submitting.')
+                return
+            }
 
-            // 1. Upload the video file
-            const fileName = `${Date.now()}_${file.name}`
-            const { data: uploadData, error: uploadError } = await supabaseClient.storage
-                .from('campaign-videos')
-                .upload(fileName, file, {
-                    cacheControl: '3600',
-                    upsert: false,
+            baseLogger('CREATOR-OPERATIONS', 'WillMakeCampaignSubmission')
+            setUploadStatus('uploading')
+            toast.success('Uploading Submission')
+            setUploadProgress(0)
+
+            // Simulating upload progress while the actual file upload happens
+            const uploadInterval = setInterval(() => {
+                setUploadProgress((prev) => {
+                    if (prev >= 90) return prev
+                    return prev + 10
                 })
+            }, 500)
 
-            if (uploadError) {
-                throw new Error(`Upload failed: ${uploadError.message}`)
+            try {
+                baseLogger('CREATOR-OPERATIONS', 'WillGetAuthenticatedUser')
+                const {
+                    data: { user },
+                    error: userError,
+                } = await supabaseClient.auth.getUser()
+
+                if (userError || !user) {
+                    throw new Error('User not authenticated')
+                }
+
+                baseLogger('CREATOR-OPERATIONS', 'DidGetAuthenticatedUser')
+                baseLogger('CREATOR-OPERATIONS', 'WillUploadVideoIFAvailable')
+
+                // 1. Upload the video file
+                const fileName = `${Date.now()}_${file.name}`
+                const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                    .from('campaign-videos')
+                    .upload(fileName, file, {
+                        cacheControl: '3600',
+                        upsert: false,
+                    })
+
+                if (uploadError) {
+                    throw new Error(`Upload failed: ${uploadError.message}`)
+                }
+                clearInterval(uploadInterval)
+                setUploadProgress(100)
+                setUploadStatus('success')
+
+                baseLogger('CREATOR-OPERATIONS', 'DidUploadVideoIFAvailable')
+                baseLogger('CREATOR-OPERATIONS', 'WillGetVideoPublicURL')
+
+                // 2. Get the public URL
+                const {
+                    data: { publicUrl },
+                } = supabaseClient.storage.from('campaign-videos').getPublicUrl(fileName)
+
+                baseLogger('CREATOR-OPERATIONS', `DidGetVideoPublicURL:${publicUrl}`)
+                baseLogger('CREATOR-OPERATIONS', 'WillSaveCampaignSubmission')
+
+                toast.success('Please Wait....')
+
+                // 3. Save the submission details to the database
+                const { data: submissionData, error: dbError } = await supabaseClient
+                    .from('campaign_submissions')
+                    .insert([
+                        {
+                            user_id: user.id,
+                            campaign_id: campaignId,
+                            campaign_name: campaignDetails?.campaignName,
+                            video_url: publicUrl,
+                            caption: caption,
+                            file_name: file.name,
+                            file_size: file.size,
+                            submitted_at: new Date().toISOString(),
+                            status: 'draft',
+                        },
+                    ])
+                    .select()
+
+                if (dbError) {
+                    baseLogger('CREATOR-OPERATIONS', 'DidFailToSaveCampaignSubmission')
+                    throw new Error(`Database error: ${dbError.message}`)
+                }
+
+                baseLogger('CREATOR-OPERATIONS', 'DidSuccefullySaveCampaignSubmission')
+                toast.success('Submission Successful! It is now pending review.')
+                router.push('/main/creator/submissions')
+            } catch (error) {
+                clearInterval(uploadInterval)
+                setUploadStatus('failure')
+                console.error('Submission error:', error)
+                toast.error('Submission failed.')
             }
-            clearInterval(uploadInterval)
-            setUploadProgress(100)
-            setUploadStatus('success')
-
-            baseLogger('CREATOR-OPERATIONS', 'DidUploadVideoIFAvailable')
-            baseLogger('CREATOR-OPERATIONS', 'WillGetVideoPublicURL')
-
-            // 2. Get the public URL
-            const {
-                data: { publicUrl },
-            } = supabaseClient.storage.from('campaign-videos').getPublicUrl(fileName)
-
-            baseLogger('CREATOR-OPERATIONS', `DidGetVideoPublicURL:${publicUrl}`)
-            baseLogger('CREATOR-OPERATIONS', 'WillSaveCampaignSubmission')
-
-            toast.success('Please Wait....')
-
-            // 3. Save the submission details to the database
-            const { data: submissionData, error: dbError } = await supabaseClient
-                .from('campaign_submissions')
-                .insert([
-                    {
-                        user_id: user.id,
-                        campaign_id: campaignId,
-                        campaign_name: campaignDetails?.campaignName,
-                        video_url: publicUrl,
-                        caption: caption,
-                        file_name: file.name,
-                        file_size: file.size,
-                        submitted_at: new Date().toISOString(),
-                        status: 'draft',
-                    },
-                ])
-                .select()
-
-            if (dbError) {
-                baseLogger('CREATOR-OPERATIONS', 'DidFailToSaveCampaignSubmission')
-                throw new Error(`Database error: ${dbError.message}`)
-            }
-
-            baseLogger('CREATOR-OPERATIONS', 'DidSuccefullySaveCampaignSubmission')
-            toast.success('Submission Successful! It is now pending review.')
-            router.push('/main/creator/submissions')
-        } catch (error) {
-            clearInterval(uploadInterval)
-            setUploadStatus('failure')
-            console.error('Submission error:', error)
-            toast.error('Submission failed.')
+        } else {
+            toast.success('Add Payment Method Please!.')
+            setShowPaymentDetails(true)
         }
     }
 
@@ -529,7 +525,7 @@ export default function CampaignOverview() {
                 </div>
 
                 {/* ✅ NEW: Terms and Agreement Checkbox */}
-                <div className="flex items-start pt-2">
+                <div className="flex items-center space-x-4 ">
                     <input
                         id="terms-agreement"
                         type="checkbox"
@@ -537,30 +533,36 @@ export default function CampaignOverview() {
                         onChange={handleAgreementChange}
                         className="h-4 w-4 text-[#e93838] border-gray-300 rounded focus:ring-[#e93838]"
                     />
-                    <label htmlFor="terms-agreement" className="ml-2 text-sm text-gray-900">
-                        I have read and agree to the **Campaign Brief, Creative Guidelines, and Prohibited Content**
-                        outlined above.
-                    </label>
+                    <p className="text-xs text-black text-center  leading-relaxed">
+                        I agree with the{' '}
+                        <Link href="/terms" target="_blank" className="underline text-[#e93838] hover:text-gray-700">
+                            Terms of Service
+                        </Link>{' '}
+                        and{' '}
+                        <Link
+                            href="/privacy-policy"
+                            target="_blank"
+                            className="underline text-[#e93838] hover:text-gray-700"
+                        >
+                            Privacy Policy
+                        </Link>
+                    </p>
                 </div>
 
-                {/* Payment Dialog - Shown if payment details are missing */}
-                <div
-                    style={{
-                        display: willShowPaymentDetails ? 'block' : 'none',
-                    }}
-                >
-                    <PaymentDialog />
-                </div>
+                <PaymentDialog
+                    isPaymentDialogOpen={willShowPaymentDetails}
+                    setPaymentDialogOpen={setShowPaymentDetails}
+                />
 
                 <button
                     type="submit"
-                    className={`w-[150px] mb-5 float-right font-bold py-3 px-4 rounded-lg transition-colors duration-200 ${
+                    className={`w-[150px] mb-5 float-right font-bold py-3 px-4 text-white rounded-lg transition-colors duration-200 ${
                         // Disabled if uploading, no file, payment details missing, OR terms not agreed
-                        uploadStatus === 'uploading' || !file || willShowPaymentDetails || !isAgreedToTerms
+                        uploadStatus === 'uploading' || !file || !isAgreedToTerms
                             ? 'bg-gray-400 cursor-not-allowed'
                             : 'bg-[#e93838] hover:bg-[#f17474]'
                     }`}
-                    disabled={uploadStatus === 'uploading' || !file || willShowPaymentDetails || !isAgreedToTerms}
+                    disabled={uploadStatus === 'uploading' || !file || !isAgreedToTerms}
                 >
                     {uploadStatus === 'uploading' ? 'Submitting...' : 'Submit'}
                 </button>

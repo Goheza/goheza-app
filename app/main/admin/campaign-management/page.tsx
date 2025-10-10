@@ -10,9 +10,8 @@ import {
     Dialog,
     DialogContent,
     DialogHeader,
-    // DialogDescription is missing but usually imported/used
     DialogTitle,
-    DialogDescription, // Added import for completeness
+    DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -177,7 +176,8 @@ const CampaignDetailsModal = ({
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         // ⭐ ENSURES DOWNLOAD: Forces the browser to download the file
-                                        download={asset.file_name}
+                                        // This was already implemented in your code.
+                                        download={asset.file_name} 
                                         className="inline-flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors p-2 border rounded-md bg-white shadow-sm"
                                     >
                                         {/* Icon for file link */}

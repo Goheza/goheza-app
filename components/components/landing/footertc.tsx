@@ -1,6 +1,9 @@
 'use client'
 
 import { Facebook, Users } from 'lucide-react'
+import { FaXTwitter } from 'react-icons/fa6'
+import { FaTiktok } from 'react-icons/fa'
+import { FaInstagram } from "react-icons/fa6";
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -44,6 +47,23 @@ export default function FooterComponent() {
                             <div className="flex space-x-4">
                                 <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer">
                                     <Facebook className="w-5 h-5 text-gray-300 hover:text-white cursor-pointer transform-gpu transition-all hover:scale-110" />
+                                </a>
+                                <a href="https://x.com/goheza_official?s=11" target="_blank" rel="noopener noreferrer">
+                                    <FaXTwitter className="w-5 h-5 text-gray-300 hover:text-white cursor-pointer transform-gpu transition-all hover:scale-110" />
+                                </a>
+                                <a
+                                    href="https://www.tiktok.com/@goheza?_t=ZM-90LRVAxN3bI&_r=1"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <FaTiktok className="w-5 h-5 text-gray-300 hover:text-white cursor-pointer transform-gpu transition-all hover:scale-110" />
+                                </a>
+                                 <a
+                                    href="https://www.instagram.com/goheza_official_?igsh=ZnRveTI2emt3bWth"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <FaInstagram className="w-5 h-5 text-gray-300 hover:text-white cursor-pointer transform-gpu transition-all hover:scale-110" />
                                 </a>
                                 {/* Add other social media icons here */}
                             </div>

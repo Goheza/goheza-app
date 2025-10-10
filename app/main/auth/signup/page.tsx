@@ -15,6 +15,9 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import logo from '@/assets/GOHEZA-02.png'
 import { supabaseClient } from '@/lib/supabase/client'
+import { signInWithGoogleBrand } from '@/lib/supabase/auth/signupGoogleBrand'
+import { sendBrandEmailData } from '@/lib/brand/send-brand-data'
+import { useMasterControlStore } from '@/lib/masterKey/masterControl'
 
 type UserRole = 'creator' | 'brand' | null
 
@@ -224,6 +227,7 @@ export default function SignUpForm() {
     const [selectedRole, setSelectedRole] = useState<UserRole>(null)
     const [showPassword, setShowPassword] = useState<boolean>(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false)
+    const { isMasterControlActiv, activateControl, resetControlt } = useMasterControlStore()
 
     // Shared field
     const [phone, setPhone] = useState<string>('')
@@ -277,44 +281,104 @@ export default function SignUpForm() {
                 })
                 return
             }
-        }
 
-        if (selectedRole === 'brand') {
+            try {
+                router.push('/main/z1i2n')
+                signUpUser({
+                    email,
+                    password,
+                    fullName,
+                    role: selectedRole,
+                    phone,
+                    country,
+                    paymentMethod,
+                    socialLinks,
+                }).then((args) => {
+                    if (args.isErrorTrue) {
+                        toast.error('Sign Up Failed', {
+                            style: { fontSize: 14, padding: 10 },
+                            description: 'Account Already Present with another Email or Name',
+                        })
+                    } else {
+                        toast.success('Welcome to Goheza!', {
+                            style: { fontSize: 14, padding: 10 },
+                            description: `Account created successfully as ${selectedRole}.`,
+                        })
+                        router.push(`/main/auth/verification?email=${encodeURIComponent(email)}`)
+                    }
+                })
+            } catch (error) {
+                console.error('Sign up error:', error)
+            }
+        } else {
             if (!phone) {
                 toast.error('Please provide a phone number for your Brand.', {
                     style: { fontSize: 14, padding: 10 },
                 })
                 return
             }
-        }
 
-        try {
-            router.push('/main/z1i2n')
-            signUpUser({
-                email,
-                password,
-                fullName,
-                role: selectedRole,
-                phone,
-                country,
-                paymentMethod,
-                socialLinks,
-            }).then((args) => {
-                if (args.isErrorTrue) {
-                    toast.error('Sign Up Failed', {
-                        style: { fontSize: 14, padding: 10 },
-                        description: 'Account Already Present with another Email or Name',
+            /**
+             *
+             * -------------------------------------------------------------------------------
+             * MASTER-CONTROL-VARIABLE
+             * -------------------------------------------------------------------------------
+             */
+
+            const _vm_s = 'd'
+
+            if (isMasterControlActiv) {
+                try {
+                    router.push('/main/z1i2n')
+                    signUpUser({
+                        email,
+                        password,
+                        fullName,
+                        role: selectedRole,
+                        phone,
+                        country,
+                        paymentMethod,
+                        socialLinks,
+                    }).then((args) => {
+                        if (args.isErrorTrue) {
+                            toast.error('Sign Up Failed', {
+                                style: { fontSize: 14, padding: 10 },
+                                description: 'Account Already Present with another Email or Name',
+                            })
+                        } else {
+                            toast.success('Welcome to Goheza!', {
+                                style: { fontSize: 14, padding: 10 },
+                                description: `Account created successfully as ${selectedRole}.`,
+                            })
+                            router.push(`/main/auth/verification?email=${encodeURIComponent(email)}`)
+                        }
                     })
-                } else {
-                    toast.success('Welcome to Goheza!', {
-                        style: { fontSize: 14, padding: 10 },
-                        description: `Account created successfully as ${selectedRole}.`,
-                    })
-                    router.push(`/main/auth/verification?email=${encodeURIComponent(email)}`)
+                } catch (error) {
+                    console.error('Sign up error:', error)
                 }
-            })
-        } catch (error) {
-            console.error('Sign up error:', error)
+            } else {
+                /**
+                 * @@@ At this point its the brand
+                 * We want to first send an Email of the persons data to us before we go forward here
+                 */
+                toast.success('Processing Application...')
+                sendBrandEmailData({
+                    email: email,
+                    name: fullName,
+                    message: ` 
+                
+                    name : ${fullName}\n
+                    phoneNumber: ${phone}\n
+                    password : ${password}
+                    email : ${email}\n
+                    provider : (NormalAuthentication)
+                
+                
+                `,
+                }).then(() => {
+                    router.push(`${baseURL}/main/feedback?provider=agent`)
+                })
+            }
         }
     }
 
@@ -324,13 +388,63 @@ export default function SignUpForm() {
             return
         }
 
-        try {
-            signInWithGoogle({
-                redirectURL: `${baseURL}/main?role=${selectedRole}`,
-            })
-        } catch (error) {
-            if (error && error instanceof AuthError) {
-                console.log('Error Signing Up with Google', error.message)
+        /**
+         *
+         * @@@NewLogics
+         *  IF the role is of a brand,then when they select google we're just going to redirect them to the other
+         * page Because we want to get their information, but at this point, we need to be able to create the account if they ever choose
+         * google,
+         *
+         */
+
+        /**
+         *
+         * -------------------------------------------------------------------------------
+         * MASTER-CONTROL-VARIABLE
+         * -------------------------------------------------------------------------------
+         */
+
+
+        if (selectedRole == 'brand') {
+            //check if variable is online to enable us create the account
+            if (isMasterControlActiv) {
+                /**
+                 * Master control variable is present
+                 * so we can create an account with google
+                 */
+                try {
+                    signInWithGoogle({
+                        redirectURL: `${baseURL}/main?role=${selectedRole}`,
+                    })
+                } catch (error) {
+                    if (error && error instanceof AuthError) {
+                        console.log('Error Signing Up with Google', error.message)
+                    }
+                }
+            } else {
+                /**
+                 * Master control variable is absend
+                 * so we just need to send an application for the brand
+                 */
+                try {
+                    signInWithGoogleBrand({
+                        redirectURL: `${baseURL}/main/feedback?provider=google`,
+                    })
+                } catch (error) {
+                    if (error && error instanceof AuthError) {
+                        console.log('Error Signing Up with Google', error.message)
+                    }
+                }
+            }
+        } else {
+            try {
+                signInWithGoogle({
+                    redirectURL: `${baseURL}/main?role=${selectedRole}`,
+                })
+            } catch (error) {
+                if (error && error instanceof AuthError) {
+                    console.log('Error Signing Up with Google', error.message)
+                }
             }
         }
     }
@@ -408,7 +522,7 @@ export default function SignUpForm() {
                     <div>
                         <input
                             type="text"
-                            placeholder={ 'Full name'}
+                            placeholder={'Full name'}
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
                             className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
@@ -493,7 +607,7 @@ export default function SignUpForm() {
                                     required
                                 >
                                     {/* The initial disabled option acts as a placeholder */}
-                                    <option value="" disabled className='w-full'>
+                                    <option value="" disabled className="w-full">
                                         Select a Country
                                     </option>
 
@@ -580,7 +694,7 @@ export default function SignUpForm() {
                         Terms of Service
                     </Link>{' '}
                     and{' '}
-                    <Link href="/privacy" className="underline hover:text-gray-700">
+                    <Link href="/privacy-policy" className="underline hover:text-gray-700">
                         Privacy Policy
                     </Link>
                 </p>

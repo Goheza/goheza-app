@@ -18,8 +18,8 @@ export function calculateGohezaPayment(numCreators: number, maxPayout: number, f
     if (numCreators < 30) {
         throw new Error('Minimum number of creators is 30') // Corrected minimum check and message
     }
-    if (maxPayout < 30) {
-        throw new Error('Maximum payout per creator must be at least $30')
+    if (maxPayout < 70) {
+        throw new Error('Maximum payout per creator must be at least $70')
     }
 
     // --- 1. Per Creator Cost ---

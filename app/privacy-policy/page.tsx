@@ -3,6 +3,8 @@
 import React, { useState } from 'react'
 import { ChevronDown, ChevronUp, Shield, Lock, Eye, Users, FileText, Globe } from 'lucide-react'
 
+// WARNING: This component contains mechanisms to discourage copying.
+// These methods are not foolproof and can be bypassed easily by a determined user.
 const PrivacyPolicy: React.FC = () => {
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
 
@@ -14,6 +16,17 @@ const PrivacyPolicy: React.FC = () => {
             newExpanded.add(section)
         }
         setExpandedSections(newExpanded)
+    }
+
+    // Handlers to prevent copying and context menu
+    const handleContextmenu = (e: React.MouseEvent) => {
+        e.preventDefault() // Disables right-click context menu
+    }
+
+    const handleCopy = (e: React.ClipboardEvent) => {
+        e.preventDefault() // Prevents the default copy action
+        // Optional: Notify the user they cannot copy
+        // alert('Copying content from this page is disabled.')
     }
 
     const sections = [
@@ -118,7 +131,14 @@ const PrivacyPolicy: React.FC = () => {
     ]
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        // Add onCopy and onContextMenu to the main wrapper
+        <div 
+            className="min-h-screen bg-gray-50"
+            onCopy={handleCopy}
+            onContextMenu={handleContextmenu}
+            // Tailwind CSS for user-select: none;
+            style={{ userSelect: 'none' }}
+        >
             {/* Header */}
             <div className="bg-white border-b border-gray-200">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

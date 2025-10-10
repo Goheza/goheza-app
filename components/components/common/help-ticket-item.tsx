@@ -60,7 +60,7 @@ export default function HelpTicket(props: IHelpTicket) {
         >
             <div>
                 <div className="mb-2 text-neutral-100 font-bold">Goheza guides</div>
-                <h1 className="font-bold text-xl text-white">{props.shortNote}</h1>
+                {/* <h1 className="font-bold text-xl text-white">{props.shortNote}</h1> */}
             </div>
 
             <div

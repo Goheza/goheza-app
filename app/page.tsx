@@ -48,8 +48,6 @@ export default function GohezaLanding() {
 
     return (
         <div className="min-h-screen bg-white overflow-x-hidden">
-           
-
             {/* Hero Section */}
             <section className="py-16 sm:py-20 bg-gradient-to-br from-white to-neutral-50 relative overflow-hidden">
                 <motion.div
@@ -63,14 +61,16 @@ export default function GohezaLanding() {
                         variants={fadeUp}
                         className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 sm:mb-6 lg:mb-8 leading-tight"
                     >
-                        Empower Creators. <span className="text-[#e85c51]">Elevate Brands.</span>
+                        TURN YOUR NEXT <span className="text-[#e85c51]">CAMPAIGN</span> INTO A{' '}
+                        <span className="text-[#e85c51]">SOCIAL</span> MEDIA TAKE OVER
                     </motion.h1>
                     <motion.p
                         variants={fadeUp}
                         className="text-base sm:text-lg md:text-xl text-gray-600 mb-6 sm:mb-8 max-w-3xl mx-auto"
                     >
-                        Goheza connects brands with everyday content creators for performance-based campaigns—no
-                        followers required.
+                        Goheza connects businesses to thousands of content creators who create hundreds of videos
+                        promoting products and services on social media making it impossible for your brand to be
+                        ignored online
                     </motion.p>
                     <motion.div
                         variants={fadeUp}
@@ -129,7 +129,8 @@ export default function GohezaLanding() {
                             </div>
                             <h3 className="text-lg font-semibold mb-2">Brands Launch Campaigns</h3>
                             <p className="text-sm text-gray-600">
-                                Brands create campaigns with clear goals, budgets, and target audiences.
+                                Brands create campaign with clear campaign briefs,goals, campaign assets, campaign do's
+                                and dont's and campaign budget.
                             </p>
                         </motion.div>
 
@@ -140,9 +141,9 @@ export default function GohezaLanding() {
                             <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <Lightbulb className="w-7 h-7 text-blue-600" />
                             </div>
-                            <h3 className="text-lg font-semibold mb-2">Creators Submit Video Ideas</h3>
+                            <h3 className="text-lg font-semibold mb-2">Creators apply with content</h3>
                             <p className="text-sm text-gray-600">
-                                Everyday creators pitch unique content ideas for the brand's campaign.
+                                Creators apply for the campaign with content and attached captions.
                             </p>
                         </motion.div>
 
@@ -153,9 +154,9 @@ export default function GohezaLanding() {
                             <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <Play className="w-7 h-7 text-green-600" />
                             </div>
-                            <h3 className="text-lg font-semibold mb-2">Content Goes Live</h3>
+                            <h3 className="text-lg font-semibold mb-2">Brand approved content to use</h3>
                             <p className="text-sm text-gray-600">
-                                Approved videos are published and put into the view-buy engine.
+                                Brand filters,selects, and approved content to use for its campaign
                             </p>
                         </motion.div>
 
@@ -166,9 +167,10 @@ export default function GohezaLanding() {
                             <div className="w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <DollarSign className="w-7 h-7 text-yellow-600" />
                             </div>
-                            <h3 className="text-lg font-semibold mb-2">Creators Earn Per View</h3>
+                            <h3 className="text-lg font-semibold mb-2">Creators Earn Per 1k Views</h3>
                             <p className="text-sm text-gray-600">
-                                Automatic payouts based on verified views. Fast, reliable, and transparent.
+                                Content goes live on social media platform and creators start earning per 1000 views
+                                their content generates.
                             </p>
                         </motion.div>
                     </motion.div>
@@ -189,8 +191,8 @@ export default function GohezaLanding() {
                             Why Choose Goheza?
                         </h2>
                         <p className="text-sm sm:text-lg text-gray-600">
-                            Built for the modern creator economy, with transparency, fairness, and performance at its
-                            core.
+                            Goheza has over 5000 creators and growing each day ready to deliver your brand story in
+                            their own style like dances, skits, explainers, reviews and more.
                         </p>
                     </motion.div>
 
@@ -207,9 +209,10 @@ export default function GohezaLanding() {
                                     <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
                                         <Users className="w-6 h-6 text-purple-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">No Follower Minimum</h3>
+                                    <h3 className="text-xl font-semibold mb-2">Diverse content production</h3>
                                     <p className="text-gray-600">
-                                        Creativity matters more than follower count. Anyone can join and start earning.
+                                        – Goheza has thousands of creators and growing, each ready to deliver your
+                                        campaign in their own style, from dances, skits, explainers, reviews, and more.
                                     </p>
                                 </CardContent>
                             </Card>
@@ -221,9 +224,10 @@ export default function GohezaLanding() {
                                     <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                                         <TrendingUp className="w-6 h-6 text-blue-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">Performance-Based Payouts</h3>
+                                    <h3 className="text-xl font-semibold mb-2">Performance based pay</h3>
                                     <p className="text-gray-600">
-                                        Earn based on real verified views. Better performance means higher earnings.
+                                        With goheza there is value attached to every cent spent on a campaign. A brand
+                                        only pays for content that performs per 1000 views.
                                     </p>
                                 </CardContent>
                             </Card>
@@ -235,9 +239,10 @@ export default function GohezaLanding() {
                                     <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
                                         <Shield className="w-6 h-6 text-green-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">Fast, Secure Payments</h3>
+                                    <h3 className="text-xl font-semibold mb-2">Real time analytics</h3>
                                     <p className="text-gray-600">
-                                        Quick payouts via Mobile Money, PayPal, or Bank Transfer within 24 hours.
+                                        - Goheza provides real time analytics to brands to track content performance in
+                                        terms of views, likes, comments and engagements.
                                     </p>
                                 </CardContent>
                             </Card>
@@ -249,9 +254,10 @@ export default function GohezaLanding() {
                                     <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
                                         <BarChart3 className="w-6 h-6 text-yellow-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">Real-time Analytics</h3>
+                                    <h3 className="text-xl font-semibold mb-2">CSR</h3>
                                     <p className="text-gray-600">
-                                        Track your campaign's progress and earnings in real-time with detailed insights.
+                                        - By partnering with Goheza, brands directly contribute to youth empowerment,
+                                        employment and skill development, and financial inclusion.
                                     </p>
                                 </CardContent>
                             </Card>
@@ -263,9 +269,10 @@ export default function GohezaLanding() {
                                     <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
                                         <Handshake className="w-6 h-6 text-[#e85c51]" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">Direct Brand Partnerships</h3>
+                                    <h3 className="text-xl font-semibold mb-2">Direct Creator Partnerships</h3>
                                     <p className="text-gray-600">
-                                        Connect directly with brands. No intermediaries, build lasting relationships.
+                                        Brands can easily access thousands of creators without the need for
+                                        intermediaries or negotiations eliminating the stress of looking for creators.
                                     </p>
                                 </CardContent>
                             </Card>
@@ -277,9 +284,10 @@ export default function GohezaLanding() {
                                     <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
                                         <Globe className="w-6 h-6 text-indigo-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">Global Reach</h3>
+                                    <h3 className="text-xl font-semibold mb-2">Fast secure payments</h3>
                                     <p className="text-gray-600">
-                                        Find campaigns and creators worldwide. Localized for African markets.
+                                        - Goheza ensures fast and reliable payments through integrated digital wallets
+                                        and trusted payment gateways
                                     </p>
                                 </CardContent>
                             </Card>
@@ -356,22 +364,19 @@ export default function GohezaLanding() {
                             </AccordionItem>
 
                             <AccordionItem value="item-3">
-                                <AccordionTrigger className="font-bold">
-                                    Who owns the content after it's created?
-                                </AccordionTrigger>
+                                <AccordionTrigger className="font-bold">How are views verified</AccordionTrigger>
                                 <AccordionContent className="font-medium">
-                                    Content ownership terms are clearly defined in each campaign agreement. The specific
-                                    rights and usage terms are outlined before creators begin working on any campaign.
+                                    Goheza uses real-time analytics and platform interrogation to verify genuine views
+                                    from social platforms - filtering out bots and fake engagements.
                                 </AccordionContent>
                             </AccordionItem>
 
                             <AccordionItem value="item-4">
-                                <AccordionTrigger className="font-bold">
-                                    How quickly do creators get paid?
-                                </AccordionTrigger>
+                                <AccordionTrigger className="font-bold">When do creators get paid</AccordionTrigger>
                                 <AccordionContent className="font-medium">
-                                    Creators receive fast payouts within 24 hours through various payment methods
-                                    including Mobile Money, PayPal, and Bank Transfer.
+                                    creators are paid for every 1000 verified views their approved content receives.
+                                    Payments are processed automatically based on the creator’s selected payment method
+                                    and preferred payout schedule from daily, weekly or even monthly.
                                 </AccordionContent>
                             </AccordionItem>
 
@@ -397,14 +402,12 @@ export default function GohezaLanding() {
                         </Accordion>
                     </div>
 
-                    <div className="text-center mt-8 sm:mt-12">
+                    <div className="text-center mt-8 sm:mt-12" id="contactus">
                         <p className="text-gray-600 mb-4">Still have questions? We're here to help.</p>
                         <ContactForm />
                     </div>
                 </div>
             </section>
-
-         
         </div>
     )
 }

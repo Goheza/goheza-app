@@ -1,8 +1,10 @@
-"use client"
+'use client'
 
 import React, { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
+// WARNING: This component contains mechanisms to discourage copying.
+// These methods are not foolproof and can be bypassed easily by a determined user.
 const TermsAndConditions: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'brands' | 'creators'>('brands')
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
@@ -15,6 +17,17 @@ const TermsAndConditions: React.FC = () => {
             newExpanded.add(section)
         }
         setExpandedSections(newExpanded)
+    }
+
+    // Handlers to prevent copying and context menu
+    const handleContextmenu = (e: React.MouseEvent) => {
+        e.preventDefault() // Disables right-click context menu
+    }
+
+    const handleCopy = (e: React.ClipboardEvent) => {
+        e.preventDefault() // Prevents the default copy action (Ctrl+C/Cmd+C)
+        // You could add an alert here if you want to notify the user.
+        // alert('Copying content from this page is disabled.')
     }
 
     const brandSections = [
@@ -152,7 +165,13 @@ const TermsAndConditions: React.FC = () => {
     const sections = activeTab === 'brands' ? brandSections : creatorSections
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        // Add onCopy, onContextMenu, and user-select: none style to the main wrapper
+        <div
+            className="min-h-screen bg-gray-50"
+            onCopy={handleCopy}
+            onContextMenu={handleContextmenu}
+            style={{ userSelect: 'none' }}
+        >
             {/* Header */}
             <div className="bg-white border-b border-gray-200">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -255,8 +274,6 @@ const TermsAndConditions: React.FC = () => {
                         </p>
                     </div>
                 </div>
-
-                
             </div>
         </div>
     )

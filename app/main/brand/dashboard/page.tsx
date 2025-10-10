@@ -122,12 +122,16 @@ export default function Dashboard() {
                  * Set the Active Campaigns as only the ones that have been approved
                  */
 
-                let _approvedCampaigns = campaigns.map((v)=>{
-                    return v.status == "approved"
-                })
+            
 
-                // Calculate stats
-                setActiveCampaigns(campaigns.length)
+                let _approvedCampaigns = campaigns.filter((v)=>{
+                    return v.status == "approved"
+                });
+
+                console.log(_approvedCampaigns)
+
+                //@ts-ignore
+                setActiveCampaigns(_approvedCampaigns.length)
             } catch (err) {
                 console.error('Error fetching brand data:', err)
                 setError(err instanceof Error ? err.message : 'Failed to load dashboard data')

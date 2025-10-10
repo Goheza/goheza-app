@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import logo from '@/assets/GOHEZA-02.png'
-import { Menu, X } from 'lucide-react'
+import { HelpCircle, Menu, X } from 'lucide-react'
 
 export default function HeaderItemMainCre() {
     const router = useRouter()
@@ -99,7 +99,14 @@ export default function HeaderItemMainCre() {
                         href="/main/creator/settings"
                         className="text-gray-600 hover:text-[#e85c51]"
                     >
-                        Settings
+                        Payments
+                    </Link>
+                    <Link
+                        onNavigate={onDidNavigate}
+                        href="/main/creator/howitworks"
+                        className="text-gray-600 hover:text-[#e85c51]"
+                    >
+                        <HelpCircle/>
                     </Link>
                     <UserAccountItem
                         userEmail={userEmail}
@@ -166,7 +173,15 @@ export default function HeaderItemMainCre() {
                             href="/main/creator/settings"
                             className="text-gray-600 hover:text-[#e85c51]"
                         >
-                            Settings
+                            Payments
+                        </Link>
+
+                        <Link
+                            onNavigate={onDidNavigate}
+                            href="/main/creator/howitworks"
+                            className="text-gray-600 hover:text-[#e85c51]"
+                        >
+                          <HelpCircle/>
                         </Link>
                         <div className="pt-2 border-t mt-2">
                             <UserAccountItem

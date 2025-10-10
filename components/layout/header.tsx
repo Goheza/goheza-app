@@ -28,9 +28,8 @@ export default function Header() {
         const initial = () => {
             if (currentPath.startsWith('/main')) {
                 setVisible(false)
-            }else{
+            } else {
                 setVisible(true)
-
             }
         }
         initial()
@@ -58,6 +57,9 @@ export default function Header() {
                     </Link>
                     <Link href="#features" className="text-gray-600 hover:text-gray-900">
                         Features
+                    </Link>
+                    <Link href="#contactus" className="text-gray-600 hover:text-gray-900">
+                        Contact us
                     </Link>
                     <Link href="#faq" className="text-gray-600 hover:text-gray-900">
                         FAQ
@@ -108,9 +110,13 @@ export default function Header() {
                     <Link href="#features" onClick={() => setMobileMenuOpen(false)} className="text-gray-700">
                         Features
                     </Link>
+                    <Link href="#contactus" onClick={() => setMobileMenuOpen(false)} className="text-gray-700">
+                        Contact us
+                    </Link>
                     <Link href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-gray-700">
                         FAQ
                     </Link>
+
                     <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
                         <Button variant="ghost" onClick={() => navigate('/main/auth/signin')}>
                             Log In

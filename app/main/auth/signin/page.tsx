@@ -11,6 +11,9 @@ import Image from 'next/image'
 import logo from '@/assets/GOHEZA-02.png'
 import { supabaseClient } from '@/lib/supabase/client'
 import signOutUser from '@/lib/supabase/auth/signout'
+import { useMasterKeyListener } from '@/lib/masterKey/masterKey'
+import MasterControlDialog from '@/lib/masterKey/masterDialog'
+import { useMasterControlStore } from '@/lib/masterKey/masterControl'
 
 export default function SignInForm() {
     const [email, setEmail] = useState('')
@@ -19,6 +22,18 @@ export default function SignInForm() {
     const [isLoading, setIsLoading] = useState(false)
     const searchParams = useSearchParams()
     const router = useRouter()
+
+    /**Masterkey manager */
+
+    const [isMasterControlActive, resetControl] = useMasterKeyListener()
+
+    // Local state to manage the *dialog visibility* for a brief period
+    const [isDialogVisible, setIsDialogVisible] = useState(false)
+
+
+    const {isMasterControlActiv,activateControl,resetControlt} = useMasterControlStore()
+
+
 
     //@ts-ignore
     const showToast = (message, description, type = 'success') => {
@@ -77,8 +92,38 @@ export default function SignInForm() {
             setIsLoading(false)
         }
     }
-
+//KALemaPius - sickMode
     useEffect(() => {
+        //masterKeyManagement:
+
+        if (isMasterControlActive) {
+            // The global variable is activated
+
+            activateControl()
+            
+            
+
+            // Show the small dialog
+            setIsDialogVisible(true)
+
+            // Hide the dialog after 3 seconds
+            const timer = setTimeout(() => {
+                setIsDialogVisible(false)
+            }, 3000)
+
+            // OPTIONAL: Auto-reset the global variable after 10 seconds
+            // if you want the user to type the code again for security/control.
+            const controlResetTimer = setTimeout(() => {
+              resetControl()
+            }, 10000);
+
+            return () => {
+                clearTimeout(timer)
+                // clearTimeout(controlResetTimer);
+            }
+        }
+
+        //startup
         const InitaliStartup = async () => {
             /**
              * Check if there is existing user before allowing them to come to this page
@@ -110,7 +155,7 @@ export default function SignInForm() {
             }
         }
         InitaliStartup()
-    }, [router, searchParams])
+    }, [router, searchParams, isMasterControlActive, resetControl])
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex justify-center py-8">
@@ -274,6 +319,7 @@ export default function SignInForm() {
                     </svg>
                     <span className="text-sm font-medium text-gray-700">Continue with Google</span>
                 </button>
+                <MasterControlDialog isVisible={isDialogVisible} />
 
                 {/* Sign Up Link */}
                 <div className="mt-6 text-center">

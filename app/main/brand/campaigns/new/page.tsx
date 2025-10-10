@@ -113,8 +113,8 @@ const CampaignBriefForm: React.FC = () => {
     /**
      * Used for Calculating Payments (for the brand)
      */
-    const [numCreators, setNumCreators] = useState(formData.numCreators || 50)
-    const [maxPayout, setMaxPayout] = useState(250) // $250 max per creator (example)
+    const [numCreators, setNumCreators] = useState(formData.numCreators || 30)
+    const [maxPayout, setMaxPayout] = useState(70) // $250 max per creator (example)
     const [flatFee, setFlatFee] = useState(0)
     const [estimatedViewsInput, setEstimatedViewsInput] = useState(formData.estimatedViews.toLocaleString())
     const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentBreakdown | null>(null)
@@ -703,7 +703,7 @@ const CampaignBriefForm: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Brand Guidelines */}
+                    {/* Brand Guidelines
                     <div className="mb-6">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Brand Guidelines (PDF/DOCX)
@@ -738,7 +738,7 @@ const CampaignBriefForm: React.FC = () => {
                                 <p className="text-gray-500">Drag and drop PDF or DOCX here</p>
                             )}
                         </div>
-                    </div>
+                    </div> */}
                 </div>
                 {/* --- End Media Uploads --- */}
 
@@ -801,8 +801,8 @@ const CampaignBriefForm: React.FC = () => {
                                 </span>
                                 <input
                                     type="number"
-                                    min="30"
-                                    placeholder="e.g., 250"
+                                    min="70"
+                                    placeholder="e.g., 70"
                                     value={maxPayout === 0 ? '' : maxPayout}
                                     onChange={(e) => setMaxPayout(e.target.value === '' ? 0 : parseInt(e.target.value))}
                                     className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"

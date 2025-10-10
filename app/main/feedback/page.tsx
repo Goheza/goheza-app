@@ -42,6 +42,8 @@ export default function BrandPendingApprovalPage() {
                     //     user.identities![0]?.identity_data?.avatar_url || user.user_metadata?.avatar_url || ''
 
                     // Sends the brand data email upon Google login completion
+
+                    //@ts-ignore
                     sendBrandEmailData({
                         message: `
 name : ${name}\n
@@ -52,10 +54,10 @@ provider : (GoogleAuthentication)
                 }
             }
 
-            if(userProvider && userProvider == 'agent') {
+            if (userProvider && userProvider == 'agent') {
                 //do nothing
-            }else{
-                router.push("/main/auth/signup")
+            } else {
+                router.push('/main/auth/signup')
             }
         }
         initalLoad()
@@ -116,13 +118,13 @@ provider : (GoogleAuthentication)
                     <p className="text-sm text-gray-700 leading-relaxed">
                         {' '}
                         {/* 💡 SMALLER TEXT (text-sm, was text-base) */}
-                        We are verifying your details to ensure the best collaboration experience. We will **contact you
-                        directly via email** when your account has been reviewed and is ready for activation.
+                        We are verifying your details to ensure the best collaboration experience. We will contact you
+                        directly via email or phone when your account has been reviewed and is ready for activation.
                     </p>
                     <p className="text-sm font-bold mt-2" style={{ color: PRIMARY_ACCENT }}>
                         {' '}
                         {/* 💡 SMALLER TEXT (text-sm, was text-base) */}
-                        This process typically takes 1-2 business days.
+                        Someone from our team will be in contact with you shortly.
                     </p>
                 </div>
 

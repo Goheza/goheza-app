@@ -13,7 +13,7 @@ export default function AnalyticsDashboard() {
     const router = useRouter()
 
     const [userNameI, setUserName] = useState<string>('Goheza')
-    const [activeFilter, setActiveFilter] = useState('Last 14 Days')
+    const [activeFilter, setActiveFilter] = useState('Last 7 Days')
     const [dates, setDates] = useState<string[]>([])
     const [showPicker, setShowPicker] = useState(false)
 
@@ -154,13 +154,13 @@ export default function AnalyticsDashboard() {
 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    {/* Store Visits Card */}
+                    {/* Total Payable Views */}
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-blue-50 rounded-lg">
                                 <Eye className="w-5 h-5 text-[#e85c51]" />
                             </div>
-                            <span className="text-gray-600 text-sm font-medium">Store Visits</span>
+                            <span className="text-gray-600 text-sm font-medium">Total Payable Views</span>
                         </div>
                         <div className="flex items-end gap-3">
                             <span className="text-3xl font-bold text-gray-900">0 views made</span>
@@ -177,7 +177,7 @@ export default function AnalyticsDashboard() {
                             <div className="p-2 bg-green-50 rounded-lg">
                                 <DollarSign className="w-5 h-5 text-green-600" />
                             </div>
-                            <span className="text-gray-600 text-sm font-medium">Total Revenue</span>
+                            <span className="text-gray-600 text-sm font-medium">Total Earnings</span>
                         </div>
                         <div className="flex items-end gap-3">
                             <span className="text-3xl font-bold text-gray-900">$0 made</span>

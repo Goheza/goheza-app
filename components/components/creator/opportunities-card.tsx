@@ -40,7 +40,7 @@ const fallbackImage = `https://placehold.co/400x225/e85c51/ffffff?text=${campaig
       </div>
       <div className="p-4">
         <h3 className="font-semibold text-gray-900 mb-1">{campaignName}</h3>
-        <p className="text-sm text-gray-600 mb-2">Up to {campaignPayoutRange}</p>
+        <p className="text-sm text-gray-600 mb-2">Earn Up to {campaignPayoutRange}</p>
         <p className="text-xs text-gray-500">Deadline: {campaignTimeline}</p>
       </div>
     </Link>
