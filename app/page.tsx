@@ -61,8 +61,8 @@ export default function GohezaLanding() {
                         variants={fadeUp}
                         className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 sm:mb-6 lg:mb-8 leading-tight"
                     >
-                        TURN YOUR NEXT <span className="text-[#e85c51]">CAMPAIGN</span> INTO A{' '}
-                        <span className="text-[#e85c51]">SOCIAL</span> MEDIA TAKE OVER
+                        TURN YOUR NEXT CAMPAIGN INTO A{' '}
+                        <span className="text-[#e85c51]">SOCIAL MEDIA TAKE OVER</span> 
                     </motion.h1>
                     <motion.p
                         variants={fadeUp}

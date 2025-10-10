@@ -193,7 +193,7 @@ export default function BrandProfile() {
                 <div>
                     <h2 className="text-xl font-semibold text-gray-700 mb-4">Company Contact</h2>
                     <input
-                        type="text"
+                        type="number"
                         value={companyContact}
                         onChange={(e) => setCompanyContact(e.target.value)}
                         className="w-full p-3 border border-gray-300 rounded-md focus:ring-[#e85c51] focus:border-[#e85c51] "

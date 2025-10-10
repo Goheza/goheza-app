@@ -70,13 +70,26 @@ export default function AnalyticsDashboard() {
             } = await supabaseClient.auth.getUser()
 
             if (user) {
-                const name = user.identities![0]?.identity_data?.full_name || user.user_metadata?.full_name || user.user_metadata.fullName || 'Goheza'
+                // Determine the full name using fallback logic
+                const fullName =
+                    user.identities![0]?.identity_data?.full_name ||
+                    user.user_metadata?.full_name ||
+                    user.user_metadata.fullName ||
+                    'Goheza'
+
+                // Extract only the first name
+                const firstName = fullName.split(' ')[0]
+
+                // Set 'Goheza' as a final fallback if all other names were empty strings
+                const name = firstName || 'Goheza'
+
                 const avatar = user.identities![0]?.identity_data?.avatar_url || user.user_metadata?.avatar_url || ''
+
                 setUserName(name)
             }
         }
 
-        onLoad();
+        onLoad()
 
         if (activeFilter !== 'Custom Range') {
             setDates(generateDates(activeFilter))
@@ -96,7 +109,6 @@ export default function AnalyticsDashboard() {
                     <h1 className="text-3xl flex item-center justify-between font-semibold text-gray-900 mb-2">
                         <span> Earnings</span>
                         <span>Hello {userNameI}, </span>
-                       
                     </h1>
                     <p className="text-gray-600 mb-6">Performance metrics for your submissions and campaigns.</p>
                 </div>
@@ -115,7 +127,9 @@ export default function AnalyticsDashboard() {
                                 }
                             }}
                             className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                                activeFilter === filter ? 'bg-[#e85c51] text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                                activeFilter === filter
+                                    ? 'bg-[#e85c51] text-white shadow-md'
+                                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
                             }`}
                         >
                             {filter}
@@ -137,14 +151,23 @@ export default function AnalyticsDashboard() {
                             <div className="flex justify-end gap-2 mt-2">
                                 <button
                                     onClick={() => {
-                                        setDates(generateDates('Custom Range', customRange[0].startDate, customRange[0].endDate))
+                                        setDates(
+                                            generateDates(
+                                                'Custom Range',
+                                                customRange[0].startDate,
+                                                customRange[0].endDate
+                                            )
+                                        )
                                         setShowPicker(false)
                                     }}
                                     className="px-4 py-2 bg-[#e85c51] text-white rounded-md"
                                 >
                                     Apply
                                 </button>
-                                <button onClick={() => setShowPicker(false)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md">
+                                <button
+                                    onClick={() => setShowPicker(false)}
+                                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
+                                >
                                     Cancel
                                 </button>
                             </div>

@@ -152,8 +152,8 @@ export default function Campaigns() {
                             <div className="relative w-full h-48 bg-gray-200">
                                 <Image
                                     src={
-                                        campaignBrandLogo ||
                                         campaign.cover_image_url ||
+                                        campaignBrandLogo ||
                                         `https://placehold.co/400x225?text=${campaign.name.at(0)}`
                                     }
                                     alt={campaign.name}
