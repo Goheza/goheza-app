@@ -23,6 +23,7 @@ interface RawSubmissionRow {
     submitted_at: string
     reviewed_by: string | null
     reviewed_at: string | null
+    feedback: string | null 
     campaigns?: { name?: string; description?: string; payout?: string; requirements?: string[]; status?: string }
     creator_profiles?: { full_name?: string | null; email?: string | null }
 }
@@ -39,6 +40,7 @@ interface DisplaySubmission {
     caption: string | null
     file_name: string
     file_size: number
+    feedback: string | null
 }
 
 export default function ContentReviewPage() {
@@ -49,7 +51,7 @@ export default function ContentReviewPage() {
     const [submission, setSubmission] = useState<DisplaySubmission | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [feedback, setFeedback] = useState('')
+    const [feedback, setFeedback] = useState('') 
     const [actionLoading, setActionLoading] = useState(false)
     const [apsData, setApsData] = useState({
         campaign_brand: '',
@@ -70,8 +72,6 @@ export default function ContentReviewPage() {
             setError(null)
 
             try {
-                // FIX: Explicitly use the foreign key constraint name (campaign_submissions_creator_fkey)
-                // for the creator_profiles join to avoid the relationship ambiguity error.
                 const { data, error } = await supabase
                     .from('campaign_submissions')
                     .select(
@@ -87,6 +87,7 @@ export default function ContentReviewPage() {
                             submitted_at,
                             reviewed_by,
                             reviewed_at,
+                            feedback, 
                             campaigns (
                                 name,
                                 description
@@ -124,6 +125,12 @@ export default function ContentReviewPage() {
                     caption: row.caption,
                     file_name: row.file_name,
                     file_size: row.file_size,
+                    feedback: row.feedback,
+                }
+                
+                // Set existing feedback into the input state if it exists
+                if (row.feedback) {
+                    setFeedback(row.feedback);
                 }
 
                 setApsData({
@@ -148,6 +155,13 @@ export default function ContentReviewPage() {
 
     const handleDecision = async (decision: 'approved' | 'rejected') => {
         if (!submissionId || !submission) return
+        
+        // Check for feedback if rejecting
+        if (decision === 'rejected' && !feedback.trim()) {
+            toast.error('Feedback is required when rejecting a submission.')
+            return
+        }
+        
         baseLogger('BRAND-OPERATIONS', `WillApproveOrRejectCampaignSubmissionForReview:${submissionId}`)
         setActionLoading(true)
 
@@ -162,61 +176,73 @@ export default function ContentReviewPage() {
                 return
             }
 
-            if (decision == 'approved') {
-                // Update status + reviewer metadata
-                const updateData: any = {
-                    status: decision,
-                    reviewed_by: user.id,
-                    reviewed_at: new Date().toISOString(),
-                }
+            // Prepare update data for the database
+            const updateData: any = {
+                status: decision,
+                reviewed_by: user.id,
+                reviewed_at: new Date().toISOString(),
+                // Include feedback for both decisions. Will be null if approved and no feedback is provided.
+                feedback: feedback.trim() || null, 
+            }
 
+            if (decision === 'approved') {
+                // Update status + reviewer metadata + feedback
                 const { error } = await supabase.from('campaign_submissions').update(updateData).eq('id', submissionId)
 
                 if (error) {
-                    baseLogger('BRAND-OPERATIONS', `FailedToApproveOrRejectCampaignSubmissionForReview:${submissionId}`)
-                    console.error('Error updating submission:', error)
-                    toast.error('Failed to update submission')
+                    baseLogger('BRAND-OPERATIONS', `FailedToApproveCampaignSubmissionForReview:${submissionId}`)
+                    console.error('Error approving submission:', error)
+                    toast.error('Failed to approve submission')
                     return
                 }
 
                 baseLogger(
                     'BRAND-OPERATIONS',
-                    `ApprovedOrRejectCampaignSubmissionForReview:${submissionId} decision:${decision} reviewer:${user.id}`
+                    `ApprovedCampaignSubmissionForReview:${submissionId} reviewer:${user.id}`
                 )
 
-                /**
-                 * ----------------------------------------------------------------------------
-                 * At this Point we want to alert the creator about their submission
-                 *
-                 * And if rejected we remove the submission from the databse
-                 * we need the feedback, creator's email, campaignName,brand and response
-                 */
-
+                // Send Approval notification to creator (includes optional feedback)
                 sendFeedbackToCreator({
                     decision: decision,
                     campaignBrand: '',
                     creatorEmail: apsData.creator_profiles_email,
                     campaignName: apsData.campaigns_name,
-                    feedback: feedback,
+                    feedback: feedback.trim(), 
                     message: '',
                 })
 
-                toast.success(`Submission ${decision === 'approved' ? 'approved' : 'rejected'} successfully!`)
+                toast.success(`Submission approved successfully!`)
 
                 // Redirect back to the campaign submissions list for this campaign
-                // e.g. /main/brand/campaigns/[campaignId]
                 router.push(`/main/brand/campaigns/${submission.campaign_id}`)
             } else {
                 /**
-                 * The Brand Rejected the Submission
+                 * The Brand Rejected the Submission (This path currently deletes the entire submission)
                  */
+                
+                // 1. Send rejection notification to creator (Must be done before deletion)
+                sendFeedbackToCreator({
+                    decision: decision,
+                    campaignBrand: '',
+                    creatorEmail: apsData.creator_profiles_email,
+                    campaignName: apsData.campaigns_name,
+                    feedback: feedback.trim(), 
+                    message: '',
+                })
+                
+                // 2. Log status and feedback briefly before deletion (important for logging/history, though row will be removed)
+                const { error: updateErr } = await supabase.from('campaign_submissions').update(updateData).eq('id', submissionId)
+                if (updateErr) {
+                    console.warn('Warning: Failed to log rejection status before deletion:', updateErr);
+                }
 
+
+                // 3. Attempt to remove storage objects
                 baseLogger('BRAND-OPERATIONS', `WillDeleteRejectedSubmissionAssets:${submissionId}`)
-                // 1) attempt to remove storage objects
                 const removeResult = await removeStorageObject(submission.video_url, submission.file_name)
                 baseLogger('BRAND-OPERATIONS', `RemoveStorageAttempt:${submissionId} , ${JSON.stringify(removeResult)}`)
 
-                // 3) delete the campaign_submissions row entirely
+                // 4. Delete the campaign_submissions row entirely
                 try {
                     const { error: deleteErr } = await supabase
                         .from('campaign_submissions')
@@ -226,8 +252,7 @@ export default function ContentReviewPage() {
                         baseLogger('BRAND-OPERATIONS', `FailedToDeleteCampaignSubmissionRow:${submissionId}`)
                         console.error('Error deleting submission row:', deleteErr)
                         toast.error('Failed to delete submission row from database')
-                        // still proceed to send feedback but do not redirect away until the user knows
-                        // leave actionLoading to false at the end
+                        // Do not return, continue to redirect
                     } else {
                         baseLogger('BRAND-OPERATIONS', `DeletedCampaignSubmissionRow:${submissionId}`)
                     }
@@ -236,22 +261,10 @@ export default function ContentReviewPage() {
                     toast.error('Unexpected error deleting submission row from database')
                 }
 
-                // send feedback after deletion attempt
-                sendFeedbackToCreator({
-                    decision: decision,
-                    campaignBrand: '',
-                    creatorEmail: apsData.creator_profiles_email,
-                    campaignName: apsData.campaigns_name,
-                    feedback: feedback,
-                    message: '',
-                })
+                toast.success('Submission rejected and assets deleted. Creator notified.')
 
-                toast.success('Submission rejected and deletion attempted. Creator notified.')
-
-                // redirect back to campaign list
+                // Redirect back to campaign list
                 router.push(`/main/brand/campaigns/${submission.campaign_id}`)
-                setActionLoading(false)
-                return
             }
         } catch (err) {
             console.error('Unexpected error:', err)
@@ -293,7 +306,7 @@ export default function ContentReviewPage() {
     if (!submission) return <div className="p-8">Submission not found</div>
 
     return (
-        <div className="p-8 max-w-7xl mx-auto  bg-gray-50">
+        <div className="p-8 max-w-7xl mx-auto bg-gray-50">
             <div className="mb-6">
                 <button onClick={() => router.back()} className="text-blue-600 hover:text-blue-800 mb-4">
                     ← Back to submissions
@@ -322,18 +335,29 @@ export default function ContentReviewPage() {
                     </div>
 
                     <div className="mt-8">
-                        <label htmlFor="feedback" className="block  font-bold text-xl text-black mb-2">
+                        <label htmlFor="feedback" className="block font-bold text-xl text-black mb-2">
                             Provide Feedback
                         </label>
                         <textarea
                             id="feedback"
                             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             rows={4}
-                            value={feedback}
+                            value={submission.status === 'pending' ? feedback : submission.feedback || ''}
                             onChange={(e) => setFeedback(e.target.value)}
-                            placeholder="Detailed Feedback"
-                            disabled={submission.status !== 'pending'}
+                            placeholder={"Detailed Feedback (Required for Rejection)"}
+                            // Only allow editing when the status is 'pending'
+                            disabled={submission.status !== 'pending'} 
                         />
+                        {submission.status === 'pending' && (
+                            <p className="text-xs text-gray-500 mt-1">
+                                Feedback is required if you choose to **Reject** the submission. Approving with text here will save the feedback for administrative review.
+                            </p>
+                        )}
+                        {submission.status !== 'pending' && submission.feedback && (
+                             <p className="text-sm text-gray-600 mt-2">
+                                Review Note: Submission status is **{submission.status}**. The saved feedback is displayed above.
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -385,7 +409,7 @@ export default function ContentReviewPage() {
 
                     {/* Action Buttons */}
                     {submission.status === 'pending' && (
-                        <div className="flex   space-y-4   flex-col">
+                        <div className="flex space-y-4 flex-col">
                             <span className=" font-bold text-xl mb-4">Actions</span>
                             <button
                                 onClick={() => handleDecision('approved')}
@@ -401,6 +425,9 @@ export default function ContentReviewPage() {
                             >
                                 {actionLoading ? 'Processing...' : 'Reject'}
                             </button>
+                            <p className="text-xs text-red-500 mt-1 font-semibold">
+                                NOTE: Rejecting a submission is a permanent action that will delete the submission video and the database record.
+                            </p>
                         </div>
                     )}
 

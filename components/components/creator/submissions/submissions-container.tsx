@@ -78,7 +78,7 @@ export default function SubmissionsContainer({ submissions, areSubmissionAvailab
                                         onClick={() =>
                                             (window.location.href = `/main/creator/submissions/${submission.id}`)
                                         }
-                                        className="text-blue-600 hover:text-blue-800 font-semibold transition-colors"
+                                        className="text-[#e85c51] cursor-pointer bg-white border-2 border-[#e85c51] hover:bg-[#e85c51] hover:text-white p-2 rounded-2xl font-semibold transition-colors"
                                     >
                                         View Details
                                     </button>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabaseClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -20,6 +21,7 @@ import { format, parseISO } from 'date-fns'
 // NEW: Updated status type to reflect the full workflow
 type SubmissionStatus = 'draft' | 'admin_reject' | 'pending' | 'approved' | 'rejected' | 'posted'
 
+// UPDATED: Added feedback field
 type Submission = {
     id: string
     video_url: string
@@ -29,15 +31,17 @@ type Submission = {
     creator_name: string
     campaign_name: string
     brand_name: string
+    feedback: string | null // Feedback field
 }
 
 export default function CampaignSubmissionsPage() {
-    // NEW: Default filter set to 'draft' for Admin review priority
     const [filter, setFilter] = useState<SubmissionStatus>('draft')
     const [submissions, setSubmissions] = useState<Submission[]>([])
     const [loading, setLoading] = useState(true)
     const [viewSubmissionModal, setViewSubmissionModal] = useState(false)
     const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null)
+    const [adminFeedback, setAdminFeedback] = useState<string>('')
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
 
     useEffect(() => {
         fetchSubmissions()
@@ -48,12 +52,13 @@ export default function CampaignSubmissionsPage() {
         try {
             const { data, error } = await supabaseClient
                 .from('campaign_submissions')
+                // UPDATED: Select the 'feedback' column
                 .select(
                     `
-                    id, video_url, caption, status, submitted_at, campaign_name,
+                    id, video_url, caption, status, submitted_at, campaign_name, feedback,
                     creator_profiles(full_name),
                     campaigns(name, brand_profiles(brand_name))
-                `
+                    `
                 )
                 .eq('status', filter)
                 .order('submitted_at', { ascending: false })
@@ -64,11 +69,12 @@ export default function CampaignSubmissionsPage() {
                 return
             }
 
-            const formattedSubmissions = data.map((s: any) => ({
+            const formattedSubmissions: Submission[] = data.map((s: any) => ({
                 ...s,
                 creator_name: s.creator_profiles?.full_name || 'N/A',
                 campaign_name: s.campaigns?.name || s.campaign_name || 'N/A',
                 brand_name: s.campaigns?.brand_profiles?.brand_name || 'N/A',
+                feedback: s.feedback || null,
             }))
 
             setSubmissions(formattedSubmissions)
@@ -77,30 +83,59 @@ export default function CampaignSubmissionsPage() {
         }
     }
 
-    // NEW: Function to handle Admin approval/rejection logic
     const handleUpdateStatus = async (newStatus: SubmissionStatus) => {
         if (!selectedSubmission) return
 
+        // 🔥 ENFORCEMENT: Check for feedback if rejecting
+        if ((newStatus === 'admin_reject' || newStatus === 'rejected') && !adminFeedback.trim()) {
+            toast.error('Feedback is required to reject a submission.')
+            return
+        }
+
+        setIsUpdatingStatus(true)
+
+        // Get Admin ID
         const { data: userData } = await supabaseClient.auth.getUser()
         const adminId = userData.user?.id
 
         if (!adminId) {
             toast.error('Authentication error. Admin user not found.')
+            setIsUpdatingStatus(false)
             return
         }
 
         const toastMessage =
-            newStatus === 'pending' ? 'Approving submission for Brand review...' : 'Rejecting submission...'
+            newStatus === 'pending'
+                ? 'Approving submission for Brand review...'
+                : 'Rejecting submission and sending feedback...'
 
         toast.info(toastMessage)
 
+        // UPDATED: Prepare the update object
+        const updateObject: {
+            status: SubmissionStatus
+            reviewed_by: string
+            reviewed_at: string
+            feedback?: string | null
+        } = {
+            status: newStatus,
+            reviewed_by: adminId,
+            reviewed_at: new Date().toISOString(),
+        }
+
+        // Logic for handling the feedback field
+        if (newStatus === 'admin_reject' || newStatus === 'rejected') {
+            // If rejecting, use the admin's input feedback
+            updateObject.feedback = adminFeedback.trim()
+        } else if (selectedSubmission.feedback) {
+            // If moving to a non-rejected state (e.g., 'pending') and there was old feedback, clear it.
+            updateObject.feedback = null
+        }
+        // Note: If approved/posted, we don't need to send feedback unless we're explicitly clearing old feedback (handled above).
+
         const { error } = await supabaseClient
             .from('campaign_submissions')
-            .update({
-                status: newStatus,
-                reviewed_by: adminId,
-                reviewed_at: new Date().toISOString(),
-            })
+            .update(updateObject)
             .eq('id', selectedSubmission.id)
 
         if (error) {
@@ -110,41 +145,48 @@ export default function CampaignSubmissionsPage() {
             const successMessage =
                 newStatus === 'pending'
                     ? 'Submission approved and moved to Brand review (Pending).'
-                    : 'Submission rejected by Admin and marked as admin_reject.'
+                    : `Submission rejected. Feedback sent to Creator.`
             toast.success(successMessage)
             fetchSubmissions()
             setViewSubmissionModal(false)
         }
+        setIsUpdatingStatus(false)
     }
 
-    // Existing function for final Admin posting (renamed for clarity)
     const handleFinalPost = async () => {
         if (!selectedSubmission || selectedSubmission.status !== 'approved') return
 
         toast.info('Scheduling post...')
         await new Promise((resolve) => setTimeout(resolve, 2000))
 
+        // PRODUCTION NOTE: Uncomment the real Supabase update here:
+        /*
         // const { error } = await supabaseClient
-        //     .from('campaign_submissions')
-        //     .update({ status: 'posted' })
-        //     .eq('id', selectedSubmission.id)
+        //    .from('campaign_submissions')
+        //    .update({ status: 'posted' })
+        //    .eq('id', selectedSubmission.id)
 
         // if (error) {
-        //     console.error('Error scheduling post:', error)
-        //     toast.error('Failed to schedule post.')
+        //    console.error('Error scheduling post:', error)
+        //    toast.error('Failed to schedule post.')
         // } else {
-        //     toast.success('Post scheduled successfully!')
-        //     fetchSubmissions()
-        //     setViewSubmissionModal(false)
+        //    toast.success('Post scheduled successfully!')
+        //    fetchSubmissions()
+        //    setViewSubmissionModal(false)
         // }
+        */
+        toast.success('Post scheduled successfully! (Simulated)')
+        fetchSubmissions()
+        setViewSubmissionModal(false)
     }
 
     const handleViewSubmission = (submission: Submission) => {
         setSelectedSubmission(submission)
+        // Set the feedback input field to the existing feedback or empty string for editing
+        setAdminFeedback(submission.feedback || '')
         setViewSubmissionModal(true)
     }
 
-    // NEW: Updated badge logic to include 'draft' and 'admin_reject'
     const getStatusBadge = (status: SubmissionStatus) => {
         switch (status) {
             case 'draft':
@@ -180,7 +222,6 @@ export default function CampaignSubmissionsPage() {
             <div className="flex justify-start">
                 <Tabs value={filter} onValueChange={(value) => setFilter(value as SubmissionStatus)}>
                     <TabsList>
-                        {/* Tabs prioritized for Admin workflow */}
                         <TabsTrigger value="draft">New Submissions (Draft)</TabsTrigger>
                         <TabsTrigger value="pending">Brand Review (Pending)</TabsTrigger>
                         <TabsTrigger value="approved">Brand Approved</TabsTrigger>
@@ -230,6 +271,7 @@ export default function CampaignSubmissionsPage() {
                     </TableBody>
                 </Table>
             </div>
+            {/* Submission Review Modal */}
             {selectedSubmission && (
                 <Dialog open={viewSubmissionModal} onOpenChange={setViewSubmissionModal}>
                     <DialogContent className="max-w-xl">
@@ -239,7 +281,8 @@ export default function CampaignSubmissionsPage() {
                                 Submitted by {selectedSubmission.creator_name} for {selectedSubmission.brand_name}
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="my-4 space-y-4">
+                        <div className="my-4 space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                            {/* Video Player */}
                             <div className="aspect-video w-full rounded-lg overflow-hidden bg-black flex items-center justify-center">
                                 <video
                                     key={selectedSubmission.video_url}
@@ -248,32 +291,66 @@ export default function CampaignSubmissionsPage() {
                                     className="w-full h-full object-contain"
                                 />
                             </div>
+                            {/* Creator's Caption */}
                             <div>
                                 <h3 className="text-lg font-bold mb-1">Creator's Caption</h3>
-                                <p className="text-sm text-neutral-600">{selectedSubmission.caption}</p>
+                                <p className="text-sm text-neutral-600 whitespace-pre-wrap">
+                                    {selectedSubmission.caption || 'No caption provided.'}
+                                </p>
                             </div>
+                            {/* Submitted Date */}
                             <p className="text-sm text-neutral-500">
                                 Submitted: {format(parseISO(selectedSubmission.submitted_at), 'PPP')}
                             </p>
+                            {/* Current Status */}
                             <div className="mt-4">
                                 <h3 className="text-lg font-bold mb-1">Current Status</h3>
                                 {getStatusBadge(selectedSubmission.status)}
                             </div>
+
+                            {/* Conditional Display of Existing Feedback */}
+                            {(selectedSubmission.status === 'admin_reject' ||
+                                selectedSubmission.status === 'rejected') &&
+                                selectedSubmission.feedback && (
+                                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                        <h3 className="text-md font-semibold text-red-700 mb-1">
+                                            Existing Rejection Feedback:
+                                        </h3>
+                                        <p className="text-sm text-red-800 whitespace-pre-wrap">
+                                            {selectedSubmission.feedback}
+                                        </p>
+                                    </div>
+                                )}
+
+                            {/* Admin Feedback Input Area - visible for relevant statuses */}
+                            {selectedSubmission.status !== 'approved' && selectedSubmission.status !== 'posted' && (
+                                <div>
+                                    <h3 className="text-lg font-bold mb-2">Reviewer Feedback</h3>
+                                    <Textarea
+                                        placeholder="Enter detailed feedback for the creator (required for rejection)..."
+                                        value={adminFeedback}
+                                        onChange={(e) => setAdminFeedback(e.target.value)}
+                                        rows={4}
+                                    />
+                                </div>
+                            )}
                         </div>
                         <DialogFooter className="flex justify-between sm:justify-between">
-                            {/* NEW: Admin Review Actions - visible only for 'draft' submissions */}
+                            {/* Admin Review Actions - visible only for 'draft' submissions */}
                             {selectedSubmission.status === 'draft' && (
                                 <div className="flex gap-2">
                                     <Button
                                         onClick={() => handleUpdateStatus('admin_reject')}
                                         variant="destructive"
                                         className="bg-red-600 hover:bg-red-700"
+                                        disabled={isUpdatingStatus}
                                     >
                                         Reject (Admin)
                                     </Button>
                                     <Button
                                         onClick={() => handleUpdateStatus('pending')}
                                         className="bg-green-600 hover:bg-green-700 text-white"
+                                        disabled={isUpdatingStatus}
                                     >
                                         Approve (Move to Brand)
                                     </Button>
@@ -285,11 +362,13 @@ export default function CampaignSubmissionsPage() {
                                 <Button
                                     onClick={handleFinalPost}
                                     className="bg-[#e85c51] hover:bg-[#f3867e] text-white"
+                                    disabled={isUpdatingStatus}
                                 >
                                     Schedule Post
                                 </Button>
                             )}
 
+                            {/* Close Button */}
                             <Button onClick={() => setViewSubmissionModal(false)} variant="secondary">
                                 Close
                             </Button>

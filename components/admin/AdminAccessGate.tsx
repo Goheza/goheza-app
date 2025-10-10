@@ -153,9 +153,7 @@ export default function AdminAccessGate({ children }: AdminAccessGateProps) {
             {!isSequenceComplete && (
                 <div className="text-lg font-mono text-center mb-6">
                     <p className="text-green-400">{ACTIVATION_CODE_SEQ.substring(0, keyIndex)}</p>
-                    <p className="text-gray-600">
-                         {keyIndex > 0 ? ACTIVATION_CODE_SEQ.substring(keyIndex) : '...'}
-                    </p>
+                   
                 </div>
             )}
 

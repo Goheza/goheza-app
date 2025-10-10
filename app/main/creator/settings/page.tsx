@@ -19,15 +19,74 @@ const BANK_OPTIONS = [
 ]
 
 export default function PaymentPage() {
+    // State variables
     const [paymentMethod, setPaymentMethod] = React.useState<'bank' | 'mobile'>('bank')
-    const [bankName, setBankName] = React.useState('') // <-- NEW STATE: Bank Name
+    const [bankName, setBankName] = React.useState('')
     const [accountNumber, setAccountNumber] = React.useState('')
     const [accountName, setAccountName] = React.useState('')
     const [mobileNumber, setMobileNumber] = React.useState('')
-    const [mobileAccountName, setMobileAccountName] = React.useState('') // <-- NEW STATE: Mobile Money Expected Name
+    const [mobileAccountName, setMobileAccountName] = React.useState('')
     const [frequency, setFrequency] = React.useState('weekly')
     const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [isLoading, setIsLoading] = React.useState(true) // NEW: Loading state for fetching data
 
+    // 1. Logic to fetch current saved data
+    React.useEffect(() => {
+        const fetchPaymentOptions = async () => {
+            setIsLoading(true)
+            const {
+                data: { user },
+            } = await supabaseClient.auth.getUser()
+
+            if (!user) {
+                toast.error('You must be logged in to view payment preferences.')
+                setIsLoading(false)
+                return
+            }
+
+            const { data, error } = await supabaseClient
+                .from('creator_profiles')
+                .select(
+                    `
+                        payment_method,
+                        payment_bank_name,
+                        payment_account_name,
+                        payment_account_number,
+                        payment_mobilemoney_number,
+                        payment_mobilemoney_name,
+                        payment_frequency
+                    `
+                )
+                .eq('user_id', user.id)
+                .single()
+
+            if (error && error.code !== 'PGRST116') { // PGRST116 means "No rows found"
+                console.error('Error fetching payment options:', error)
+                toast.error('Failed to load saved payment details.')
+            } else if (data) {
+                // Pre-populate state with saved data
+                setPaymentMethod(data.payment_method || 'bank')
+
+                // Bank details
+                setBankName(data.payment_bank_name || '')
+                setAccountNumber(data.payment_account_number || '')
+                setAccountName(data.payment_account_name || '')
+
+                // Mobile Money details
+                setMobileNumber(data.payment_mobilemoney_number || '')
+                setMobileAccountName(data.payment_mobilemoney_name || '')
+
+                // Frequency
+                setFrequency(data.payment_frequency || 'weekly')
+            }
+
+            setIsLoading(false)
+        }
+
+        fetchPaymentOptions()
+    }, [])
+
+    // 2. Logic to save payment options (Unchanged but included for completeness)
     const savePaymentOptions = async (payload: any) => {
         const {
             data: { user },
@@ -41,17 +100,17 @@ export default function PaymentPage() {
         const { error: profileError } = await supabaseClient.from('creator_profiles').upsert(
             {
                 user_id: user.id,
-                full_name: user.identities![0]?.identity_data?.full_name || user.user_metadata?.fullName,
+                // Note: full_name and email population should ideally be done once on profile creation, but kept here for robustness
+                full_name: user.identities?.[0]?.identity_data?.full_name || user.user_metadata?.fullName,
                 email: user.email!,
                 payment_method: payload.paymentMethod,
                 // Bank fields
-                payment_bank_name: payload.bankName, // <-- UPDATED: Save Bank Name
+                payment_bank_name: payload.bankName,
                 payment_account_name: payload.accountName,
                 payment_account_number: payload.accountNumber,
                 // Mobile Money fields
                 payment_mobilemoney_number: payload.mobileNumber,
-                payment_mobilemoney_name: payload.mobileAccountName, // <-- UPDATED: Save Mobile Money Expected Name
-
+                payment_mobilemoney_name: payload.mobileAccountName, 
                 payment_frequency: payload.frequency,
                 has_payment_details: true,
             },
@@ -75,13 +134,13 @@ export default function PaymentPage() {
 
         const payload = {
             paymentMethod,
-            // Bank fields (only included if paymentMethod is 'bank')
-            bankName: paymentMethod === 'bank' ? bankName : null, // <-- UPDATED
+            // Only send the relevant fields to avoid conflicts when updating
+            bankName: paymentMethod === 'bank' ? bankName : null,
             accountNumber: paymentMethod === 'bank' ? accountNumber : null,
             accountName: paymentMethod === 'bank' ? accountName : null,
-            // Mobile Money fields (only included if paymentMethod is 'mobile')
+            
             mobileNumber: paymentMethod === 'mobile' ? mobileNumber : null,
-            mobileAccountName: paymentMethod === 'mobile' ? mobileAccountName : null, // <-- UPDATED
+            mobileAccountName: paymentMethod === 'mobile' ? mobileAccountName : null, 
 
             frequency,
         }
@@ -90,6 +149,17 @@ export default function PaymentPage() {
         setIsSubmitting(false)
     }
 
+    // 3. Render Loading State
+    if (isLoading) {
+        return (
+            <div className="max-w-xl mx-auto py-12 px-6 text-center">
+                <h1 className="text-2xl font-bold mb-6">Loading Payment Preferences...</h1>
+                <p className="text-gray-500">Please wait.</p>
+            </div>
+        )
+    }
+
+    // 4. Render Form with pre-populated data
     return (
         <div className="max-w-xl mx-auto py-12 px-6">
             <h1 className="text-2xl font-bold mb-6 text-center">Set Your Payment Preferences</h1>
