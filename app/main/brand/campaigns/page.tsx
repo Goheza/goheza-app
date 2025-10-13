@@ -11,12 +11,12 @@ import { Button } from '@/components/ui/button'
 
 const supabase = supabaseClient
 
-type CampaignStatus = 'all' | 'approved' | 'cancelled' | 'inreview'
+type CampaignStatus = 'all' | 'approved' | 'cancelled' | 'inreview' | 'expired'
 
 interface Campaign {
     id: string
     name: string
-    status: 'approved' | 'cancelled' | 'inreview'
+    status: 'approved' | 'cancelled' | 'inreview' | "expired"
     image_url: string | null
     created_at: string
     cover_image_url: string
@@ -27,6 +27,8 @@ const filterOptions: { value: CampaignStatus; label: string }[] = [
     { value: 'inreview', label: 'In Review' },
     { value: 'approved', label: 'Approved' },
     { value: 'cancelled', label: 'Rejected / Cancelled' },
+    { value: 'expired', label: 'Expired' },
+
 ]
 
 export default function Campaigns() {
@@ -112,6 +114,8 @@ export default function Campaigns() {
             case 'inreview':
                 return 'bg-yellow-100 text-yellow-800'
             case 'cancelled':
+                return 'bg-red-100 text-red-800'
+            case 'expired':
                 return 'bg-red-100 text-red-800'
             default:
                 return 'bg-gray-100 text-gray-800'

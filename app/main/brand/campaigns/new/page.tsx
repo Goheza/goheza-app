@@ -433,6 +433,16 @@ const CampaignBriefForm: React.FC = () => {
             setProgressState('inserting-data')
             baseLogger('BRAND-OPERATIONS', 'WillCreateAndInsertCampaignForBrand')
 
+            /**
+             * 
+             * Expiry time for the campaign 
+             * 
+             * A campaign will expire and not allow submissions from creators after 7 days.
+             */
+
+            const sevenDaysFromNow = new Date()
+            sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
+
             // convert countries string to array
             const targetCountries = (formData.countries || '')
                 .split(',')
@@ -473,6 +483,11 @@ const CampaignBriefForm: React.FC = () => {
                          */
                         cover_image_url: coverImageUrl,
                         max_submissions: formData.max_submissions,
+
+                        /**
+                         * Expiring Manager
+                         */
+                        expires_at: sevenDaysFromNow.toISOString(), 
                     },
                 ])
                 .select()

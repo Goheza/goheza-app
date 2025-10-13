@@ -10,6 +10,7 @@
 # production
 /build
 /_vv_secure
+/backup
 
 # debug
 npm-debug.log*
