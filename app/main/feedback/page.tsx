@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
 import { sendBrandEmailData } from '@/lib/brand/send-brand-data'
 import { useRouter } from 'next/navigation'
+import { baseLogger } from '@/lib/logger'
 
 // --- Configuration ---
 // Primary accent remains the same
@@ -25,37 +26,46 @@ export default function BrandPendingApprovalPage() {
 
     useEffect(() => {
         const initalLoad = async () => {
+            baseLogger('AUTHENTICATION', 'DidReachFeedbackBasedLogin')
             let userProvider = params.get('provider')
 
             if (userProvider && userProvider == 'google') {
+                baseLogger('AUTHENTICATION', 'DidReachGoogleFeedbackLogin')
+
                 const {
                     data: { user },
                 } = await supabaseClient.auth.getUser()
                 if (user) {
+                    baseLogger('AUTHENTICATION', 'DidReachGoogleFeedbackLogin(UserFound)')
+
                     const name =
                         user.identities![0]?.identity_data?.full_name ||
                         user.user_metadata?.full_name ||
                         user.user_metadata.fullName ||
                         'Goheza'
-                    // The avatar data is not used in the email but was included in the original block
-                    // const avatar =
-                    //     user.identities![0]?.identity_data?.avatar_url || user.user_metadata?.avatar_url || ''
 
-                    // Sends the brand data email upon Google login completion
-
-                    //@ts-ignore
                     sendBrandEmailData({
-                        message: `
-name : ${name}\n
-email : ${user.email!}\n
-provider : (GoogleAuthentication)
-`,
+                        email: user.email!,
+                        name: name,
+                        message: ` 
+                                        
+                                            name : ${name}\n
+                                            phoneNumber: No Phone \n
+                                            provider : (GoogleAuthentication)
+                                        
+                                        
+                                        `,
+                    }).then(() => {
+                        //do nothing.
+                        return;
                     })
                 }
+                return
             }
 
             if (userProvider && userProvider == 'agent') {
                 //do nothing
+                return
             } else {
                 router.push('/main/auth/signup')
             }

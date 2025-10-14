@@ -12,7 +12,6 @@ interface ISignUpUser {
     socialLinks: string
 }
 
-
 export const signUpUser = async ({
     email,
     password,

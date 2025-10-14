@@ -325,7 +325,7 @@ export default function SignUpForm() {
              * -------------------------------------------------------------------------------
              */
 
-            const _vm_s = 'd'
+          
 
             if (isMasterControlActiv) {
                 try {

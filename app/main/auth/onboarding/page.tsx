@@ -48,7 +48,7 @@ export default function OnboardingDialog() {
 
             if (!user) {
                 // No user found, redirect to sign-in page
-                router.push('/main/auth/signin')
+                router.push('/main/auth/signup')
                 return
             }
 
@@ -152,20 +152,20 @@ export default function OnboardingDialog() {
                     {role === 'creator' && (
                         <div className="space-y-4">
                             <input
-                                type="text"
+                                type="number"
                                 name="phone"
                                 placeholder="Phone Number"
                                 value={onboardingData.phone}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
-                                required
+                                
                             />
 
                             <select
                                 value={onboardingData.country}
                                 onChange={handleInputChange}
                                 className=" px-4 py-3 text-sm w-full border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
-                                required
+                                
                             >
                                 {/* The initial disabled option acts as a placeholder */}
                                 <option value="" disabled className="w-full">
@@ -190,16 +190,16 @@ export default function OnboardingDialog() {
                                 value={onboardingData.brandName}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
+                                
                             />
                             <input
-                                type="text"
+                                type="number"
                                 name="phone"
                                 placeholder="Phone"
                                 value={onboardingData.phone}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
+                              
                             />
                         </div>
                     )}
