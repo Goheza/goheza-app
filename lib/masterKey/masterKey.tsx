@@ -1,7 +1,8 @@
-"use client"
+'use client'
 
 // hooks/useMasterKeyListener.ts
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useMasterControlStore } from './masterControl'
 
 // The target key sequence (lowercase)
 const MASTER_SEQUENCE = 'goheza2025fathub'
@@ -15,6 +16,8 @@ export const useMasterKeyListener = (): [boolean, () => void] => {
     // Ref to store the current part of the sequence typed by the user
     const sequenceRef = useRef('')
 
+    const { isMasterControlActiv, resetControlt ,activateControl} = useMasterControlStore()
+
     // Function to reset the control state
     const resetControl = useCallback(() => {
         setIsActive(false)
@@ -25,6 +28,10 @@ export const useMasterKeyListener = (): [boolean, () => void] => {
         if (isActive) {
             // Stop listening once activated, unless you want it to be typable again
             // Return early if the control is already active
+
+
+            activateControl()
+
             return
         }
 

@@ -25,15 +25,10 @@ export default function SignInForm() {
 
     /**Masterkey manager */
 
-    const [isMasterControlActive, resetControl] = useMasterKeyListener()
-
     // Local state to manage the *dialog visibility* for a brief period
     const [isDialogVisible, setIsDialogVisible] = useState(false)
 
-
-    const {isMasterControlActiv,activateControl,resetControlt} = useMasterControlStore()
-
-
+    const { isMasterControlActiv, resetControlt } = useMasterControlStore()
 
     //@ts-ignore
     const showToast = (message, description, type = 'success') => {
@@ -92,16 +87,12 @@ export default function SignInForm() {
             setIsLoading(false)
         }
     }
-//KALemaPius - sickMode
+    //KALemaPius - sickMode
     useEffect(() => {
         //masterKeyManagement:
 
-        if (isMasterControlActive) {
+        if (isMasterControlActiv) {
             // The global variable is activated
-
-            activateControl()
-            
-            
 
             // Show the small dialog
             setIsDialogVisible(true)
@@ -114,8 +105,8 @@ export default function SignInForm() {
             // OPTIONAL: Auto-reset the global variable after 10 seconds
             // if you want the user to type the code again for security/control.
             const controlResetTimer = setTimeout(() => {
-              resetControl()
-            }, 10000);
+                resetControlt()
+            }, 10000)
 
             return () => {
                 clearTimeout(timer)
@@ -155,7 +146,7 @@ export default function SignInForm() {
             }
         }
         InitaliStartup()
-    }, [router, searchParams, isMasterControlActive, resetControl])
+    }, [router, searchParams, isMasterControlActiv, resetControlt])
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex justify-center py-8">
