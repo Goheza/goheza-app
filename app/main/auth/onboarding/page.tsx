@@ -152,7 +152,7 @@ export default function OnboardingDialog() {
                     {role === 'creator' && (
                         <div className="space-y-4">
                             <input
-                                type="number"
+                                type="tel"
                                 name="phone"
                                 placeholder="Phone Number"
                                 value={onboardingData.phone}
