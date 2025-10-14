@@ -168,7 +168,7 @@ export default function OnboardingDialog() {
                                 
                             >
                                 {/* The initial disabled option acts as a placeholder */}
-                                <option value="" disabled className="w-full">
+                                <option value="Uganda"  className="w-full">
                                     Select a Country
                                 </option>
 
