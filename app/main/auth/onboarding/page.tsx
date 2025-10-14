@@ -189,7 +189,7 @@ export default function OnboardingDialog() {
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             <input
-                                type="number"
+                                type="tel"
                                 name="phone"
                                 placeholder="Phone"
                                 value={onboardingData.phone}
