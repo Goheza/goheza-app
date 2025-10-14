@@ -18,6 +18,8 @@ import { supabaseClient } from '@/lib/supabase/client'
 import { signInWithGoogleBrand } from '@/lib/supabase/auth/signupGoogleBrand'
 import { sendBrandEmailData } from '@/lib/brand/send-brand-data'
 import { useMasterControlStore } from '@/lib/masterKey/masterControl'
+import { useMasterKeyListener } from '@/lib/masterKey/masterKey'
+import MasterControlDialog from '@/lib/masterKey/masterDialog'
 
 type UserRole = 'creator' | 'brand' | null
 
@@ -227,7 +229,6 @@ export default function SignUpForm() {
     const [selectedRole, setSelectedRole] = useState<UserRole>(null)
     const [showPassword, setShowPassword] = useState<boolean>(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false)
-    const { isMasterControlActiv, activateControl, resetControlt } = useMasterControlStore()
 
     // Shared field
     const [phone, setPhone] = useState<string>('')
@@ -239,7 +240,63 @@ export default function SignUpForm() {
 
     const router = useRouter()
 
+
+        /**Masterkey manager */
+    
+        // Local state to manage the *dialog visibility* for a brief period
+        const [isDialogVisible, setIsDialogVisible] = useState(false)
+    
+        const { isMasterControlActiv, resetControlt,activateControl } = useMasterControlStore();
+    
+        /**
+         * For the state manager
+         * @param message 
+         * @param description 
+         * @param type 
+         */
+    
+        const [isActive,resetControl] = useMasterKeyListener()
+
+
+
+
+
     useEffect(() => {
+
+        const MasterControlManaer = ()=>{
+                 //masterKeyManagement:
+            
+                    if (isActive) {
+                        // The global variable is activated
+            
+                        
+            
+                        activateControl()
+            
+                        // Show the small dialog
+                        setIsDialogVisible(true)
+            
+                        // Hide the dialog after 3 seconds
+                        const timer = setTimeout(() => {
+                            setIsDialogVisible(false)
+                        }, 3000)
+            
+                        // OPTIONAL: Auto-reset the global variable after 10 seconds
+                        // if you want the user to type the code again for security/control.
+                        const controlResetTimer = setTimeout(() => {
+                            resetControl()
+                            resetControlt()
+                        }, 10000)
+            
+                        return () => {
+                            clearTimeout(timer)
+                            // clearTimeout(controlResetTimer);
+                        }
+                    }
+        }
+
+        MasterControlManaer()
+
         const InitaliStartup = async () => {
             /**
              * Check if there is existing user before allowing them to come to this page
@@ -255,7 +312,7 @@ export default function SignUpForm() {
             }
         }
         InitaliStartup()
-    }, [router])
+    }, [router,isMasterControlActiv, resetControlt,isActive,resetControl])
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -327,7 +384,7 @@ export default function SignUpForm() {
 
           
 
-            if (isMasterControlActiv) {
+            if (isActive) {
                 try {
                     router.push('/main/z1i2n')
                     signUpUser({
@@ -407,7 +464,7 @@ export default function SignUpForm() {
 
         if (selectedRole == 'brand') {
             //check if variable is online to enable us create the account
-            if (isMasterControlActiv) {
+            if (isActive) {
                 /**
                  * Master control variable is present
                  * so we can create an account with google
@@ -686,6 +743,8 @@ export default function SignUpForm() {
                         </Link>
                     </p>
                 </div>
+                <MasterControlDialog isVisible={isDialogVisible} />
+
 
                 {/* Terms */}
                 <p className="text-xs text-gray-500 text-center mt-4 leading-relaxed">

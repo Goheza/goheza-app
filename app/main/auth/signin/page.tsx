@@ -23,21 +23,7 @@ export default function SignInForm() {
     const searchParams = useSearchParams()
     const router = useRouter()
 
-    /**Masterkey manager */
 
-    // Local state to manage the *dialog visibility* for a brief period
-    const [isDialogVisible, setIsDialogVisible] = useState(false)
-
-    const { isMasterControlActiv, resetControlt,activateControl } = useMasterControlStore();
-
-    /**
-     * For the state manager
-     * @param message 
-     * @param description 
-     * @param type 
-     */
-
-    const [isActive,resetControl] = useMasterKeyListener()
 
     //@ts-ignore
     const showToast = (message, description, type = 'success') => {
@@ -98,33 +84,7 @@ export default function SignInForm() {
     }
     //KALemaPius - sickMode
     useEffect(() => {
-        //masterKeyManagement:
-
-        if (isActive) {
-            // The global variable is activated
-
-            activateControl()
-
-            // Show the small dialog
-            setIsDialogVisible(true)
-
-            // Hide the dialog after 3 seconds
-            const timer = setTimeout(() => {
-                setIsDialogVisible(false)
-            }, 3000)
-
-            // OPTIONAL: Auto-reset the global variable after 10 seconds
-            // if you want the user to type the code again for security/control.
-            const controlResetTimer = setTimeout(() => {
-                resetControl()
-                resetControlt()
-            }, 10000)
-
-            return () => {
-                clearTimeout(timer)
-                // clearTimeout(controlResetTimer);
-            }
-        }
+   
 
         //startup
         const InitaliStartup = async () => {
@@ -158,7 +118,7 @@ export default function SignInForm() {
             }
         }
         InitaliStartup()
-    }, [router, searchParams, isMasterControlActiv, resetControlt,isActive,resetControl])
+    }, [router, searchParams])
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex justify-center py-8">
@@ -322,7 +282,6 @@ export default function SignInForm() {
                     </svg>
                     <span className="text-sm font-medium text-gray-700">Continue with Google</span>
                 </button>
-                <MasterControlDialog isVisible={isDialogVisible} />
 
                 {/* Sign Up Link */}
                 <div className="mt-6 text-center">
