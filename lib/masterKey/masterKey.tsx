@@ -30,7 +30,7 @@ export const useMasterKeyListener = (): [boolean, () => void] => {
             // Return early if the control is already active
 
 
-            activateControl()
+           
 
             return
         }
