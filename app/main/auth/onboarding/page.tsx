@@ -34,7 +34,7 @@ export default function OnboardingDialog() {
     const [loading, setLoading] = useState(false)
     const [onboardingData, setOnboardingData] = useState<OnboardingData>({
         phone: '',
-        country: '',
+        country: 'Uganda',
         paymentMethod: 'unknown',
         brandName: '',
     })
@@ -158,21 +158,18 @@ export default function OnboardingDialog() {
                                 value={onboardingData.phone}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
-                                
                             />
 
                             <select
+                                name="country"
                                 value={onboardingData.country}
                                 onChange={handleInputChange}
-                                className=" px-4 py-3 text-sm w-full border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
-                                
+                                className="px-4 py-3 text-sm w-full border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
                             >
-                                {/* The initial disabled option acts as a placeholder */}
-                                <option value="Uganda"  className="w-full">
+                                <option value="" disabled>
                                     Select a Country
                                 </option>
 
-                                {/* Map over the array to create all the country options */}
                                 {ALL_COUNTRIES.map((countryName) => (
                                     <option key={countryName} value={countryName}>
                                         {countryName}
@@ -190,7 +187,6 @@ export default function OnboardingDialog() {
                                 value={onboardingData.brandName}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                
                             />
                             <input
                                 type="number"
@@ -199,7 +195,6 @@ export default function OnboardingDialog() {
                                 value={onboardingData.phone}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              
                             />
                         </div>
                     )}
