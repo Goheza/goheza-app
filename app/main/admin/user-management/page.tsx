@@ -10,12 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, CheckCircle, Clock } from 'lucide-react' // Added CheckCircle and Clock for status
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import { Loader2 } from 'lucide-react' // Added for a better loading spinner
+import { Loader2 } from 'lucide-react'
 
-// --- 1. TYPE DEFINITIONS ---
+// --- 1. TYPE DEFINITIONS (UPDATED) ---
 
 // Define the precise types returned from the CREATOR database table
 type CreatorProfileDB = {
@@ -34,16 +34,17 @@ type CreatorProfileDB = {
     has_payment_details: boolean
 }
 
-// Define the precise types returned from the BRAND database table
+// Define the precise types returned from the BRAND database table (UPDATED: Added is_verified)
 type BrandProfileDB = {
     id: string
     brand_email: string
     brand_name: string
     created_at: string
     contact: string | null
+    is_verified: boolean // <-- NEW FIELD
 }
 
-// Define the UNIFIED UserProfile type used throughout the component
+// Define the UNIFIED UserProfile type used throughout the component (UPDATED: Added is_verified)
 type UserProfile = {
     id: string
     email: string
@@ -51,6 +52,10 @@ type UserProfile = {
     name: string
     created_at: string
     is_active: boolean // Placeholder
+
+    // Brand specific fields
+    contact?: string | null
+    is_verified?: boolean // <-- NEW FIELD for Brands
 
     // Creator specific fields
     phone?: string | null
@@ -61,12 +66,9 @@ type UserProfile = {
     payment_frequency?: string | null
     payment_mobilemoney_number?: string | null
     has_payment_details?: boolean
-
-    // Brand specific fields
-    contact?: string | null
 }
 
-// --- 2. MAPPER FUNCTIONS ---
+// --- 2. MAPPER FUNCTIONS (UPDATED) ---
 
 const mapCreatorToUserProfile = (creator: CreatorProfileDB): UserProfile => ({
     id: creator.id,
@@ -93,11 +95,13 @@ const mapBrandToUserProfile = (brand: BrandProfileDB): UserProfile => ({
     created_at: brand.created_at,
     is_active: true, // Placeholder until schema update
     contact: brand.contact,
+    is_verified: brand.is_verified, // <-- MAPPING NEW FIELD
 })
 
 export default function UserManagementPage() {
     const [users, setUsers] = useState<UserProfile[]>([])
     const [loading, setLoading] = useState(true)
+    const [isUpdating, setIsUpdating] = useState(false) // New state for action loading
     const [filter, setFilter] = useState<string>('all')
     const [searchQuery, setSearchQuery] = useState('')
     const [viewProfileModal, setViewProfileModal] = useState(false)
@@ -110,9 +114,14 @@ export default function UserManagementPage() {
     const fetchUsers = async () => {
         setLoading(true)
         try {
-            // Fields to fetch for Creators, including all payment details
+            // Fields to fetch for Creators
             const creatorSelectFields =
                 'id, email, full_name, created_at, phone, country, payment_method, payment_account_name, payment_account_number, payment_frequency, payment_mobilemoney_number, has_payment_details'
+            
+            // Fields to fetch for Brands (UPDATED: Added is_verified)
+            const brandSelectFields = 
+                'id, brand_email, brand_name, created_at, contact, is_verified'
+
 
             // 1. Fetch creator profiles
             const { data: creators, error: creatorError } = await supabaseClient.from('creator_profiles').select(creatorSelectFields).returns<CreatorProfileDB[]>()
@@ -120,7 +129,7 @@ export default function UserManagementPage() {
             // 2. Fetch brand profiles
             const { data: brands, error: brandError } = await supabaseClient
                 .from('brand_profiles')
-                .select('id, brand_email, brand_name, created_at, contact')
+                .select(brandSelectFields) // <-- USING NEW SELECT FIELDS
                 .returns<BrandProfileDB[]>()
 
             if (creatorError || brandError) {
@@ -141,6 +150,48 @@ export default function UserManagementPage() {
             setLoading(false)
         }
     }
+
+    // --- NEW FUNCTION: VERIFY BRAND ---
+    const handleVerifyBrand = async (brand: UserProfile) => {
+        if (brand.role !== 'brand') return
+
+        setIsUpdating(true)
+        const toastId = toast.loading(`Verifying ${brand.name}...`)
+        
+        try {
+            // Update the brand_profiles table
+            const { error } = await supabaseClient
+                .from('brand_profiles')
+                .update({ is_verified: true })
+                .eq('id', brand.id)
+                .single()
+
+            if (error) {
+                throw new Error(error.message)
+            }
+
+            // Update local state immediately for a fast UI update
+            setUsers((prevUsers) =>
+                prevUsers.map((u) =>
+                    u.id === brand.id
+                        ? { ...u, is_verified: true } // Update the local user object
+                        : u
+                )
+            )
+
+            // Close the dropdown and modal (if open)
+            setViewProfileModal(false)
+            setSelectedUser(null) 
+            
+            toast.success(`${brand.name} is now verified!`, { id: toastId })
+        } catch (e: any) {
+            console.error('Error verifying brand:', e)
+            toast.error(`Verification failed: ${e.message || 'Database error.'}`, { id: toastId })
+        } finally {
+            setIsUpdating(false)
+        }
+    }
+    // ------------------------------------
 
     const filteredUsers = users.filter((user) => {
         const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) || user.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -210,20 +261,45 @@ export default function UserManagementPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="secondary" className={`${user.is_active ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                            {user.is_active ? 'Active' : 'Suspended'}
-                                        </Badge>
+                                        {/* Display verification status for Brands */}
+                                        {user.role === 'brand' ? (
+                                            <Badge
+                                                variant="secondary"
+                                                className={`flex items-center gap-1 ${user.is_verified ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}
+                                            >
+                                                {user.is_verified ? <CheckCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                                                {user.is_verified ? 'Verified' : 'Pending'}
+                                            </Badge>
+                                        ) : (
+                                            // Fallback to active/suspended for Creators (or non-brand users)
+                                            <Badge variant="secondary" className={`${user.is_active ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                                                {user.is_active ? 'Active' : 'Suspended'}
+                                            </Badge>
+                                        )}
                                     </TableCell>
                                     <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                                <Button variant="ghost" className="h-8 w-8 p-0" disabled={isUpdating}>
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onClick={() => handleViewProfile(user)}>View Profile</DropdownMenuItem>
+                                                
+                                                {/* NEW: Verification Action for Brands */}
+                                                {user.role === 'brand' && !user.is_verified && (
+                                                    <DropdownMenuItem 
+                                                        onClick={() => handleVerifyBrand(user)}
+                                                        className="text-green-600 font-medium"
+                                                        disabled={isUpdating}
+                                                    >
+                                                        {isUpdating ? 'Verifying...' : '✅ Mark as Verified'}
+                                                    </DropdownMenuItem>
+                                                )}
+                                                
+                                                {/* Toggle Status Action */}
                                                 <DropdownMenuItem onClick={() => handleToggleStatus(user)}>{user.is_active ? 'Suspend User' : 'Unsuspend User'}</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -241,18 +317,28 @@ export default function UserManagementPage() {
                 </Table>
             </div>
 
-            {/* View Profile Modal */}
+            {/* View Profile Modal (Optional: Add a verification status badge here as well) */}
             {selectedUser && (
                 <Dialog open={viewProfileModal} onOpenChange={setViewProfileModal}>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle className="capitalize">{selectedUser.name}</DialogTitle>
+                            <DialogTitle className="capitalize flex items-center gap-3">
+                                {selectedUser.name}
+                                {selectedUser.role === 'brand' && (
+                                    <Badge 
+                                        className={`capitalize ${selectedUser.is_verified ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}
+                                    >
+                                        {selectedUser.is_verified ? 'Verified' : 'Pending'}
+                                    </Badge>
+                                )}
+                            </DialogTitle>
                             <DialogDescription>{selectedUser.role} Profile Details</DialogDescription>
                         </DialogHeader>
 
                         <Separator className="my-4" />
                         <div className="space-y-3 text-sm max-h-[70vh] overflow-y-auto pr-4">
                             {/* General Details */}
+                            {/* ... (rest of the modal content is unchanged) ... */}
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                                 <p>
                                     <strong>Email:</strong>
@@ -323,6 +409,24 @@ export default function UserManagementPage() {
                                     <p>
                                         <strong>Primary Contact:</strong> {selectedUser.contact || 'N/A'}
                                     </p>
+                                    
+                                    {/* Verification Button in Modal */}
+                                    {!selectedUser.is_verified && (
+                                        <div className="pt-4">
+                                            <Button 
+                                                onClick={() => handleVerifyBrand(selectedUser)}
+                                                className="w-full bg-green-500 hover:bg-green-600"
+                                                disabled={isUpdating}
+                                            >
+                                                {isUpdating ? (
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                                )}
+                                                {isUpdating ? 'Verifying...' : 'Mark as Verified'}
+                                            </Button>
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>

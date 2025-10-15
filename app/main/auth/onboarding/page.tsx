@@ -6,7 +6,8 @@ import { toast } from 'sonner'
 import { supabaseClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import logo from '@/assets/GOHEZA-02.png'
-import { ALL_COUNTRIES } from '../signup/page'
+import { getUserProfileType } from '@/lib/supabase/auth/new/getProfiletype'
+import { ALL_COUNTRIES } from '@/lib/countries'
 
 const supabase = supabaseClient
 
@@ -28,8 +29,7 @@ type OnboardingData = Partial<CreatorData & BrandData>
 
 export default function OnboardingDialog() {
     const router = useRouter()
-    const searchParams = useSearchParams()
-    const role = searchParams.get('role') as 'creator' | 'brand' | null
+
     const [step, setStep] = useState(1)
     const [loading, setLoading] = useState(false)
     const [onboardingData, setOnboardingData] = useState<OnboardingData>({
@@ -41,6 +41,10 @@ export default function OnboardingDialog() {
 
     // On component mount, check if the user is signed in and if their profile is already complete.
     useEffect(() => {
+        /**
+         * Checking the user profile for the user
+         * @returns
+         */
         const checkUserProfile = async () => {
             const {
                 data: { user },
@@ -52,19 +56,22 @@ export default function OnboardingDialog() {
                 return
             }
 
-            // Check for an existing profile in either table
-            const { data: creatorProfile } = await supabase
-                .from('creator_profiles')
-                .select('id')
-                .eq('id', user.id)
-                .single()
+            /**
+             * Check for existing profile
+             */
+            const { type } = await getUserProfileType()
 
-            const { data: brandProfile } = await supabase.from('brand_profiles').select('id').eq('id', user.id).single()
-
-            if (creatorProfile || brandProfile) {
-                // Profile found, redirect to dashboard and show a message
-                toast.info('Your profile is already set up!', { style: { fontSize: 14 } })
-                router.push('/main/')
+            if (type) {
+                if (type == 'creator') {
+                    console.log('Profile Exists', user.email!)
+                    /**
+                     * The profile exists
+                     */
+                    router.push('/main/')
+                    return
+                }
+            }else{
+                return;
             }
         }
         checkUserProfile()
@@ -76,15 +83,26 @@ export default function OnboardingDialog() {
         setOnboardingData((prev) => ({ ...prev, [name]: value }))
     }
 
-    // Handles the final form submission to Supabase
+    /**
+     * Handle the Final Submission for the creator
+     * @param e
+     * @returns
+     */
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
+
+        /**
+         * Check again for existing user
+         */
 
         const {
             data: { user },
         } = await supabase.auth.getUser()
 
+        /**
+         * User is not present
+         */
         if (!user) {
             toast.error('Authentication error. Please sign in again.')
             setLoading(false)
@@ -92,30 +110,23 @@ export default function OnboardingDialog() {
         }
 
         let error = null
-        if (role === 'creator') {
-            console.log(user.id)
-            const { error: creatorError } = await supabase.from('creator_profiles').upsert(
-                {
-                    full_name: user.identities![0].identity_data!.name,
-                    email: user.identities![0].identity_data!.email,
-                    user_id: user.id, // ✅ correct column
-                    phone: onboardingData.phone,
-                    country: onboardingData.country,
-                },
-                { onConflict: 'user_id' } // ✅ conflict should be on user_id, not id
-            )
-            error = creatorError
-        } else if (role === 'brand') {
-            const { error: brandError } = await supabase.from('brand_profiles').upsert(
-                {
-                    user_id: user.id,
-                    brand_name: onboardingData.brandName,
-                    phone: onboardingData.phone,
-                },
-                { onConflict: 'user_id' }
-            )
-            error = brandError
-        }
+
+        /**
+         *
+         * Re-update the creator-profile of the user
+         *
+         */
+        const { error: creatorError } = await supabase.from('creator_profiles').upsert(
+            {
+                full_name: user.identities![0].identity_data!.name,
+                email: user.identities![0].identity_data!.email,
+                user_id: user.id, // ✅ correct column
+                phone: onboardingData.phone,
+                country: onboardingData.country,
+            },
+            { onConflict: 'user_id' } // ✅ conflict should be on user_id, not id
+        )
+        error = creatorError
 
         setLoading(false)
 
@@ -124,7 +135,10 @@ export default function OnboardingDialog() {
             toast.error('Failed to save profile. Please try again.', { style: { fontSize: 14 } })
         } else {
             toast.success('Profile created successfully! Welcome to Goheza.', { style: { fontSize: 14 } })
-            router.push('/main') // Redirect to the user's dashboard
+            /**
+             * We take him direct to where he belongs
+             */
+            router.push('/main/creator/dashboard') // Redirect to the user's dashboard
         }
     }
 
@@ -135,79 +149,47 @@ export default function OnboardingDialog() {
             return (
                 <div>
                     <div className="flex justify-center mb-4">
-                        {role === 'creator' ? (
-                            <Users className="w-12 h-12 text-[#e85c51]" />
-                        ) : (
-                            <Building2 className="w-12 h-12 text-blue-600" />
-                        )}
+                        <Users className="w-12 h-12 text-[#e85c51]" />
                     </div>
-                    <h1 className="text-2xl font-bold text-center mb-2">{`Welcome, ${
-                        role === 'creator' ? 'Creator' : 'Brand'
-                    }!`}</h1>
+                    <h1 className="text-2xl font-bold text-center mb-2">{`Welcome, ${'Creator'}!`}</h1>
                     <p className="text-gray-600 text-center mb-6">
                         Just a few more details to set up your profile and get you started on Goheza.
                     </p>
 
                     {/* Conditional fields for Creator vs. Brand */}
-                    {role === 'creator' && (
-                        <div className="space-y-4">
-                            <input
-                                type="tel"
-                                name="phone"
-                                placeholder="Phone Number"
-                                value={onboardingData.phone}
-                                onChange={handleInputChange}
-                                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
-                            />
+                    <div className="space-y-4">
+                        <input
+                            type="tel"
+                            name="phone"
+                            placeholder="Phone Number"
+                            value={onboardingData.phone}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
+                        />
 
-                            <select
-                                name="country"
-                                value={onboardingData.country}
-                                onChange={handleInputChange}
-                                className="px-4 py-3 text-sm w-full border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
-                            >
-                                <option value="" disabled>
-                                    Select a Country
+                        <select
+                            name="country"
+                            value={onboardingData.country}
+                            onChange={handleInputChange}
+                            className="px-4 py-3 text-sm w-full border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e85c51] focus:border-transparent placeholder-gray-400 transition-all duration-200"
+                        >
+                            <option value="" disabled>
+                                Select a Country
+                            </option>
+
+                            {ALL_COUNTRIES.map((countryName) => (
+                                <option key={countryName} value={countryName}>
+                                    {countryName}
                                 </option>
+                            ))}
+                        </select>
+                    </div>
 
-                                {ALL_COUNTRIES.map((countryName) => (
-                                    <option key={countryName} value={countryName}>
-                                        {countryName}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-                    {role === 'brand' && (
-                        <div className="space-y-4">
-                            <input
-                                type="text"
-                                name="brandName"
-                                placeholder="Brand Name"
-                                value={onboardingData.brandName}
-                                onChange={handleInputChange}
-                                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <input
-                                type="tel"
-                                name="phone"
-                                placeholder="Phone"
-                                value={onboardingData.phone}
-                                onChange={handleInputChange}
-                                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                    )}
                     <button
                         onClick={() => setStep(2)}
-                        disabled={
-                            !onboardingData.phone ||
-                            (role === 'creator' && !onboardingData.country) ||
-                            (role === 'brand' && !onboardingData.brandName)
-                        }
+                        disabled={!onboardingData.phone || !onboardingData.country}
                         className={`w-full py-3 px-4 mt-6 rounded-2xl text-sm font-medium transition-all duration-200 ${
-                            onboardingData.phone &&
-                            (role === 'creator' ? onboardingData.country : onboardingData.brandName)
+                            onboardingData.phone && onboardingData.country
                                 ? 'bg-[#e85c51] hover:bg-[#f3867e] text-white '
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         }`}
@@ -219,7 +201,7 @@ export default function OnboardingDialog() {
         }
 
         // Step 2: Creator-specific final fields
-        if (role === 'creator' && step === 2) {
+        if (step === 2) {
             return (
                 <div>
                     <button
@@ -236,44 +218,6 @@ export default function OnboardingDialog() {
                 </div>
             )
         }
-        if (role === 'brand' && step === 2) {
-            return (
-                <div>
-                    <h2 className="text-xl font-bold text-center mb-2">Confirm Your Details</h2>
-                    <p className="text-gray-600 text-center mb-6">Please confirm your brand details to finish setup.</p>
-                    <div className="space-y-4">
-                        <p>
-                            <strong>Company Name:</strong> {onboardingData.brandName}
-                        </p>
-                        <p>
-                            <strong>Phone:</strong> {onboardingData.phone}
-                        </p>
-                    </div>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={loading}
-                        className={`w-full py-3 px-4 mt-6 rounded-2xl text-sm font-medium transition-all duration-200 ${
-                            !loading
-                                ? 'bg-[#e85c51] hover:bg-[#f3867e] text-white'
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
-                    >
-                        {loading ? 'Saving...' : 'Finish Setup'}
-                    </button>
-                </div>
-            )
-        }
-    }
-
-    // Final check for a valid role from the URL
-    if (!role) {
-        return (
-            <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="text-center">
-                    <p className="text-gray-500">Loading or invalid role...</p>
-                </div>
-            </div>
-        )
     }
 
     return (

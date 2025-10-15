@@ -1,13 +1,5 @@
-'use client'
-
-import React, { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { supabaseClient } from '@/lib/supabase/client'
-import { sendBrandEmailData } from '@/lib/brand/send-brand-data'
-import { useRouter } from 'next/navigation'
-import { baseLogger } from '@/lib/logger'
 
 // --- Configuration ---
 // Primary accent remains the same
@@ -20,59 +12,7 @@ const CARD_COLOR_LIGHT = 'white'
 const TEXT_COLOR_LIGHT = 'rgb(17 24 39)' // Tailwind Gray-900 (Dark text)
 // ----------------------
 
-export default function BrandPendingApprovalPage() {
-    const params = useSearchParams()
-    const router = useRouter()
-
-    useEffect(() => {
-        const initalLoad = async () => {
-            baseLogger('AUTHENTICATION', 'DidReachFeedbackBasedLogin')
-            let userProvider = params.get('provider')
-
-            if (userProvider && userProvider == 'google') {
-                baseLogger('AUTHENTICATION', 'DidReachGoogleFeedbackLogin')
-
-                const {
-                    data: { user },
-                } = await supabaseClient.auth.getUser()
-                if (user) {
-                    baseLogger('AUTHENTICATION', 'DidReachGoogleFeedbackLogin(UserFound)')
-
-                    const name =
-                        user.identities![0]?.identity_data?.full_name ||
-                        user.user_metadata?.full_name ||
-                        user.user_metadata.fullName ||
-                        'Goheza'
-
-                    sendBrandEmailData({
-                        email: user.email!,
-                        name: name,
-                        message: ` 
-                                        
-                                            name : ${name}\n
-                                            phoneNumber: No Phone \n
-                                            provider : (GoogleAuthentication)
-                                        
-                                        
-                                        `,
-                    }).then(() => {
-                        //do nothing.
-                        return;
-                    })
-                }
-                return
-            }
-
-            if (userProvider && userProvider == 'agent') {
-                //do nothing
-                return
-            } else {
-                router.push('/main/auth/signup')
-            }
-        }
-        initalLoad()
-    }, [params])
-
+export default function feedbackForBrandingPage() {
     return (
         <div
             className="flex flex-col items-center justify-center min-h-screen p-6"
@@ -140,36 +80,32 @@ export default function BrandPendingApprovalPage() {
 
                 {/* Action Buttons (Go Back/Contact) */}
                 <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-                    <Link href="/" passHref>
-                        <Button
-                            asChild
-                            className="w-full sm:w-auto px-8 py-5 text-base font-semibold border-2" // 💡 SMALLER BUTTON SIZE (px-8 py-5, text-base)
-                            style={{
-                                backgroundColor: PRIMARY_ACCENT,
-                                borderColor: PRIMARY_ACCENT,
-                                color: 'white',
-                                transition: 'background-color 0.3s',
-                            }}
-                        >
-                            <a href="/">Go Back to Homepage</a>
-                        </Button>
-                    </Link>
+                    <Button
+                        asChild
+                        className="w-full sm:w-auto px-8 py-5 text-base font-semibold border-2" // 💡 SMALLER BUTTON SIZE (px-8 py-5, text-base)
+                        style={{
+                            backgroundColor: PRIMARY_ACCENT,
+                            borderColor: PRIMARY_ACCENT,
+                            color: 'white',
+                            transition: 'background-color 0.3s',
+                        }}
+                    >
+                        <a href="/">Go Back to Homepage</a>
+                    </Button>
 
-                    <Link href="mailto:info@goheza.com" passHref>
-                        <Button
-                            asChild
-                            variant="outline"
-                            className="w-full sm:w-auto px-8 py-5 text-base font-semibold border-2" // 💡 SMALLER BUTTON SIZE
-                            style={{
-                                borderColor: SECONDARY_COLOR,
-                                color: SECONDARY_COLOR,
-                                backgroundColor: 'transparent',
-                                transition: 'border-color 0.3s, color 0.3s',
-                            }}
-                        >
-                            <a href="mailto:info@goheza.com">Contact Support</a>
-                        </Button>
-                    </Link>
+                    <Button
+                        asChild
+                        variant="outline"
+                        className="w-full sm:w-auto px-8 py-5 text-base font-semibold border-2" // 💡 SMALLER BUTTON SIZE
+                        style={{
+                            borderColor: SECONDARY_COLOR,
+                            color: SECONDARY_COLOR,
+                            backgroundColor: 'transparent',
+                            transition: 'border-color 0.3s, color 0.3s',
+                        }}
+                    >
+                        <a href="mailto:info@goheza.com">Contact Support</a>
+                    </Button>
                 </div>
 
                 <p className="mt-8 text-xs text-gray-500">

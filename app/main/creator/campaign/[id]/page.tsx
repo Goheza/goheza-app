@@ -1,3 +1,5 @@
+// src/app/main/brand/campaigns/[id]/submissions/CampaignOverview.tsx
+
 'use client'
 
 import Image from 'next/image'
@@ -8,7 +10,7 @@ import { supabaseClient } from '@/lib/supabase/client'
 import { baseLogger } from '@/lib/logger'
 import { toast } from 'sonner'
 import PaymentDialog from '@/components/components/paymentOptions/paymentOptions'
-// import { checkIFPaymentExists } from '@/lib/ats/checkForPaymentMethod' // Not used
+import { checkIFPaymentExists } from '@/lib/ats/checkForPaymentMethod'
 import Link from 'next/link'
 import { hasPresentPaymentMethod } from '@/components/components/paymentOptions/hasPayment'
 
@@ -17,7 +19,6 @@ interface ICampaignAssets {
     url: string
 }
 
-// 🛑 UPDATED: Added status and expiresAt to the interface
 export interface ICampaignDetails {
     id: string
     campaignName: string
@@ -30,30 +31,6 @@ export interface ICampaignDetails {
     campaignDonts?: string | null
     prohibitedContent?: string[]
     brandLogoUrl?: string | null
-    status: 'approved' | 'inreview' | 'cancelled' | 'expired'
-    expiresAt: string | null
-}
-
-// ==================================================================================
-// NEW HELPER FUNCTION: Calculates days left until expiration
-// ==================================================================================
-const calculateDaysLeft = (expiresAt: string | null): number | 'Expired' => {
-    if (!expiresAt) return 999 // If no expiration date is set, assume active for simplicity
-    
-    const expirationDate = new Date(expiresAt)
-    const now = new Date()
-    
-    // Check if it's already expired
-    if (expirationDate <= now) {
-        return 'Expired'
-    }
-
-    // Calculate days remaining
-    const diffTime = expirationDate.getTime() - now.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
-    // Return a minimum of 1 day if it's less than 24 hours but not yet expired
-    return Math.max(1, diffDays)
 }
 
 // ==================================================================================
@@ -79,14 +56,13 @@ export default function CampaignOverview() {
     const [file, setFile] = useState<File | null>(null)
     const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'failure'>('idle')
     const [uploadProgress, setUploadProgress] = useState<number>(0)
+    // ✅ NEW STATE: For terms agreement checkbox
     const [isAgreedToTerms, setIsAgreedToTerms] = useState<boolean>(false)
-
-    // 🛑 NEW STATE: To hold the calculated expiration info
-    const [daysLeft, setDaysLeft] = useState<number | 'Expired' | null>(null)
-    
     const router = useRouter()
 
     useEffect(() => {
+        // ... (API fetch logic remains the same)
+
         const fetchCampaignDetails = async () => {
             if (!campaignId) {
                 setError('Campaign ID not found')
@@ -95,14 +71,12 @@ export default function CampaignOverview() {
             }
 
             try {
-                // 🛑 FIXED: Ensure we select the new columns status and expires_at
                 const { data, error: fetchError } = await supabaseClient
                     .from('campaigns')
                     .select(
                         `
-                        id, name, requirements, payout, assets, objectives,
-                        dos, donts, prohibited_content, cover_image_url,
-                        status, expires_at, brand_profiles(logo_url)
+                        *,
+                        brand_profiles(logo_url)
                         `
                     )
                     .eq('id', campaignId)
@@ -115,34 +89,25 @@ export default function CampaignOverview() {
                 if (!data) {
                     throw new Error('Campaign not found')
                 }
-
-                // 🛑 FIXED: Calculate days left using the fetched expires_at
-                const calculatedDaysLeft = calculateDaysLeft(data.expires_at)
-                setDaysLeft(calculatedDaysLeft)
-
                 const fallbackImage = `https://placehold.co/400x225/e85c51/ffffff?text=${
-                    (data.name)?.charAt(0) ?? 'C'
+                    (data.name || data.campaign_name)?.charAt(0) ?? 'C'
                 }`
 
-                //@ts-ignore
-                const imageSource = data.cover_image_url || (data.brand_profiles as { logo_url: string | null })?.logo_url || fallbackImage
-                
+                const brandLogoUrl = (data.brand_profiles as { logo_url: string | null })?.logo_url
+
+                const imageSource = data.cover_image_url || data.brand_profiles?.logo_url || fallbackImage
                 setCampaignDetails({
                     id: data.id,
-                    campaignName: data.name,
+                    campaignName: data.name || data.campaign_name,
                     campaignRequirements: data.requirements || [],
-                    campaignPayout: data.payout,
-                    campaignAssets: data.assets || [],
-                    // NOTE: The database schema provided only had `objectives` as an array, 
-                    // not `objective` as a string. Using first element or converting if necessary.
-                    campaignObjective: data.objectives?.[0] ?? undefined, 
-                    targetAudience: undefined, // Field not in the provided schema
+                    campaignPayout: data.payout || data.campaign_payout,
+                    campaignAssets: data.assets || data.campaign_assets || [],
+                    campaignObjective: data.objective,
+                    targetAudience: data.audience,
                     campaignDos: data.dos || null,
                     campaignDonts: data.donts || null,
                     prohibitedContent: data.prohibited_content || [],
                     brandLogoUrl: imageSource,
-                    status: data.status as ICampaignDetails['status'], // Type assertion based on schema
-                    expiresAt: data.expires_at,
                 })
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch campaign details')
@@ -162,22 +127,19 @@ export default function CampaignOverview() {
         }
     }, [])
 
-    // 🛑 LOGIC FIX: Disable dropzone if campaign is expired or form is generally disabled
-    const isCampaignExpired = daysLeft === 'Expired' || campaignDetails?.status === 'expired'
-
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         multiple: false,
         accept: {
             'video/mp4': ['.mp4'],
         },
-        disabled: isCampaignExpired,
     })
 
     const handleCaptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setCaption(e.target.value)
     }
 
+    // ✅ NEW HANDLER: To toggle the terms agreement state
     const handleAgreementChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setIsAgreedToTerms(e.target.checked)
     }
@@ -185,11 +147,9 @@ export default function CampaignOverview() {
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
 
-        // 🛑 EXPIRATION CHECK: Deny submission if expired
-        if (isCampaignExpired) {
-            toast.error('Campaign is expired. Submissions are no longer accepted.')
-            return
-        }
+        /**
+         * We will check if the payment method, is present here,
+         */
 
         toast.success('Checking For Payment Method...')
         const hasPaymentMethod = await hasPresentPaymentMethod()
@@ -200,6 +160,7 @@ export default function CampaignOverview() {
                 return
             }
 
+            // ✅ NEW CHECK: Block submission if terms are not accepted
             if (!isAgreedToTerms) {
                 toast.error('You must agree to the Campaign Terms and Guidelines before submitting.')
                 return
@@ -210,6 +171,7 @@ export default function CampaignOverview() {
             toast.success('Uploading Submission')
             setUploadProgress(0)
 
+            // Simulating upload progress while the actual file upload happens
             const uploadInterval = setInterval(() => {
                 setUploadProgress((prev) => {
                     if (prev >= 90) return prev
@@ -218,6 +180,7 @@ export default function CampaignOverview() {
             }, 500)
 
             try {
+                baseLogger('CREATOR-OPERATIONS', 'WillGetAuthenticatedUser')
                 const {
                     data: { user },
                     error: userError,
@@ -226,6 +189,9 @@ export default function CampaignOverview() {
                 if (userError || !user) {
                     throw new Error('User not authenticated')
                 }
+
+                baseLogger('CREATOR-OPERATIONS', 'DidGetAuthenticatedUser')
+                baseLogger('CREATOR-OPERATIONS', 'WillUploadVideoIFAvailable')
 
                 // 1. Upload the video file
                 const fileName = `${Date.now()}_${file.name}`
@@ -243,10 +209,18 @@ export default function CampaignOverview() {
                 setUploadProgress(100)
                 setUploadStatus('success')
 
+                baseLogger('CREATOR-OPERATIONS', 'DidUploadVideoIFAvailable')
+                baseLogger('CREATOR-OPERATIONS', 'WillGetVideoPublicURL')
+
                 // 2. Get the public URL
                 const {
                     data: { publicUrl },
                 } = supabaseClient.storage.from('campaign-videos').getPublicUrl(fileName)
+
+                baseLogger('CREATOR-OPERATIONS', `DidGetVideoPublicURL:${publicUrl}`)
+                baseLogger('CREATOR-OPERATIONS', 'WillSaveCampaignSubmission')
+
+                toast.success('Please Wait....')
 
                 // 3. Save the submission details to the database
                 const { data: submissionData, error: dbError } = await supabaseClient
@@ -267,9 +241,11 @@ export default function CampaignOverview() {
                     .select()
 
                 if (dbError) {
+                    baseLogger('CREATOR-OPERATIONS', 'DidFailToSaveCampaignSubmission')
                     throw new Error(`Database error: ${dbError.message}`)
                 }
 
+                baseLogger('CREATOR-OPERATIONS', 'DidSuccefullySaveCampaignSubmission')
                 toast.success('Submission Successful! It is now pending review.')
                 router.push('/main/creator/submissions')
             } catch (error) {
@@ -284,7 +260,6 @@ export default function CampaignOverview() {
         }
     }
 
-    // 🛑 LOGIC FIX: Use isCampaignExpired for file status
     const renderFileStatus = () => {
         switch (uploadStatus) {
             case 'uploading':
@@ -305,15 +280,9 @@ export default function CampaignOverview() {
             case 'failure':
                 return <p className="mt-2 text-red-500 italic">File upload failed. Please try again.</p>
             default:
-                if (isCampaignExpired) {
-                     return <p className="mt-2 text-red-500 italic font-semibold">Campaign is Expired. Submissions are closed.</p>
-                }
                 return null
         }
     }
-
-    // Determine if the entire form should be disabled
-    const isFormDisabled = uploadStatus === 'uploading' || isCampaignExpired
 
     // --- Loading, Error, and Not Found States ---
     if (loading) {
@@ -354,26 +323,6 @@ export default function CampaignOverview() {
     // --- Main Campaign Overview & Submission Form ---
     return (
         <div className="font-sans p-5 space-y-12 max-w-4xl mx-auto mb-8">
-            
-            {/* 🛑 EXPIRATION/STATUS ALERT BOX */}
-            {/* Only show if expired OR days left is 7 or less */}
-            {(isCampaignExpired || (typeof daysLeft === 'number' && daysLeft <= 7)) && daysLeft !== 999 && (
-                <div className={`
-                    p-3 rounded-lg text-center font-bold text-sm mx-auto
-                    ${isCampaignExpired
-                        ? 'bg-red-100 text-red-700 border border-red-300' // Expired Style
-                        : 'bg-yellow-100 text-yellow-700 border border-yellow-300' // Warning/Days Left Style
-                    }
-                `}>
-                    {isCampaignExpired ? (
-                        '🚫 This Campaign is **EXPIRED**. Submissions are closed.'
-                    ) : (
-                        `⏳ This campaign has **${daysLeft} days left** until expiration.`
-                    )}
-                </div>
-            )}
-            {/* 🛑 END of Expiration/Status Alert Box */}
-
             {/* Campaign Banner - Uses Brand Logo URL */}
             <div className="bg-gray-200 h-[200px] mb-12 rounded-2xl overflow-hidden">
                 <img
@@ -389,6 +338,7 @@ export default function CampaignOverview() {
             </div>
 
             <div className="bg-white">
+                {/* ... (Brief navigation and content sections remain the same) ... */}
                 <div className="border-b border-gray-200">
                     <nav className="flex space-x-8">
                         <button className="py-3 px-1 border-b-2 border-red-500 text-[#e85c51] font-bold text-sm transition-colors">
@@ -407,6 +357,14 @@ export default function CampaignOverview() {
                             </div>
                         )}
 
+                        {/* The Target Audience Section */}
+                        {campaignDetails.targetAudience && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Target Audience</h3>
+                                <p className="text-gray-700 leading-relaxed">{campaignDetails.targetAudience}</p>
+                            </div>
+                        )}
+
                         {/* The Key Requirements/Deliverables Section */}
                         <div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-2">Requirements & Deliverables</h3>
@@ -417,7 +375,7 @@ export default function CampaignOverview() {
                             </ul>
                         </div>
 
-                        {/* Do's and Don'ts Section */}
+                        {/* Do's and Don'ts Section - NOW ALIGNED */}
                         {(dosList.length > 0 || dontsList.length > 0) && (
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-2">
@@ -517,7 +475,7 @@ export default function CampaignOverview() {
                                 <a
                                     href={v.url}
                                     download={v.name || `asset-${index}`}
-                                    className="text-sm mt-6 text-[#e93838] hover:text-[#f17474] block text-center truncate"
+                                    className="text-sm mt-6 text-[#e93838] hover:text-[#e85c51] block text-center truncate"
                                     title={v.name}
                                 >
                                     {v.name}
@@ -543,7 +501,6 @@ export default function CampaignOverview() {
                         placeholder="Write a caption for your video, aligning with the brief's key message."
                         className="w-full h-28 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#e93838]"
                         required
-                        disabled={isFormDisabled}
                     />
                 </div>
 
@@ -551,27 +508,23 @@ export default function CampaignOverview() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Video File (MP4 only)</label>
                     <div
                         {...getRootProps()}
-                        className={`border-2 border-dashed rounded-lg p-5 text-center transition-all duration-200 ease-in-out ${
-                            isFormDisabled
-                                ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
-                                : isDragActive
-                                ? 'border-[#e85c51] bg-[#fdf3f3] cursor-pointer'
-                                : 'border-gray-300 bg-white cursor-pointer'
+                        className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-all duration-200 ease-in-out ${
+                            isDragActive ? 'border-[#e85c51] bg-[#fdf3f3]' : 'border-gray-300 bg-white'
                         }`}
                     >
-                        <input {...getInputProps()} /> 
+                        <input {...getInputProps()} />
                         {file ? (
                             <p className="text-gray-900">{file.name}</p>
                         ) : (
                             <p className="text-[#e93838]">
-                                {isCampaignExpired ? 'Submissions are closed for this campaign.' : 'Drag and drop your MP4 file here, or click to select a file'}
+                                Drag and drop your MP4 file here, or click to select a file
                             </p>
                         )}
                         {renderFileStatus()}
                     </div>
                 </div>
 
-                {/* Terms and Agreement Checkbox */}
+                {/* ✅ NEW: Terms and Agreement Checkbox */}
                 <div className="flex items-center space-x-4 ">
                     <input
                         id="terms-agreement"
@@ -579,9 +532,8 @@ export default function CampaignOverview() {
                         checked={isAgreedToTerms}
                         onChange={handleAgreementChange}
                         className="h-4 w-4 text-[#e93838] border-gray-300 rounded focus:ring-[#e93838]"
-                        disabled={isFormDisabled}
                     />
-                    <p className="text-xs text-black text-center leading-relaxed">
+                    <p className="text-xs text-black text-center  leading-relaxed">
                         I agree with the{' '}
                         <Link href="/terms" target="_blank" className="underline text-[#e93838] hover:text-gray-700">
                             Terms of Service
@@ -605,11 +557,12 @@ export default function CampaignOverview() {
                 <button
                     type="submit"
                     className={`w-[150px] mb-5 float-right font-bold py-3 px-4 text-white rounded-lg transition-colors duration-200 ${
-                        isFormDisabled || !file || !isAgreedToTerms
+                        // Disabled if uploading, no file, payment details missing, OR terms not agreed
+                        uploadStatus === 'uploading' || !file || !isAgreedToTerms
                             ? 'bg-gray-400 cursor-not-allowed'
                             : 'bg-[#e93838] hover:bg-[#f17474]'
                     }`}
-                    disabled={isFormDisabled || !file || !isAgreedToTerms}
+                    disabled={uploadStatus === 'uploading' || !file || !isAgreedToTerms}
                 >
                     {uploadStatus === 'uploading' ? 'Submitting...' : 'Submit'}
                 </button>

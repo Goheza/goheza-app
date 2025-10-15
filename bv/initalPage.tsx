@@ -4,11 +4,12 @@ import { getUserProfileType } from '@/lib/supabase/auth/new/getProfiletype'
  * This is where the authentication begins with everything;
  */
 import { supabaseClient } from '@/lib/supabase/client'
+import { makeProfile } from '@/lib/supabase/profiles/profile-maker'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import logo from '@/assets/GOHEZA-02.png'
-import { toast } from 'sonner'
+
 
 export default function MainPage() {
     /**
@@ -16,7 +17,10 @@ export default function MainPage() {
      */
     const [loading, setLoading] = useState(true)
 
-
+    /**
+     * Used for profile creation as well;
+     */
+    const params = useSearchParams()
     /**
      * Get the current router
      */
@@ -43,33 +47,47 @@ export default function MainPage() {
                  * to the required page.(We also so Profile Creation here.)
                  */
 
-                const { type } = await getUserProfileType()
+                const { type } = await getUserProfileType(user)
 
-                console.log("Received-type",type)
-
-                if (type) {
+                /**
+                 * The type of brand to be used
+                 */
+                if (type == 'brand') {
                     /**
-                     * The type of brand to be used
+                     * If its the brand we take them to the
                      */
-                    if (type == 'brand') {
+                    router.replace('/main/brand/dashboard')
+                } else {
+                    /**
+                     * If its the creator we take them to the
+                     */
+                    router.replace('/main/creator/dashboard')
+                }
+
+                /**
+                 * The User is available but with no profile we
+                 * create them one and then we route them
+                 */
+
+                if (type == null) {
+                    /**
+                     * get the current profile role;
+                     */
+                    const currentProfileRole = params.get('so')
+
+                    if (currentProfileRole == 'creator') {
                         /**
-                         * If its the brand we take them to the
+                         * Make the Profile of the creator
                          */
-                        router.replace('/main/brand/dashboard')
-                    } else if (type == 'creator') {
+                        await makeProfile(user, 'creator')
+                        router.push('/main/creator/dashboard')
+                    } else {
                         /**
-                         * If its the creator we take them to the
+                         * Make the profile of the brand
                          */
-                        router.replace('/main/creator/dashboard')
+                        await makeProfile(user, 'brand')
+                        router.push('/main/brand/dashboard')
                     }
-                }else{
-                    /**
-                     * There is no brand profile or creator profile
-                     * 
-                     * THE USER DIDN'T SIGNUP
-                     */
-                    toast.success('No Profile Found, Signup Again Please')
-                //    router.replace('/main/auth/signup')
                 }
             } else {
                 /**

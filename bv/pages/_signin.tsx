@@ -1,5 +1,3 @@
-"use client"
-
 import { baseURL } from '@/lib/env'
 import { signInUser, signInWithGoogle } from '@/lib/supabase/auth/signin'
 import { supabaseClient } from '@/lib/supabase/client'
@@ -66,10 +64,9 @@ export default function SigninPage() {
             /**
              * After we redirect them direct to the creator dashboarf
              * because we know the creator is the only one who uses the google authentication
-             * 
              */
             await signInWithGoogle({
-                redirectURL: `${baseURL}/main/creator/dashboard?profilecheck=no`,
+                redirectURL: `${baseURL}/main/creator/dashboard`,
             })
 
             toast.success('Redirecting....')

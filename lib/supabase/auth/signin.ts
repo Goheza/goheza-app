@@ -3,7 +3,13 @@ import { supabaseClient } from '../client'
 interface ISignInUser {
     email: string
     password: string
-}
+};
+
+/**
+ * Used to signin the user 
+ * @param param0 
+ * @returns 
+ */
 
 export const signInUser = async ({ email, password }: ISignInUser) => {
     try {
@@ -33,6 +39,13 @@ export const signInUser = async ({ email, password }: ISignInUser) => {
 interface ISignInWithGoogle {
     redirectURL:string;
 }
+
+
+/**
+ * Used to continue or signup with google
+ * @param param0 
+ * @returns 
+ */
 
 export const signInWithGoogle = async ({ redirectURL }:ISignInWithGoogle) => {
     try {

@@ -3,34 +3,53 @@
 import { useState, useEffect } from 'react'
 import { Mail, CheckCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation' // Added for redirection
-import { supabaseClient } from '@/lib/supabase/client' // make sure you have this set up
+import { useRouter } from 'next/navigation'
+import { supabaseClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
 const supabase = supabaseClient
 
-export default function VerificationNotice({ email }: { email?: string }) {
+export default function VerificationNotice({ email,role }: { email?: string ,role?:string}) {
     const [loading, setLoading] = useState(false)
-    const router = useRouter() // Initialize router
+    const router = useRouter()
 
-    // Effect to listen for authentication state changes and redirect
+    // Automatically resend email on mount and set up listener
     useEffect(() => {
-        // Set up the listener for auth state changes
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-            // Check if a session exists AND the email has been confirmed
-            if (session && session.user.email_confirmed_at) {
-                toast.success('Verification successful! Redirecting...')
-                // Redirect to the main dashboard
-                router.push('/main')
+        if (!email) {
+            toast.error('No email provided')
+            return
+        }
+
+        const sendInitialEmail = async () => {
+            const { error } = await supabase.auth.resend({
+                type: 'signup',
+                email,
+            })
+            if (error) {
+                console.error(error)
+                toast.error(error.message || 'Failed to resend verification email')
+            } else {
+                toast.success('Verification email sent! Check your inbox.')
+            }
+        }
+
+        sendInitialEmail()
+
+        // Listen for email confirmation
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session?.user?.email_confirmed_at) {
+                toast.success('Verification successful! Redirecting...');
+                
+              
             }
         })
 
-        // Clean up the listener when the component unmounts
         return () => {
-            authListener.subscription.unsubscribe()
+            authListener?.subscription?.unsubscribe?.()
         }
-    }, [router]) // Depend on router
+    }, [email, router])
 
+    // Manual resend handler
     const handleResend = async () => {
         if (!email) {
             toast.error('No email provided')
@@ -39,7 +58,6 @@ export default function VerificationNotice({ email }: { email?: string }) {
 
         try {
             setLoading(true)
-
             const { error } = await supabase.auth.resend({
                 type: 'signup',
                 email,
@@ -51,7 +69,7 @@ export default function VerificationNotice({ email }: { email?: string }) {
             } else {
                 toast.success('Verification email resent! Check your inbox.')
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error(err)
             toast.error('Unexpected error occurred')
         } finally {
@@ -79,23 +97,9 @@ export default function VerificationNotice({ email }: { email?: string }) {
                         : 'A verification link has been sent to your email address. Please follow the instructions in the email to activate your account.'}
                 </p>
 
-                {/* Resend + Back to Login */}
+                {/* Resend + Back */}
                 <div className="space-y-3">
-                    <button
-                        type="button"
-                        onClick={handleResend}
-                        disabled={loading}
-                        className="w-full py-3 px-4 text-sm font-semibold text-white rounded-xl bg-[#e85c51] hover:bg-[#d04b40] transition-all duration-200 shadow-md disabled:opacity-50 flex items-center justify-center"
-                    >
-                        {loading ? (
-                            <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Sending...
-                            </>
-                        ) : (
-                            'Resend Verification Email'
-                        )}
-                    </button>
+                    
 
                     <Link
                         href="/main/auth/signin"
@@ -105,12 +109,12 @@ export default function VerificationNotice({ email }: { email?: string }) {
                     </Link>
                 </div>
 
-                {/* Auto-redirect Hint */}
+                {/* Auto redirect hint */}
                 <div className="mt-6 p-4 bg-green-50 rounded-lg flex items-center justify-center text-green-700 text-sm border border-green-200">
                     <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span className="text-left">
-                        **Action Required:** After clicking the link in your email, this page will automatically
-                        redirect you to the main app dashboard.
+                    <span>
+                        <strong>Action Required:</strong> After verifying your email, this page will automatically
+                        redirect you to the main dashboard.
                     </span>
                 </div>
             </div>

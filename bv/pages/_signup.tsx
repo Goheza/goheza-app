@@ -9,7 +9,7 @@ import { ALL_COUNTRIES } from '@/lib/countries'
 import { baseURL } from '@/lib/env'
 import logo from '@/assets/GOHEZA-02.png'
 import { signInWithGoogle } from '@/lib/supabase/auth/signin'
-import { ISignUpUser, signUpUserNormalAuth, signUpUserNormalBrandAuth } from '@/lib/supabase/auth/signup'
+import { ISignUpUser, signUpUserNormalAuth } from '@/lib/supabase/auth/signup'
 import { supabaseClient } from '@/lib/supabase/client'
 import { AuthError } from '@supabase/supabase-js'
 import { Building2, Eye, EyeOff, Users } from 'lucide-react'
@@ -63,7 +63,7 @@ export default function SignUpPageForUser() {
              * so when used we take him to the onboarding page.
              */
             await signInWithGoogle({
-                redirectURL: `${baseURL}/main/auth/onboarding?io=creator`,
+                redirectURL: `${baseURL}/main/onboarding?io=creator`,
             })
         } catch (error) {
             if (error && error instanceof AuthError) {
@@ -136,26 +136,20 @@ export default function SignUpPageForUser() {
                 /**
                  * Create the userAccount (Normal Authentication)
                  */
-                const { isErrorTrue, errorMessage } = await signUpUserNormalAuth(signinData)
-
-                if (!isErrorTrue) {
-                    router.push(`/main/auth/verification?email=${encodeURIComponent(email)}`)
-
-                    /**
-                     * On Will Signup User
-                     */
-                    toast.success('Welcome to Goheza!', {
-                        style: { fontSize: 14, padding: 10 },
-                        description: `Account created successfully as ${selectedRole}.`,
-                    })
-                    return
-                } else {
-                    console.error('SIGNUP-ERROR', errorMessage)
-                }
+                await signUpUserNormalAuth(signinData)
 
                 /**
-                 * We take them for verification
+                 * On Will Signup User
                  */
+                toast.success('Welcome to Goheza!', {
+                    style: { fontSize: 14, padding: 10 },
+                    description: `Account created successfully as ${selectedRole}.`,
+                })
+
+                /**
+                 * We take it to the mainPage (for profile creation)
+                 */
+                router.push('/main?so=creator')
             } catch (error) {
                 toast.error('Sign Up Failed', {
                     style: { fontSize: 14, padding: 10 },
@@ -163,40 +157,74 @@ export default function SignUpPageForUser() {
                 })
             }
         } else {
-
-            /**
-             * No More MasterControlActivate
-             */
             /**
              * If the selected Role is a brand.....
              */
+            /**
+             *
+             * We check if the masterControlEnvironment is active..
+             */
+            if (isMasterControlEnv) {
+                /**
+                 * MaterControlEnv Is Active at this point. we can create
+                 * an account as a brand;
+                 */
+                //###############################################
 
-            const signinData2: ISignUpUser = {
-                email: email,
-                country: country,
-                fullName: fullName,
-                password: password,
-                phone: phone,
-                role: 'brand',
-            }
+                const signinData2: ISignUpUser = {
+                    email: email,
+                    country: country,
+                    fullName: fullName,
+                    password: password,
+                    phone: phone,
+                    role: 'brand',
+                }
 
-            try {
+                try {
+                    toast.success('Creating Account....')
+                    /**
+                     * Creating User Account of brand with normalAuthentication
+                     */
+                    await signUpUserNormalAuth(signinData2)
+
+                    /**
+                     * We take it to the mainPage (for profile creation)
+                     */
+                    router.push('/main?so=brand')
+                } catch (error) {}
+            } else {
+                /**
+                 * MasterControl is InActive at this point
+                 * Here we get the brands' information
+                 * and then we route them to the feedback(SendEmail Manager)
+                 */
+                //###############################################
+
                 toast.success('Creating Account....')
-                /**
-                 * Creating User Account of brand with normalAuthentication
-                 */
-                await signUpUserNormalBrandAuth(signinData2)
 
                 /**
-                 * We take them for verification
+                 * Since we have gotten the email data of the brand
+                 * user we send to the companyEmail.
                  */
 
-                router.push(`/main/auth/verification?email=${encodeURIComponent(email)}&role=brand`)
-
+                const __email__ = sendBrandEmailData({
+                    email: email,
+                    name: fullName,
+                    message: ` 
+                    name : ${fullName}\n
+                     phoneNumber: ${phone}\n
+                    password : ${password}
+                    email : ${email}\n
+                    provider : (NormalAuthentication)
+                    `,
+                })
                 /**
-                 * We take it to the mainPage (for profile creation)
+                 * We send them to the feedback page after here...
                  */
-            } catch (error) {}
+                __email__.then(() => {
+                    router.push('/auth/feedback')
+                })
+            }
         }
     }
 
@@ -233,7 +261,7 @@ export default function SignUpPageForUser() {
         }
 
         InitialLoadStartup()
-    }, [])
+    })
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex justify-center py-8">

@@ -25,15 +25,7 @@ export const useMasterKeyListener = (): [boolean, () => void] => {
     }, [])
 
     useEffect(() => {
-        if (isActive) {
-            // Stop listening once activated, unless you want it to be typable again
-            // Return early if the control is already active
-
-
-           
-
-            return
-        }
+        
 
         const handleKeyDown = (event: KeyboardEvent) => {
             // Ignore keys when typing in input fields (optional, but good practice)

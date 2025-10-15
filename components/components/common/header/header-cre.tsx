@@ -18,7 +18,7 @@ export default function HeaderItemMainCre() {
     const [menuOpen, setMenuOpen] = useState(false)
 
     const onWillSignOutUser = async () => {
-        await supabaseClient.auth.signOut()
+        await supabaseClient.auth.signOut({scope : "global"})
         router.push('/main/auth/signin')
     }
 
