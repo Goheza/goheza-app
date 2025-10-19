@@ -8,7 +8,7 @@ import creatorImageDesktop from '@/assets/creators_desktop.png'
 import brandMobile from '@/assets/brandmobile.png'
 import creatorMobile from '@/assets/creatormobile.png'
 
-export function BrandCreatorTabs() {
+export default function BrandCreatorTabs() {
     const fadeUp = {
         hidden: { opacity: 0, y: 20 },
         visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },

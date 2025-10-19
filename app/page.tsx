@@ -1,30 +1,38 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { motion } from 'framer-motion'
+import Image from 'next/image'
+import logo from '@/assets/GOHEZA-02.png'
 import {
-    Users,
+    ArrowRight,
     DollarSign,
     Lightbulb,
     Play,
+    Users,
     TrendingUp,
     Shield,
     BarChart3,
     Handshake,
     Globe,
-    ArrowRight,
-    Menu,
-    X,
 } from 'lucide-react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import Image from 'next/image'
-import logo from '@/assets/GOHEZA-02.png'
-import { BrandCreatorTabs } from '@/components/components/landing/tabs'
-import ContactForm from '@/components/components/landing/contact-suppor' // fixed typo
+
+// Lazy-load heavy components
+const Accordion = dynamic(() => import('@/components/ui/accordion').then((mod) => mod.Accordion), { ssr: false })
+const AccordionItem = dynamic(() => import('@/components/ui/accordion').then((mod) => mod.AccordionItem), {
+    ssr: false,
+})
+const AccordionTrigger = dynamic(() => import('@/components/ui/accordion').then((mod) => mod.AccordionTrigger), {
+    ssr: false,
+})
+const AccordionContent = dynamic(() => import('@/components/ui/accordion').then((mod) => mod.AccordionContent), {
+    ssr: false,
+})
+const ContactForm = dynamic(() => import('@/components/components/landing/contact-suppor'), { ssr: false })
+const BrandCreatorTabs = dynamic(() => import('@/components/components/landing/tabs'), { ssr: false })
 
 export default function GohezaLanding() {
     const router = useRouter()
@@ -35,7 +43,6 @@ export default function GohezaLanding() {
         router.push(link)
     }
 
-    // Reusable motion variants
     const fadeUp = {
         hidden: { opacity: 0, y: 20 },
         visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
@@ -61,8 +68,7 @@ export default function GohezaLanding() {
                         variants={fadeUp}
                         className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 sm:mb-6 lg:mb-8 leading-tight"
                     >
-                        TURN YOUR NEXT CAMPAIGN INTO A{' '}
-                        <span className="text-[#e85c51]">SOCIAL MEDIA TAKE OVER</span> 
+                        TURN YOUR NEXT CAMPAIGN INTO A <span className="text-[#e85c51]">SOCIAL MEDIA TAKE OVER</span>
                     </motion.h1>
                     <motion.p
                         variants={fadeUp}
@@ -79,14 +85,14 @@ export default function GohezaLanding() {
                         <Button
                             size="lg"
                             onClick={() => navigate('/main/auth/signup')}
-                            className="font-semibold bg-[#e85c51] hover:bg-[#df4848] transform-gpu transition-all hover:scale-105"
+                            className="font-semibold bg-[#e85c51] hover:bg-[#df4848] transition-all"
                         >
                             Launch a Campaign
                         </Button>
                         <Button
                             size="lg"
                             onClick={() => navigate('/main/auth/signup')}
-                            className="flex text-[#e85c51] hover:bg-transparent items-center gap-2 bg-transparent transform-gpu transition-all hover:scale-105"
+                            className="flex text-[#e85c51] hover:bg-transparent items-center gap-2 bg-transparent transition-all"
                         >
                             Start Creating <ArrowRight className="w-4 h-4" />
                         </Button>
@@ -120,180 +126,125 @@ export default function GohezaLanding() {
                         variants={stagger}
                         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
                     >
-                        <motion.div
-                            variants={fadeUp}
-                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-105 bg-white"
-                        >
-                            <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <DollarSign className="w-7 h-7 text-purple-600" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">Brands Launch Campaigns</h3>
-                            <p className="text-sm text-gray-600">
-                                Brands create campaign with clear campaign briefs,goals, campaign assets, campaign do's
-                                and dont's and campaign budget.
-                            </p>
-                        </motion.div>
-
-                        <motion.div
-                            variants={fadeUp}
-                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-105 bg-white"
-                        >
-                            <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <Lightbulb className="w-7 h-7 text-blue-600" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">Creators apply with content</h3>
-                            <p className="text-sm text-gray-600">
-                                Creators apply for the campaign with content and attached captions.
-                            </p>
-                        </motion.div>
-
-                        <motion.div
-                            variants={fadeUp}
-                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-105 bg-white"
-                        >
-                            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <Play className="w-7 h-7 text-green-600" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">Brand approved content to use</h3>
-                            <p className="text-sm text-gray-600">
-                                Brand filters,selects, and approved content to use for its campaign
-                            </p>
-                        </motion.div>
-
-                        <motion.div
-                            variants={fadeUp}
-                            className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow transform-gpu hover:scale-105 bg-white"
-                        >
-                            <div className="w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <DollarSign className="w-7 h-7 text-yellow-600" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">Creators Earn Per 1k Views</h3>
-                            <p className="text-sm text-gray-600">
-                                Content goes live on social media platform and creators start earning per 1000 views
-                                their content generates.
-                            </p>
-                        </motion.div>
+                        {[
+                            {
+                                icon: DollarSign,
+                                title: 'Brands Launch Campaigns',
+                                text: "Brands create campaign with clear briefs, goals, assets, dos/don'ts and budget.",
+                                color: 'purple',
+                            },
+                            {
+                                icon: Lightbulb,
+                                title: 'Creators apply with content',
+                                text: 'Creators apply for the campaign with content and captions.',
+                                color: 'blue',
+                            },
+                            {
+                                icon: Play,
+                                title: 'Brand approved content',
+                                text: 'Brand filters, selects, and approves content for campaigns.',
+                                color: 'green',
+                            },
+                            {
+                                icon: DollarSign,
+                                title: 'Creators Earn Per 1k Views',
+                                text: 'Content goes live and creators earn per 1000 views.',
+                                color: 'yellow',
+                            },
+                        ].map((item, idx) => (
+                            <motion.div
+                                key={idx}
+                                variants={fadeUp}
+                                className="text-center p-5 rounded-lg hover:shadow-lg transition-shadow bg-white"
+                            >
+                                <div
+                                    className={`w-14 h-14 bg-${item.color}-100 rounded-full flex items-center justify-center mx-auto mb-3`}
+                                >
+                                    <item.icon className={`w-7 h-7 text-${item.color}-600`} />
+                                </div>
+                                <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
+                                <p className="text-sm text-gray-600">{item.text}</p>
+                            </motion.div>
+                        ))}
                     </motion.div>
                 </div>
             </section>
 
             {/* Why Choose Goheza */}
             <section id="features" className="py-12 sm:py-20 bg-gray-50">
-                <div className="container mx-auto px-4">
-                    <motion.div
+                <div className="container mx-auto px-4 text-center mb-10 sm:mb-16">
+                    <motion.h2
                         initial={{ opacity: 0, y: 8 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.6 }}
-                        className="text-center mb-10 sm:mb-16"
+                        className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3"
                     >
-                        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-                            Why Choose Goheza?
-                        </h2>
-                        <p className="text-sm sm:text-lg text-gray-600">
-                            Goheza has over 5000 creators and growing each day ready to deliver your brand story in
-                            their own style like dances, skits, explainers, reviews and more.
-                        </p>
-                    </motion.div>
-
-                    <motion.div
-                        variants={stagger}
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: true }}
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
-                    >
-                        <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
-                                <CardContent className="p-6">
-                                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                                        <Users className="w-6 h-6 text-purple-600" />
-                                    </div>
-                                    <h3 className="text-xl font-semibold mb-2">Diverse content production</h3>
-                                    <p className="text-gray-600">
-                                        – Goheza has thousands of creators and growing, each ready to deliver your
-                                        campaign in their own style, from dances, skits, explainers, reviews, and more.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
-                                <CardContent className="p-6">
-                                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                                        <TrendingUp className="w-6 h-6 text-blue-600" />
-                                    </div>
-                                    <h3 className="text-xl font-semibold mb-2">Performance based pay</h3>
-                                    <p className="text-gray-600">
-                                        With goheza there is value attached to every cent spent on a campaign. A brand
-                                        only pays for content that performs per 1000 views.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
-                                <CardContent className="p-6">
-                                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                                        <Shield className="w-6 h-6 text-green-600" />
-                                    </div>
-                                    <h3 className="text-xl font-semibold mb-2">Real time analytics</h3>
-                                    <p className="text-gray-600">
-                                        - Goheza provides real time analytics to brands to track content performance in
-                                        terms of views, likes, comments and engagements.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
-                                <CardContent className="p-6">
-                                    <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
-                                        <BarChart3 className="w-6 h-6 text-yellow-600" />
-                                    </div>
-                                    <h3 className="text-xl font-semibold mb-2">CSR</h3>
-                                    <p className="text-gray-600">
-                                        - By partnering with Goheza, brands directly contribute to youth empowerment,
-                                        employment and skill development, and financial inclusion.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
-                                <CardContent className="p-6">
-                                    <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
-                                        <Handshake className="w-6 h-6 text-[#e85c51]" />
-                                    </div>
-                                    <h3 className="text-xl font-semibold mb-2">Direct Creator Partnerships</h3>
-                                    <p className="text-gray-600">
-                                        Brands can easily access thousands of creators without the need for
-                                        intermediaries or negotiations eliminating the stress of looking for creators.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        <motion.div variants={fadeUp}>
-                            <Card className="hover:shadow-xl transform-gpu hover:scale-105 transition-all">
-                                <CardContent className="p-6">
-                                    <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
-                                        <Globe className="w-6 h-6 text-indigo-600" />
-                                    </div>
-                                    <h3 className="text-xl font-semibold mb-2">Fast secure payments</h3>
-                                    <p className="text-gray-600">
-                                        - Goheza ensures fast and reliable payments through integrated digital wallets
-                                        and trusted payment gateways
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    </motion.div>
+                        Why Choose Goheza?
+                    </motion.h2>
+                    <p className="text-sm sm:text-lg text-gray-600">
+                        Goheza has over 5000 creators and growing each day ready to deliver your brand story.
+                    </p>
                 </div>
+
+                <motion.div
+                    variants={stagger}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 px-4 container mx-auto"
+                >
+                    {[
+                        {
+                            icon: Users,
+                            title: 'Diverse content production',
+                            text: 'Thousands of creators delivering campaigns in dances, skits, explainers, reviews, and more.',
+                            color: 'purple',
+                        },
+                        {
+                            icon: TrendingUp,
+                            title: 'Performance based pay',
+                            text: 'Brands pay for content that performs per 1000 views.',
+                            color: 'blue',
+                        },
+                        {
+                            icon: Shield,
+                            title: 'Real time analytics',
+                            text: 'Track content performance in real-time.',
+                            color: 'green',
+                        },
+                        {
+                            icon: BarChart3,
+                            title: 'CSR',
+                            text: 'Contribute to youth empowerment and skill development.',
+                            color: 'yellow',
+                        },
+                        {
+                            icon: Handshake,
+                            title: 'Direct Creator Partnerships',
+                            text: 'Access thousands of creators directly.',
+                            color: 'red',
+                        },
+                        {
+                            icon: Globe,
+                            title: 'Fast secure payments',
+                            text: 'Reliable payments through trusted gateways.',
+                            color: 'indigo',
+                        },
+                    ].map((item, idx) => (
+                        <motion.div key={idx} variants={fadeUp}>
+                            <div className={`p-6 bg-white rounded-lg hover:shadow-xl transition-all`}>
+                                <div
+                                    className={`w-12 h-12 bg-${item.color}-100 rounded-lg flex items-center justify-center mb-4`}
+                                >
+                                    <item.icon className={`w-6 h-6 text-${item.color}-600`} />
+                                </div>
+                                <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
+                                <p className="text-gray-600">{item.text}</p>
+                            </div>
+                        </motion.div>
+                    ))}
+                </motion.div>
             </section>
 
             {/* Ready to get started */}
@@ -301,24 +252,19 @@ export default function GohezaLanding() {
                 <div className="container mx-auto px-4">
                     <div className="max-w-2xl mx-auto text-center space-y-6">
                         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Ready to get started?</h2>
-
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <Button
-                                onClick={() => {
-                                    navigate('/main/auth/signup')
-                                }}
+                                onClick={() => navigate('/main/auth/signup')}
                                 size="lg"
-                                className="border bg-[#e85c51] hover:border-[#e85c51] hover:text-white font-semibold text-white transform-gpu transition-all hover:scale-105"
+                                className="border bg-[#e85c51] hover:border-[#e85c51] hover:text-white font-semibold text-white transition-all"
                             >
                                 For Brands
                             </Button>
                             <Button
-                                onClick={() => {
-                                    navigate('/main/auth/signup')
-                                }}
+                                onClick={() => navigate('/main/auth/signup')}
                                 size="lg"
                                 variant="outline"
-                                className="text-[#e85c51] hover:bg-white font-semibold border-2 border-[#e85c51] bg-transparent transform-gpu transition-all hover:scale-105"
+                                className="text-[#e85c51] hover:bg-white font-semibold border-2 border-[#e85c51] bg-transparent transition-all"
                             >
                                 For Creators
                             </Button>
@@ -328,8 +274,10 @@ export default function GohezaLanding() {
             </section>
 
             {/* FAQ Section */}
+
             <section id="faq" className="py-12 sm:py-20">
                 <div className="container mx-auto px-4">
+                    {/* Section Header */}
                     <div className="text-center mb-6">
                         <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3">
                             Frequently Asked Questions
@@ -339,6 +287,7 @@ export default function GohezaLanding() {
                         </p>
                     </div>
 
+                    {/* Accordion */}
                     <div className="max-w-3xl mx-auto">
                         <Accordion type="single" collapsible className="font-bold text-xl">
                             <AccordionItem value="item-1">
@@ -364,19 +313,19 @@ export default function GohezaLanding() {
                             </AccordionItem>
 
                             <AccordionItem value="item-3">
-                                <AccordionTrigger className="font-bold">How are views verified</AccordionTrigger>
+                                <AccordionTrigger className="font-bold">How are views verified?</AccordionTrigger>
                                 <AccordionContent className="font-medium">
                                     Goheza uses real-time analytics and platform interrogation to verify genuine views
-                                    from social platforms - filtering out bots and fake engagements.
+                                    from social platforms—filtering out bots and fake engagements.
                                 </AccordionContent>
                             </AccordionItem>
 
                             <AccordionItem value="item-4">
-                                <AccordionTrigger className="font-bold">When do creators get paid</AccordionTrigger>
+                                <AccordionTrigger className="font-bold">When do creators get paid?</AccordionTrigger>
                                 <AccordionContent className="font-medium">
-                                    creators are paid for every 1000 verified views their approved content receives.
+                                    Creators are paid for every 1000 verified views their approved content receives.
                                     Payments are processed automatically based on the creator’s selected payment method
-                                    and preferred payout schedule from daily, weekly or even monthly.
+                                    and preferred payout schedule: daily, weekly, or monthly.
                                 </AccordionContent>
                             </AccordionItem>
 
@@ -402,6 +351,7 @@ export default function GohezaLanding() {
                         </Accordion>
                     </div>
 
+                    {/* Contact Form */}
                     <div className="text-center mt-8 sm:mt-12" id="contactus">
                         <p className="text-gray-600 mb-4">Still have questions? We're here to help.</p>
                         <ContactForm />
