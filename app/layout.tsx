@@ -10,6 +10,9 @@ import FooterComponent from '@/components/components/landing/footertc'
 export const metadata: Metadata = {
     title: 'Goheza',
     description: 'Connecting Brands and Creators',
+    icons: {
+        icon: '/icon.ico', // relative to /public
+    },
 }
 
 const Lexendfont = Lexend({
@@ -32,9 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </Script>
                 <Header /> {/* <-- client component */}
                 {children}
-                <FooterComponent/>
+                <FooterComponent />
                 <Toaster />
-                
             </body>
         </html>
     )

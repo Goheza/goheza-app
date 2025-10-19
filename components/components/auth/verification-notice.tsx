@@ -34,7 +34,6 @@ export default function VerificationNotice({ email, role }: { email?: string; ro
             }
         }
 
-        sendInitialEmail()
 
         // --- Listen for auth state changes ---
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
