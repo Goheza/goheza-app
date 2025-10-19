@@ -140,20 +140,14 @@ export default function PaymentDialog(props: IPaymentDialogProps) {
                     {paymentMethod === 'bank' && (
                         <div className="space-y-3">
                             <div className="space-y-1">
-                                <Label htmlFor="bank-name">Bank Name</Label>
-                                <select
-                                    id="bank-name"
-                                    value={bankName}
+                                <Input
+                                    type="text"
+                                    placeholder="Stanbic Bank"
+                                    value={accountNumber}
                                     onChange={(e) => setBankName(e.target.value)}
-                                    className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="rounded-xl"
                                     required
-                                >
-                                    {COMMON_BANKS.map((bank) => (
-                                        <option key={bank} value={bank}>
-                                            {bank}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
                             </div>
 
                             <Input

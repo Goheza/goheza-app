@@ -173,11 +173,11 @@ const CampaignDetailsModal = ({
                                     <a
                                         key={index}
                                         href={asset.file_url}
+                                        // ⭐ Opens the link in a new tab/window
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        // ⭐ ENSURES DOWNLOAD: Forces the browser to download the file
-                                        // This was already implemented in your code.
-                                        download={asset.file_name} 
+                                        // ⭐ Suggests the browser to download the file with this name
+                                        download={asset.file_name}
                                         className="inline-flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors p-2 border rounded-md bg-white shadow-sm"
                                     >
                                         {/* Icon for file link */}

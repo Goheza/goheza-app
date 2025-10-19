@@ -428,14 +428,16 @@ export default function CampaignOverview() {
             )}
 
             <div>
-                <h2 className="text-2xl font-semibold mb-2">Payout</h2>
+                <h2 className="text-2xl font-semibold mb-2">Max Payout</h2>
                 <span className="text-lg font-bold text-[#e93838]">{campaignDetails.campaignPayout}</span>
             </div>
 
             {/* Campaign Assets Section (No changes needed here) */}
             <div>
                 <h2 className="text-2xl font-semibold mb-7">Campaign Assets</h2>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-4">
+                    {' '}
+                    {/* Changed gap-2 to gap-4 and added flex-wrap for better layout */}
                     {campaignDetails.campaignAssets.map((v, index) => {
                         const assetNameLower = v.name.toLowerCase()
                         const isVideo =
@@ -447,35 +449,66 @@ export default function CampaignOverview() {
                             assetNameLower.endsWith('.jpg') ||
                             assetNameLower.endsWith('.jpeg')
 
-                        const imageSrc = isImage
-                            ? v.url
-                            : isVideo
-                            ? '/images/video-placeholder.svg'
-                            : '/placeholder.png'
+                        // Fallback source for non-image/non-video types
+                        const placeholderSrc = '/placeholder.png'
 
                         return (
-                            <div className="space-y-5" key={`asset-${index}`}>
-                                <div className="flex border rounded-2xl border-neutral-400 w-[300px] h-[300px] flex-col items-center justify-center text-center overflow-hidden">
-                                    <a
-                                        href={v.url}
-                                        download={v.name || `asset-${index}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="group no-underline text-black w-full h-full"
-                                    >
+                            <div className="space-y-3" key={`asset-${index}`}>
+                                <a
+                                    href={v.url}
+                                    download={v.name || `asset-${index}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className=" border rounded-2xl border-neutral-400 w-[300px] h-[300px] flex flex-col items-center justify-center text-center overflow-hidden group no-underline text-black"
+                                >
+                                    {isImage ? (
                                         <Image
-                                            className="rounded-2xl w-full h-full object-cover"
-                                            src={imageSrc}
+                                            className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                                            src={v.url}
                                             alt={v.name || 'Campaign Asset'}
                                             width={300}
                                             height={300}
                                         />
-                                    </a>
-                                </div>
+                                    ) : isVideo ? (
+                                        // ✅ UPDATE: Use the <video> tag for video assets
+                                        <video
+                                            className="w-full h-full object-cover bg-black"
+                                            src={v.url}
+                                            // The poster attribute can be used if you pre-generate a thumbnail URL.
+                                            // For now, setting muted/preload allows the browser to display a static frame.
+                                            muted
+                                            preload="metadata" // Load metadata to display poster/first frame
+                                            // Optional: Add a play icon overlay with Tailwind if you want to be explicit
+                                            // This is purely visual. For simplicity, we just use the video tag.
+                                        >
+                                            <source
+                                                src={v.url}
+                                                type={`video/${assetNameLower.substring(
+                                                    assetNameLower.lastIndexOf('.') + 1
+                                                )}`}
+                                            />
+                                            Your browser does not support the video tag.
+                                        </video>
+                                    ) : (
+                                        // Fallback for other file types
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-500">
+                                            <Image
+                                                src={placeholderSrc}
+                                                alt="Placeholder"
+                                                width={64}
+                                                height={64}
+                                                className="mb-2"
+                                            />
+                                            <p className="text-sm">
+                                                File: {v.name.split('.').pop()?.toUpperCase() || 'Unknown'}
+                                            </p>
+                                        </div>
+                                    )}
+                                </a>
                                 <a
                                     href={v.url}
                                     download={v.name || `asset-${index}`}
-                                    className="text-sm mt-6 text-[#e93838] hover:text-[#e85c51] block text-center truncate"
+                                    className="text-sm mt-3 text-[#e93838] hover:text-[#e85c51] block text-center truncate px-2"
                                     title={v.name}
                                 >
                                     {v.name}

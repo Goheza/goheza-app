@@ -9,17 +9,18 @@ import { toast } from 'sonner'
 
 const supabase = supabaseClient
 
-export default function VerificationNotice({ email,role }: { email?: string ,role?:string}) {
+export default function VerificationNotice({ email, role }: { email?: string; role?: string }) {
     const [loading, setLoading] = useState(false)
+    const [verified, setVerified] = useState(false)
     const router = useRouter()
 
-    // Automatically resend email on mount and set up listener
     useEffect(() => {
         if (!email) {
             toast.error('No email provided')
             return
         }
 
+        // --- Send initial email ---
         const sendInitialEmail = async () => {
             const { error } = await supabase.auth.resend({
                 type: 'signup',
@@ -35,21 +36,33 @@ export default function VerificationNotice({ email,role }: { email?: string ,rol
 
         sendInitialEmail()
 
-        // Listen for email confirmation
+        // --- Listen for auth state changes ---
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session?.user?.email_confirmed_at) {
-                toast.success('Verification successful! Redirecting...');
-                
-              
+            if (session?.user?.email_confirmed_at && !verified) {
+                setVerified(true)
+                toast.success('Email verified! Redirecting...')
+                setTimeout(() => router.push('/main'), 1500)
             }
         })
 
+        // --- Periodic polling fallback ---
+        const interval = setInterval(async () => {
+            const { data, error } = await supabase.auth.getUser()
+            if (!error && data.user?.email_confirmed_at && !verified) {
+                setVerified(true)
+                toast.success('Email verified! Redirecting...')
+                clearInterval(interval)
+                setTimeout(() => router.push('/main'), 1500)
+            }
+        }, 4000)
+
         return () => {
             authListener?.subscription?.unsubscribe?.()
+            clearInterval(interval)
         }
-    }, [email, router])
+    }, [email, router, verified])
 
-    // Manual resend handler
+    // --- Manual resend handler ---
     const handleResend = async () => {
         if (!email) {
             toast.error('No email provided')
@@ -99,7 +112,19 @@ export default function VerificationNotice({ email,role }: { email?: string ,rol
 
                 {/* Resend + Back */}
                 <div className="space-y-3">
-                    
+                    <button
+                        onClick={handleResend}
+                        disabled={loading}
+                        className="block w-full py-3 px-4 text-sm font-semibold text-white bg-[#e85c51] rounded-xl hover:bg-[#d44a3f] transition-all duration-200 disabled:opacity-70"
+                    >
+                        {loading ? (
+                            <span className="flex items-center justify-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" /> Sending...
+                            </span>
+                        ) : (
+                            'Resend Verification Email'
+                        )}
+                    </button>
 
                     <Link
                         href="/main/auth/signin"

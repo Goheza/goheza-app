@@ -9,20 +9,29 @@ interface ISubmissionsContainer {
     areSubmissionAvailable: boolean
 }
 
-type CommonStatusType = 'inreview' | 'approved' | 'rejected'
+type CommonStatusType = 'inreview' | 'approved' | 'rejected' | 'admin_reject' | 'draft'
 
 const StatusBadge: React.FC<{ status: CommonStatusType }> = ({ status }) => {
     const styles = {
         inreview: 'bg-yellow-100 text-yellow-800 border-yellow-200',
         approved: 'bg-green-100 text-green-800 border-green-200',
         rejected: 'bg-red-100 text-red-800 border-red-200',
+        admin_reject: 'bg-red-100 text-red-800 border-red-200',
+        draft: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    }
+    
+    let finalStatus = ""
+    if(status == 'admin_reject'){
+        finalStatus = "Rejected by Admin"
+    }else if(status == 'draft'){
+        finalStatus = 'Inreview'
+    }else{
+        finalStatus = status.charAt(0).toUpperCase() + status.slice(1)
     }
 
     return (
-        <span
-            className={`px-3 py-1 w-fit rounded-full text-xs sm:text-sm font-semibold border ${styles[status]}`}
-        >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
+        <span className={`px-3 py-1 w-fit rounded-full text-xs sm:text-sm font-semibold border ${styles[status]}`}>
+            {finalStatus}
         </span>
     )
 }
@@ -30,8 +39,7 @@ const StatusBadge: React.FC<{ status: CommonStatusType }> = ({ status }) => {
 export default function SubmissionsContainer({ submissions, areSubmissionAvailable }: ISubmissionsContainer) {
     const [filter, setFilter] = useState<'all' | CommonStatusType>('all')
 
-    const filteredSubmissions =
-        filter === 'all' ? submissions : submissions.filter((s) => s.status === filter)
+    const filteredSubmissions = filter === 'all' ? submissions : submissions.filter((s) => s.status === filter)
 
     return (
         <div className="mb-8 px-2 sm:px-0">

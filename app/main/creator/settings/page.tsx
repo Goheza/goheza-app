@@ -60,7 +60,8 @@ export default function PaymentPage() {
                 .eq('user_id', user.id)
                 .single()
 
-            if (error && error.code !== 'PGRST116') { // PGRST116 means "No rows found"
+            if (error && error.code !== 'PGRST116') {
+                // PGRST116 means "No rows found"
                 console.error('Error fetching payment options:', error)
                 toast.error('Failed to load saved payment details.')
             } else if (data) {
@@ -110,7 +111,7 @@ export default function PaymentPage() {
                 payment_account_number: payload.accountNumber,
                 // Mobile Money fields
                 payment_mobilemoney_number: payload.mobileNumber,
-                payment_mobilemoney_name: payload.mobileAccountName, 
+                payment_mobilemoney_name: payload.mobileAccountName,
                 payment_frequency: payload.frequency,
                 has_payment_details: true,
             },
@@ -138,9 +139,9 @@ export default function PaymentPage() {
             bankName: paymentMethod === 'bank' ? bankName : null,
             accountNumber: paymentMethod === 'bank' ? accountNumber : null,
             accountName: paymentMethod === 'bank' ? accountName : null,
-            
+
             mobileNumber: paymentMethod === 'mobile' ? mobileNumber : null,
-            mobileAccountName: paymentMethod === 'mobile' ? mobileAccountName : null, 
+            mobileAccountName: paymentMethod === 'mobile' ? mobileAccountName : null,
 
             frequency,
         }
@@ -193,22 +194,15 @@ export default function PaymentPage() {
                     <div className="space-y-3">
                         {/* Bank Name Dropdown */}
                         <div>
-                            <Label htmlFor="bankName" className="text-sm font-medium">
-                                Bank Name
-                            </Label>
-                            <select
-                                id="bankName"
-                                value={bankName}
+                            <Input
+                                type="text"
+                                placeholder="Stanbic Bank"
+                                value={accountNumber}
                                 onChange={(e) => setBankName(e.target.value)}
-                                className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" // Apply Shadcn/ui Input styles
+                                className="rounded-xl"
                                 required
-                            >
-                                {BANK_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value} disabled={option.value === ''}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
+                            />
+                            
                         </div>
 
                         <Input
