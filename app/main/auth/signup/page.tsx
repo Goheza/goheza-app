@@ -184,7 +184,7 @@ export default function SignUpPageForUser() {
                 /**
                  * Creating User Account of brand with normalAuthentication
                  */
-                const { isErrorTrue, errorMessage } = await signUpUserNormalBrandAuth(signinData2)
+                const { isErrorTrue, errorMessage } = await signUpUserNormalAuth(signinData2)
 
                 if (!isErrorTrue) {
                     /**
