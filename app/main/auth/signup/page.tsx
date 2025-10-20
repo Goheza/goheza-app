@@ -163,7 +163,6 @@ export default function SignUpPageForUser() {
                 })
             }
         } else {
-
             /**
              * No More MasterControlActivate
              */
@@ -185,18 +184,33 @@ export default function SignUpPageForUser() {
                 /**
                  * Creating User Account of brand with normalAuthentication
                  */
-                await signUpUserNormalBrandAuth(signinData2)
+                const { isErrorTrue, errorMessage } = await await signUpUserNormalBrandAuth(signinData2)
 
-                /**
-                 * We take them for verification
-                 */
+                if (!isErrorTrue) {
+                    /**
+                     * We take them for verification
+                     */
 
-                router.push(`/main/auth/verification?email=${encodeURIComponent(email)}&role=brand`)
+                    router.push(`/main/auth/verification?email=${encodeURIComponent(email)}&role=brand`)
+
+                    toast.success('Registration Complete!', {
+                        style: { fontSize: 14, padding: 10 },
+                        description: `Account created successfully as ${selectedRole}.`,
+                    })
+                    return;
+                }else{
+                     console.error('SIGNUP-ERROR', errorMessage)
+                }
 
                 /**
                  * We take it to the mainPage (for profile creation)
                  */
-            } catch (error) {}
+            } catch (error) {
+                  toast.error('Sign Up Failed', {
+                    style: { fontSize: 14, padding: 10 },
+                    description: 'Account Already Present with another Email or Name',
+                })
+            }
         }
     }
 
@@ -334,7 +348,7 @@ export default function SignUpPageForUser() {
                             type={showPassword ? 'text' : 'password'}
                             placeholder="Create password"
                             value={password}
-                             minLength={6}
+                            minLength={6}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-4 py-3 text-sm pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 transition-all duration-200"
                             required
@@ -357,7 +371,7 @@ export default function SignUpPageForUser() {
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             className="w-full px-4 py-3 text-sm pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 transition-all duration-200"
                             required
-                             minLength={6}
+                            minLength={6}
                         />
                         <button
                             type="button"
