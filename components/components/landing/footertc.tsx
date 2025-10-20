@@ -129,7 +129,7 @@ export default function FooterComponent() {
                                 </li>
                                 <li>
                                     Phone:{' '}
-                                    <a href="tel:+256776007962" className="hover:text-white transition-colors">
+                                    <a href="tel:+256792641638" className="hover:text-white transition-colors">
                                         +256792641638
                                     </a>
                                 </li>

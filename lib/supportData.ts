@@ -28,7 +28,7 @@ export const contactChannels: ContactChannel[] = [
     title: 'WhatsApp Chat',
     description: 'Quick answers and immediate help during business hours (Mon-Fri, 9am-5pm EST).',
     ctaText: 'Chat Now',
-    href: 'https://wa.me/256776007962?text=Hi%20Goheza%20Support,', // Replace with your number
+    href: 'https://wa.me/256792641638?text=Hi%20Goheza%20Support,', // Replace with your number
     isExternal: true,
   },
   
