@@ -130,7 +130,7 @@ export default function FooterComponent() {
                                 <li>
                                     Phone:{' '}
                                     <a href="tel:+256776007962" className="hover:text-white transition-colors">
-                                        +256776007962
+                                        +256792641638
                                     </a>
                                 </li>
                                 <li>Address: National ICT Hub P.O. BOX 7817, Kampala, Uganda</li>

@@ -334,6 +334,7 @@ export default function SignUpPageForUser() {
                             type={showPassword ? 'text' : 'password'}
                             placeholder="Create password"
                             value={password}
+                             minLength={6}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-4 py-3 text-sm pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 transition-all duration-200"
                             required
@@ -356,6 +357,7 @@ export default function SignUpPageForUser() {
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             className="w-full px-4 py-3 text-sm pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 transition-all duration-200"
                             required
+                             minLength={6}
                         />
                         <button
                             type="button"
