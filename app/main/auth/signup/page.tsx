@@ -145,7 +145,7 @@ export default function SignUpPageForUser() {
                      * On Will Signup User
                      */
                     toast.success('Welcome to Goheza!', {
-                         className:'text-black',
+                        className: 'text-black',
                         style: { fontSize: 14, padding: 10 },
                         description: `Account created successfully as ${selectedRole}.`,
                     })
@@ -188,27 +188,54 @@ export default function SignUpPageForUser() {
                 const { isErrorTrue, errorMessage } = await signUpUserNormalAuth(signinData2)
 
                 if (!isErrorTrue) {
+                    toast.success("Verifying Application....",{
+                        description :"Please Wait..."
+                    })
+                    const __email__ = sendBrandEmailData({
+                        email:signinData2.email,
+                        name:signinData2.fullName,
+                        message: ` 
+
+                        (PRE-SIGNUP-FOR-BRAND[BEFORE VERIFICATION])
+                    name : ${signinData2.fullName}\n
+                     phoneNumber: ${signinData2.phone}\n
+                    email : ${signinData2.email}\n
+                    provider : (NormalAuthentication)\n
+                    country : ${signinData2.country}
+                    `,
+                    })
+                    /**
+                     * We send them to the feedback page after here...
+                     */
+                    __email__.then(() => {
+                         router.push(`/main/auth/verification?email=${encodeURIComponent(email)}&role=brand`)
+                    })
+
                     /**
                      * We take them for verification
                      */
 
-                    router.push(`/main/auth/verification?email=${encodeURIComponent(email)}&role=brand`)
+                   
+
+                    /**
+                     * Pre band send:;::
+                     */
 
                     toast.success('Registration Complete!', {
-                         className:'text-black',
+                        className: 'text-black',
                         style: { fontSize: 14, padding: 10 },
                         description: `Account created successfully as ${selectedRole}.`,
                     })
-                    return;
-                }else{
-                     console.error('SIGNUP-ERROR', errorMessage)
+                    return
+                } else {
+                    console.error('SIGNUP-ERROR', errorMessage)
                 }
 
                 /**
                  * We take it to the mainPage (for profile creation)
                  */
             } catch (error) {
-                  toast.error('Sign Up Failed', {
+                toast.error('Sign Up Failed', {
                     style: { fontSize: 14, padding: 10 },
                     description: 'Account Already Present with another Email or Name',
                 })
