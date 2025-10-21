@@ -139,7 +139,7 @@ export default function SignUpPageForUser() {
                 const { isErrorTrue, errorMessage } = await signUpUserNormalAuth(signinData)
 
                 if (!isErrorTrue) {
-                    router.push(`/main/auth/verification?email=${encodeURIComponent(email)}`)
+                    router.push(`${baseURL}/main/auth/profile-make?role=${selectedRole}`)
 
                     /**
                      * On Will Signup User
@@ -188,34 +188,7 @@ export default function SignUpPageForUser() {
                 const { isErrorTrue, errorMessage } = await signUpUserNormalAuth(signinData2)
 
                 if (!isErrorTrue) {
-                    toast.success("Verifying Application....",{
-                        description :"Please Wait..."
-                    })
-                    const __email__ = sendBrandEmailData({
-                        email:signinData2.email,
-                        name:signinData2.fullName,
-                        message: ` 
-
-                        (PRE-SIGNUP-FOR-BRAND[BEFORE VERIFICATION])
-                    name : ${signinData2.fullName}\n
-                     phoneNumber: ${signinData2.phone}\n
-                    email : ${signinData2.email}\n
-                    provider : (NormalAuthentication)\n
-                    country : ${signinData2.country}
-                    `,
-                    })
-                    /**
-                     * We send them to the feedback page after here...
-                     */
-                    __email__.then(() => {
-                         router.push(`/main/auth/verification?email=${encodeURIComponent(email)}&role=brand`)
-                    })
-
-                    /**
-                     * We take them for verification
-                     */
-
-                   
+                    router.push(`${baseURL}/main/auth/profile-make?role=${selectedRole}`)                   
 
                     /**
                      * Pre band send:;::

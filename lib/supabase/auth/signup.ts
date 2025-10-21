@@ -22,6 +22,7 @@ export const signUpUserNormalAuth = async ({ email, password, fullName, role, co
         const { data, error } = await supabaseClient.auth.signUp({
             email,
             password,
+            phone : phone,
             options: {
                 emailRedirectTo: `${baseURL}/main/auth/profile-make?role=${role}`,
                 data: { fullName, role, phone, country },
@@ -61,6 +62,7 @@ export const signUpUserNormalBrandAuth = async ({ email, password, fullName, rol
         const { data, error } = await supabaseClient.auth.signUp({
             email,
             password,
+            phone : phone,
             options: {
                 emailRedirectTo: `${baseURL}/main/auth/profile-make?role=${role}`,
                 data: { fullName, role, phone, country },
