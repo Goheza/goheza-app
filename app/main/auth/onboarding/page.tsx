@@ -121,7 +121,7 @@ export default function OnboardingDialog() {
                 full_name: user.identities![0].identity_data!.name,
                 email: user.identities![0].identity_data!.email,
                 user_id: user.id, // ✅ correct column
-                phone: onboardingData.phone,
+                phone: !!onboardingData.phone,
                 country: onboardingData.country,
             },
             { onConflict: 'user_id' } // ✅ conflict should be on user_id, not id

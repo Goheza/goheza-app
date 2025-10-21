@@ -8,12 +8,19 @@ interface IEXtraInfo {
 }
 
 export async function makeProfile(user: User, role: 'brand' | 'creator',extraInfo?:IEXtraInfo) {
+
+    /**
+     * Get Profile Contact from here
+     */
+    let userContact = user.user_metadata!.phone;
+
     if (role === 'brand') {
         const { error: profileError } = await supabaseClient.from('brand_profiles').insert([
             {
                 user_id: user.id,
                 brand_name: user.identities![0]?.identity_data?.full_name || user.user_metadata?.fullName, // use fullName for now
                 brand_email: user.email!,
+                phone : userContact
             },
         ])
         if (profileError) {
@@ -29,7 +36,7 @@ export async function makeProfile(user: User, role: 'brand' | 'creator',extraInf
                 full_name: user.identities![0]?.identity_data?.full_name || user.user_metadata?.fullName,
                 email: user.email!,
                 country :"",
-                phone : ""
+                phone : userContact
 
             },
         ])
