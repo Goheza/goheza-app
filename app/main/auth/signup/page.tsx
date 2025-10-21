@@ -145,6 +145,7 @@ export default function SignUpPageForUser() {
                      * On Will Signup User
                      */
                     toast.success('Welcome to Goheza!', {
+                         className:'text-black',
                         style: { fontSize: 14, padding: 10 },
                         description: `Account created successfully as ${selectedRole}.`,
                     })
@@ -194,6 +195,7 @@ export default function SignUpPageForUser() {
                     router.push(`/main/auth/verification?email=${encodeURIComponent(email)}&role=brand`)
 
                     toast.success('Registration Complete!', {
+                         className:'text-black',
                         style: { fontSize: 14, padding: 10 },
                         description: `Account created successfully as ${selectedRole}.`,
                     })

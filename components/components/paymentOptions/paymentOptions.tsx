@@ -143,7 +143,7 @@ export default function PaymentDialog(props: IPaymentDialogProps) {
                                 <Input
                                     type="text"
                                     placeholder="Stanbic Bank"
-                                    value={accountNumber}
+                                    value={bankName}
                                     onChange={(e) => setBankName(e.target.value)}
                                     className="rounded-xl"
                                     required

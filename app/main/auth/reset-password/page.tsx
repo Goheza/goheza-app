@@ -47,6 +47,7 @@ export default function ResetPasswordFormComponent() {
                 password: password,
             }).then(() => {
                 toast.success('Authentication', {
+                     className:'text-black',
                     description: 'Your Password has been Updated!.',
                 })
 

@@ -75,6 +75,7 @@ export default function SigninPage() {
             toast.success('Redirecting....')
         } catch (error) {
             toast.success('Google Signin Failed....', {
+                 className:'text-black',
                 description: 'Please try again',
             })
         } finally {

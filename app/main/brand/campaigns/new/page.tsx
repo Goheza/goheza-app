@@ -277,6 +277,7 @@ const CampaignBriefForm: React.FC = () => {
             }))
             setProgressState('idle') // Reset state
             toast.success('Budget Calculated!', {
+                className : 'text-black',
                 description: `Total cost: $${result.brandTotalPay.toLocaleString()}`,
             })
         } catch (err: any) {
@@ -504,6 +505,8 @@ const CampaignBriefForm: React.FC = () => {
             setProgressState('notifying-admin')
 
             toast.success('Campaign Successfully Created', {
+
+                 className:'text-black',
                 description: 'An invoice will be sent to your email once the campaign has been reviewed.',
             })
 
