@@ -376,15 +376,7 @@ export default function CampaignOverview() {
                             <p className="text-gray-700 leading-relaxed">{campaignDetails.campaignDescription}</p>
                         </div>
 
-                        {/* The Key Requirements/Deliverables Section */}
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Requirements & Deliverables</h3>
-                            <ul className="space-y-3 pl-5 list-disc text-gray-700">
-                                {campaignDetails.campaignRequirements.map((item, id) => (
-                                    <li key={id}>{item}</li>
-                                ))}
-                            </ul>
-                        </div>
+                        
 
                         {/* Do's and Don'ts Section - NOW ALIGNED */}
                         {(dosList.length > 0 || dontsList.length > 0) && (
