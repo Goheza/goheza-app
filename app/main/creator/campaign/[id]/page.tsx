@@ -23,6 +23,7 @@ export interface ICampaignDetails {
     id: string
     campaignName: string
     campaignRequirements: string[]
+    campaignDescription: string[]
     campaignPayout: string
     campaignAssets: Array<ICampaignAssets>
     campaignObjective?: string
@@ -97,6 +98,7 @@ export default function CampaignOverview() {
 
                 const imageSource = data.cover_image_url || data.brand_profiles?.logo_url || fallbackImage
                 setCampaignDetails({
+                    campaignDescription: data.description,
                     id: data.id,
                     campaignName: data.name || data.campaign_name,
                     campaignRequirements: data.requirements || [],
@@ -349,6 +351,12 @@ export default function CampaignOverview() {
 
                 <div className="py-6">
                     <div className="space-y-6">
+                        {/* CampaignDescription */}
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Target Audience</h3>
+                            <p className="text-gray-700 leading-relaxed">{campaignDetails.targetAudience}</p>
+                        </div>
+
                         {/* The Objective Section */}
                         {campaignDetails.campaignObjective && (
                             <div>
@@ -364,6 +372,12 @@ export default function CampaignOverview() {
                                 <p className="text-gray-700 leading-relaxed">{campaignDetails.targetAudience}</p>
                             </div>
                         )}
+
+                         {/* CampaignDescription */}
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+                            <p className="text-gray-700 leading-relaxed">{campaignDetails.campaignDescription}</p>
+                        </div>
 
                         {/* The Key Requirements/Deliverables Section */}
                         <div>
