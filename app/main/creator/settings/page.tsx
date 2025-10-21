@@ -10,17 +10,36 @@ import { toast } from 'sonner'
 
 // Define the list of banks for the dropdown
 const BANK_OPTIONS = [
-    { value: '', label: 'Select Bank Name' },
-    { value: 'equity_bank', label: 'Equity Bank' },
-    { value: 'kcb_bank', label: 'KCB Bank' },
-    { value: 'stanbic_bank', label: 'Stanbic Bank' },
-    { value: 'ncba_bank', label: 'NCBA Bank' },
-    // Add more banks as needed
-]
-
+  { value: '', label: 'Select Bank Name' },
+  { value: 'Absa Bank Uganda Limited', label: 'Absa Bank Uganda Limited' },
+  { value: 'Bank of Africa Uganda Limited', label: 'Bank of Africa Uganda Limited' },
+  { value: 'Bank of Baroda Uganda Limited', label: 'Bank of Baroda Uganda Limited' },
+  { value: 'Bank of India Uganda Limited', label: 'Bank of India Uganda Limited' },
+  { value: 'Cairo Bank Uganda Limited', label: 'Cairo Bank Uganda Limited' },
+  { value: 'Centenary Bank', label: 'Centenary Bank' },
+  { value: 'Citibank Uganda Limited', label: 'Citibank Uganda Limited' },
+  { value: 'DFCU Bank', label: 'DFCU Bank' },
+  { value: 'Diamond Trust Bank Uganda Limited', label: 'Diamond Trust Bank Uganda Limited' },
+  { value: 'Ecobank Uganda Limited', label: 'Ecobank Uganda Limited' },
+  { value: 'Equity Bank Uganda Limited', label: 'Equity Bank Uganda Limited' },
+  { value: 'Exim Bank Uganda Limited', label: 'Exim Bank Uganda Limited' },
+  { value: 'Finance Trust Bank', label: 'Finance Trust Bank' },
+  { value: 'Guaranty Trust Bank (U) Limited', label: 'Guaranty Trust Bank (U) Limited' },
+  { value: 'Housing Finance Bank', label: 'Housing Finance Bank' },
+  { value: 'I&M Bank (Uganda) Limited', label: 'I&M Bank (Uganda) Limited' },
+  { value: 'KCB Bank Uganda Limited', label: 'KCB Bank Uganda Limited' },
+  { value: 'NCBA Bank Uganda Limited', label: 'NCBA Bank Uganda Limited' },
+  { value: 'Opportunity Bank Uganda Limited', label: 'Opportunity Bank Uganda Limited' },
+  { value: 'PostBank Uganda Limited', label: 'PostBank Uganda Limited' },
+  { value: 'Stanbic Bank Uganda Limited', label: 'Stanbic Bank Uganda Limited' },
+  { value: 'Standard Chartered Bank Uganda Limited', label: 'Standard Chartered Bank Uganda Limited' },
+  { value: 'Tropical Bank Limited', label: 'Tropical Bank Limited' },
+  { value: 'United Bank for Africa (Uganda) Limited', label: 'United Bank for Africa (Uganda) Limited' }
+];
 export default function PaymentPage() {
     // State variables
     const [paymentMethod, setPaymentMethod] = React.useState<'bank' | 'mobile'>('bank')
+    // ⬇️ Initialize with the placeholder value from BANK_OPTIONS
     const [bankName, setBankName] = React.useState('')
     const [accountNumber, setAccountNumber] = React.useState('')
     const [accountName, setAccountName] = React.useState('')
@@ -68,7 +87,8 @@ export default function PaymentPage() {
                 // Pre-populate state with saved data
                 setPaymentMethod(data.payment_method || 'bank')
 
-                // Bank details
+                // Bank details: Use the saved value directly
+                // If saved bank name is not in BANK_OPTIONS, it will still be set
                 setBankName(data.payment_bank_name || '')
                 setAccountNumber(data.payment_account_number || '')
                 setAccountName(data.payment_account_name || '')
@@ -133,6 +153,19 @@ export default function PaymentPage() {
         e.preventDefault()
         setIsSubmitting(true)
 
+        // Basic validation for bank details, including the dropdown not being on the default/empty value
+        if (paymentMethod === 'bank' && (!bankName || bankName === '' || !accountNumber || !accountName)) {
+            toast.error('Please select a bank and fill in all required bank details.')
+            setIsSubmitting(false)
+            return
+        }
+
+        if (paymentMethod === 'mobile' && (!mobileNumber || !mobileAccountName)) {
+            toast.error('Please fill in all required mobile money details.')
+            setIsSubmitting(false)
+            return
+        }
+
         const payload = {
             paymentMethod,
             // Only send the relevant fields to avoid conflicts when updating
@@ -192,18 +225,27 @@ export default function PaymentPage() {
                 {/* Bank Fields */}
                 {paymentMethod === 'bank' && (
                     <div className="space-y-3">
-                        {/* Bank Name Dropdown */}
+                        {/* ⬇️ START: Bank Name Dropdown FIX */}
                         <div>
-                            <Input
-                                type="text"
-                                placeholder="Stanbic Bank"
-                                value={accountNumber}
+                            <Label htmlFor="bankNameSelect" className="text-sm font-medium sr-only">
+                                Bank Name
+                            </Label>
+                            <select
+                                id="bankNameSelect"
+                                value={bankName}
                                 onChange={(e) => setBankName(e.target.value)}
-                                className="rounded-xl"
+                                // Styling to match the existing Input component
+                                className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 required
-                            />
-                            
+                            >
+                                {BANK_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value} disabled={option.value === ''}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
+                        {/* ⬆️ END: Bank Name Dropdown FIX */}
 
                         <Input
                             type="text"
@@ -228,7 +270,7 @@ export default function PaymentPage() {
                 {paymentMethod === 'mobile' && (
                     <div className="space-y-3">
                         <Input
-                            type="text"
+                            type="tel" // Changed to 'tel' for better mobile support
                             placeholder="Mobile Number (e.g., 07XXXXXXXX)"
                             value={mobileNumber}
                             onChange={(e) => setMobileNumber(e.target.value)}
