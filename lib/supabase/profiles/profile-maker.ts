@@ -12,7 +12,7 @@ export async function makeProfile(user: User, role: 'brand' | 'creator',extraInf
     /**
      * Get Profile Contact from here
      */
-    let userContact = user.user_metadata!.phone;
+    let userContact = user.user_metadata!.phone! as string;
 
     if (role === 'brand') {
         const { error: profileError } = await supabaseClient.from('brand_profiles').insert([

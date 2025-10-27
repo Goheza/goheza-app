@@ -40,7 +40,7 @@ type BrandProfileDB = {
     brand_email: string
     brand_name: string
     created_at: string
-    contact: string | null
+    phone: string | null
     is_verified: boolean
 }
 
@@ -94,7 +94,7 @@ const mapBrandToUserProfile = (brand: BrandProfileDB): UserProfile => ({
     name: brand.brand_name,
     created_at: brand.created_at,
     is_active: true, // Placeholder until schema update
-    contact: brand.contact,
+    contact: brand.phone,
     is_verified: brand.is_verified,
 })
 
@@ -119,7 +119,7 @@ export default function UserManagementPage() {
                 'id, email, full_name, created_at, phone, country, payment_method, payment_account_name, payment_account_number, payment_frequency, payment_mobilemoney_number, has_payment_details'
 
             // Fields to fetch for Brands
-            const brandSelectFields = 'id, brand_email, brand_name, created_at, contact, is_verified'
+            const brandSelectFields = 'id, brand_email, brand_name, created_at, contact, is_verified,phone'
 
             // 1. Fetch creator profiles
             const { data: creators, error: creatorError } = await supabaseClient
@@ -131,7 +131,13 @@ export default function UserManagementPage() {
             const { data: brands, error: brandError } = await supabaseClient
                 .from('brand_profiles')
                 .select(brandSelectFields)
-                .returns<BrandProfileDB[]>()
+                .returns<BrandProfileDB[]>();
+
+
+            console.log("------OnDidGetData")
+            console.log("BrandData",brands);
+            console.log("CreatorData",creators);
+
 
             if (creatorError || brandError) {
                 console.error('Error fetching users:', creatorError || brandError)
