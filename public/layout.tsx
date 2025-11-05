@@ -22,9 +22,6 @@ export const metadata: Metadata = {
         default: 'Goheza | Connecting Businesses To Content Creators Paid on Performance',
         template: '%s | Goheza',
     },
-    icons : {
-        icon: "https://goheza.com/favicon.jpg",
-    },
     description:
         'Connect with thousands of content creators who promote your business, online and only pay for content that performs. Get started now',
     keywords: [
