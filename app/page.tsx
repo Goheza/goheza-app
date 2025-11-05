@@ -98,7 +98,7 @@ export default function GohezaLanding() {
             </section>
 
             {/* How It Works */}
-            <section id="how-it-works" className="py-12 sm:py-20">
+            <section id="how-it-works" aria-description='How it Works'  className="py-12 sm:py-20">
                 <div className="container mx-auto px-4">
                     <motion.div
                         initial={{ opacity: 0, y: 8 }}
