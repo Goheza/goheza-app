@@ -1,4 +1,3 @@
-// app/layout.tsx (server component)
 import type { Metadata } from 'next'
 import { Lexend } from 'next/font/google'
 import local from 'next/font/local'
@@ -19,7 +18,7 @@ const Lexendfont = local({
 export const metadata: Metadata = {
     metadataBase: new URL('https://goheza.com/'),
     title: {
-        default: 'Goheza | Connecting Businesses To Content Creators Paid on Performance',
+        default: 'Goheza',
         template: '%s | Goheza',
     },
     icons : {
