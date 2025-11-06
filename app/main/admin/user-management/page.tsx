@@ -147,8 +147,6 @@ export default function UserManagementPage() {
                 return
             }
 
-            console.log('Admin-Data(Creator)', creators)
-            console.log('Admin-Data(Brand)', brands)
 
             // 3. Map and combine the data
             const creatorProfiles: UserProfile[] = (creators || []).map(mapCreatorToUserProfile)
