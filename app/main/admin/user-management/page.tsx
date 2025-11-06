@@ -14,11 +14,13 @@ import { MoreHorizontal, CheckCircle, Clock } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { Loader2 } from 'lucide-react'
+import { deleteProfile, deleteUserPermanently } from '@/lib/supabase/profiles/delete-profile'
 
 // --- 1. TYPE DEFINITIONS (UNCHANGED from your provided file) ---
 
 // Define the precise types returned from the CREATOR database table
 type CreatorProfileDB = {
+    user_id: string
     id: string
     email: string
     full_name: string
@@ -36,6 +38,7 @@ type CreatorProfileDB = {
 
 // Define the precise types returned from the BRAND database table
 type BrandProfileDB = {
+    user_id: string
     id: string
     brand_email: string
     brand_name: string
@@ -47,6 +50,7 @@ type BrandProfileDB = {
 // Define the UNIFIED UserProfile type used throughout the component
 type UserProfile = {
     id: string
+    user_id: string
     email: string
     role: 'creator' | 'brand'
     name: string
@@ -72,6 +76,7 @@ type UserProfile = {
 
 const mapCreatorToUserProfile = (creator: CreatorProfileDB): UserProfile => ({
     id: creator.id,
+    user_id: creator.user_id,
     email: creator.email,
     role: 'creator',
     name: creator.full_name,
@@ -89,6 +94,7 @@ const mapCreatorToUserProfile = (creator: CreatorProfileDB): UserProfile => ({
 
 const mapBrandToUserProfile = (brand: BrandProfileDB): UserProfile => ({
     id: brand.id,
+    user_id: brand.user_id,
     email: brand.brand_email,
     role: 'brand',
     name: brand.brand_name,
@@ -116,10 +122,10 @@ export default function UserManagementPage() {
         try {
             // Fields to fetch for Creators
             const creatorSelectFields =
-                'id, email, full_name, created_at, phone, country, payment_method, payment_account_name, payment_account_number, payment_frequency, payment_mobilemoney_number, has_payment_details'
+                'id, email, full_name, user_id, created_at, phone, country, payment_method, payment_account_name, payment_account_number, payment_frequency, payment_mobilemoney_number, has_payment_details'
 
             // Fields to fetch for Brands
-            const brandSelectFields = 'id, brand_email, brand_name, created_at, contact, is_verified,phone'
+            const brandSelectFields = 'id, user_id, brand_email, brand_name, created_at, contact, is_verified,phone'
 
             // 1. Fetch creator profiles
             const { data: creators, error: creatorError } = await supabaseClient
@@ -131,13 +137,9 @@ export default function UserManagementPage() {
             const { data: brands, error: brandError } = await supabaseClient
                 .from('brand_profiles')
                 .select(brandSelectFields)
-                .returns<BrandProfileDB[]>();
+                .returns<BrandProfileDB[]>()
 
-
-            console.log("------OnDidGetData")
-            console.log("BrandData",brands);
-            console.log("CreatorData",creators);
-
+           
 
             if (creatorError || brandError) {
                 console.error('Error fetching users:', creatorError || brandError)
@@ -216,9 +218,64 @@ export default function UserManagementPage() {
         setViewProfileModal(true)
     }
 
+    const deleteUserFlow = async (user_id: string, role: 'brand' | 'creator') => {
+        const loadingToastId = toast.loading('Deleting user…')
+
+        try {
+            const res = await fetch('/api/delete-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id, role }),
+            })
+
+            const data = await res.json()
+
+            toast.dismiss(loadingToastId)
+
+            if (!res.ok) {
+                toast.error(`Failed to delete user, ${data.error} || 'Unknown error'`)
+                return
+            }
+
+            toast.success(
+                <>
+                    <span style={{ fontWeight: 700 }}>User deleted</span>
+                    <div style={{ opacity: 1, fontSize: '0.9rem' }}>{data.message}</div>
+                </>,
+                { duration: 5000 }
+            );
+            fetchUsers()
+
+            // ✅ Optional: remove from local state / UI
+            // setProfiles(prev => prev.filter(p => p.user_id !== user_id))
+        } catch (err: any) {
+            toast.dismiss(loadingToastId)
+            console.error('deleteUserFlow error:', err)
+            toast.error('Error deleting user', { description: err?.message || 'Unknown error' })
+        }
+    }
+
+    /**
+     * This will delete the user
+     * @param user
+     */
+
     const handleToggleStatus = async (user: UserProfile) => {
         // ACTION: Implement Supabase update logic here when your schema is ready
-        toast.info(`Toggling status for ${user.name}... (This feature requires a database schema update)`)
+
+        try {
+            toast.error(`Delete User? This action is permanent and cannot be undone.`, {
+                duration: Infinity,
+                action: {
+                    label: 'Delete',
+                    onClick: () => deleteUserFlow(user.user_id, user.role),
+                },
+                cancel: {
+                    label: 'Cancel',
+                    onClick: () => {},
+                },
+            })
+        } catch (error) {}
     }
 
     if (loading) {
@@ -345,7 +402,7 @@ export default function UserManagementPage() {
 
                                                 {/* Toggle Status Action */}
                                                 <DropdownMenuItem onClick={() => handleToggleStatus(user)}>
-                                                    {user.is_active ? 'Suspend User' : 'Unsuspend User'}
+                                                    Delete User
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
