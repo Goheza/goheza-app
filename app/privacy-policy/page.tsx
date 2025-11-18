@@ -3,8 +3,6 @@
 import React, { useState } from 'react'
 import { ChevronDown, ChevronUp, Shield, Lock, Eye, Users, FileText, Globe } from 'lucide-react'
 
-// WARNING: This component contains mechanisms to discourage copying.
-// These methods are not foolproof and can be bypassed easily by a determined user.
 const PrivacyPolicy: React.FC = () => {
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
 
