@@ -4,7 +4,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const baseUrl = 'https://goheza.com'
 
     // Static routes
-    const routes = ['/', '/privacy-policy', '/terms','/main/auth/signin','/main/auth/signup','/features','/how-it-works'].map((route) => ({
+    const routes = ['/', '/privacy-policy', '/terms','/main/auth/signin','/main/auth/signup'].map((route) => ({
         url: `${baseUrl}${route}`,
         lastModified: new Date().toISOString(),
         changeFrequency: 'weekly' as const,
