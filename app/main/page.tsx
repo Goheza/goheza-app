@@ -55,12 +55,12 @@ export default function MainPage() {
                         /**
                          * If its the brand we take them to the
                          */
-                        // router.replace('/main/brand/dashboard')
+                        router.replace('/main/brand/dashboard')
                     } else if (type == 'creator') {
                         /**
                          * If its the creator we take them to the
                          */
-                        // router.replace('/main/creator/dashboard')
+                        router.replace('/main/creator/dashboard')
                     }
                 }else{
                     /**

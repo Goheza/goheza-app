@@ -1,3 +1,5 @@
+"use client"
+
 import { baseURL } from '@/lib/env'
 import { signInUser, signInWithGoogle } from '@/lib/supabase/auth/signin'
 import { supabaseClient } from '@/lib/supabase/client'

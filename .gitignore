@@ -11,7 +11,7 @@
 /build
 /_vv_secure
 /backup
-/bv
+
 
 # debug
 npm-debug.log*
