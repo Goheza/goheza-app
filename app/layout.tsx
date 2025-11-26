@@ -27,6 +27,7 @@ export const metadata: Metadata = {
     description:
         'Connect with thousands of content creators who promote your business, online and only pay for content that performs. Get started now',
     keywords: [
+        'goheza',
         'Goheza',
         'content creators',
         'influencer marketing',
