@@ -1,11 +1,9 @@
 import type { Metadata } from 'next'
-import { Lexend } from 'next/font/google'
 import local from 'next/font/local'
 import { Toaster } from '@/components/ui/sonner'
 import Header from '@/components/layout/header'
 import Script from 'next/script'
 import FooterComponent from '@/components/components/landing/footertc'
-import Head from 'next/head'
 import './globals.css'
 
 const Lexendfont = local({
@@ -16,16 +14,16 @@ const Lexendfont = local({
 })
 
 export const metadata: Metadata = {
-    metadataBase: new URL('https://goheza.com/'),
+    metadataBase: new URL('https://goheza.com'),
     title: {
         default: 'Goheza',
         template: '%s | Goheza',
     },
-    icons : {
-        icon: "https://goheza.com/favicon.jpg",
+    icons: {
+        icon: 'https://goheza.com/favicon.jpg',
     },
     description:
-        'Connect with thousands of content creators who promote your business, online and only pay for content that performs. Get started now',
+        'Connect with thousands of content creators who promote your business and only pay for performance. Get started now.',
     keywords: [
         'goheza',
         'Goheza',
@@ -55,14 +53,14 @@ export const metadata: Metadata = {
     },
     openGraph: {
         type: 'website',
-        locale: 'en_US', // or "es_ES" for Spanish
+        locale: 'en_US',
         url: 'https://goheza.com',
         title: 'Goheza - Connecting Businesses To Content Creators Paid on Performance',
         description:
-            'Connect with thousands of content creators who promote your business, online and only pay for content that performs. Get started now',
+            'Connect with thousands of content creators who promote your business and only pay for performance.',
         images: [
             {
-                url: '/gz.jpg',
+                url: 'https://goheza.com/gz.jpg',
                 width: 1200,
                 height: 630,
                 alt: 'Goheza',
@@ -73,8 +71,8 @@ export const metadata: Metadata = {
     twitter: {
         card: 'summary_large_image',
         title: 'Goheza - Connecting Businesses To Content Creators Paid on Performance',
-        description: 'Engaging description for Twitter sharing',
-        images: ['/gz.jpg'],
+        description: 'Connect with top creators who promote your business and only pay when content performs.',
+        images: ['https://goheza.com/gz.jpg'],
     },
     alternates: {
         canonical: 'https://goheza.com',
@@ -87,10 +85,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en">
-            <Head>
+        <html lang="en" className={Lexendfont.variable}>
+            <body>
+                {/* Schema.org JSON-LD (Google prefers it in body) */}
                 <script
-                suppressHydrationWarning
                     type="application/ld+json"
                     dangerouslySetInnerHTML={{
                         __html: JSON.stringify({
@@ -100,7 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             url: 'https://goheza.com',
                             name: 'Goheza',
                             description:
-                                'Connect with thousands of content creators who promote your business, online and only pay for content that performs. Get started now',
+                                'Connect with thousands of content creators who promote your business and only pay for performance.',
                             publisher: {
                                 '@id': 'https://goheza.com/#organization',
                             },
@@ -108,20 +106,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         }),
                     }}
                 />
-            </Head>
-            <body className={Lexendfont.className}>
-                {/* Google Analytics Global Site Tag (gtag.js) */}
+
+                {/* Google Analytics */}
                 <Script strategy="afterInteractive" src="https://www.googletagmanager.com/gtag/js?id=G-ECR813DSJP" />
                 <Script id="google-analytics" strategy="afterInteractive">
                     {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-ECR813DSJP');
-          `}
+                      window.dataLayer = window.dataLayer || [];
+                      function gtag(){dataLayer.push(arguments);}
+                      gtag('js', new Date());
+                      gtag('config', 'G-ECR813DSJP');
+                    `}
                 </Script>
-                <Header /> {/* <-- client component */}
+
+                <Header />
+
                 {children}
+
                 <FooterComponent />
                 <Toaster />
             </body>
