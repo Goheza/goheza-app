@@ -63,7 +63,7 @@ export default function OnboardingDialog() {
 
             if (type) {
                 if (type == 'creator') {
-                    console.log('Profile Exists', user.email!)
+                    
                     /**
                      * The profile exists
                      */

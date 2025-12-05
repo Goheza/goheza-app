@@ -85,8 +85,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en" className={Lexendfont.variable}>
-            <body>
+        <html lang="en" className={Lexendfont.className}>
+            <body >
                 {/* Schema.org JSON-LD (Google prefers it in body) */}
                 <script
                     type="application/ld+json"

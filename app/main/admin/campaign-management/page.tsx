@@ -20,8 +20,8 @@ import { format } from 'date-fns'
 
 // Define the structure for an individual asset object in the JSONB array
 type Asset = {
-    file_url: string
-    file_name: string
+    url: string
+    name: string
     type: string // e.g., 'image', 'video', 'pdf'
 }
 
@@ -69,27 +69,35 @@ const formatListItems = (data: string | string[] | null | undefined): string[] =
     return []
 }
 
+interface ICampaignDetailsModel {
+    campaign: Campaign
+    isOpen: boolean
+    onWillDeleteCampaign: (campaignID: string,campaignName:string) => void
+    onClose: () => void
+    onAction: (id: string, status: 'approved' | 'cancelled') => void
+    //@ts-ignore
+    getStatusBadge: (status: string) => JSX.Element
+}
+
 // Helper component for the Campaign Details Modal
 const CampaignDetailsModal = ({
     campaign,
     isOpen,
     onClose,
     onAction,
+    onWillDeleteCampaign,
     getStatusBadge,
-}: {
-    campaign: Campaign
-    isOpen: boolean
-    onClose: () => void
-    onAction: (id: string, status: 'approved' | 'cancelled') => void
-    //@ts-ignore
-    getStatusBadge: (status: string) => JSX.Element
-}) => {
+}: ICampaignDetailsModel) => {
     const requirementsList = formatListItems(campaign.requirements)
     const objectivesList = formatListItems(campaign.objectives)
     const dosList = formatListItems(campaign.dos)
     const dontsList = formatListItems(campaign.donts)
     const targetCountriesList = formatListItems(campaign.target_countries)
     // The assets array is directly available as campaign.assets
+
+    useEffect(() => {
+        
+    }, [])
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -172,13 +180,10 @@ const CampaignDetailsModal = ({
                                 {campaign.assets.map((asset, index) => (
                                     <a
                                         key={index}
-                                        href={asset.file_url}
-                                        // ⭐ Opens the link in a new tab/window
+                                        href={asset.url}
                                         target="_blank"
-                                        rel="noopener noreferrer"
-                                        // ⭐ Suggests the browser to download the file with this name
-                                        download={asset.file_name}
-                                        className="inline-flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors p-2 border rounded-md bg-white shadow-sm"
+                                        download={asset.name}
+                                        className="block cursor-pointer items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors p-2 border rounded-md bg-white shadow-sm"
                                     >
                                         {/* Icon for file link */}
                                         <svg
@@ -195,7 +200,7 @@ const CampaignDetailsModal = ({
                                                 d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0014.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                                             />
                                         </svg>
-                                        <span>{asset.file_name || `Asset ${index + 1}`}</span>
+                                        <span>{asset.name || `Asset ${index + 1}`}</span>
                                         {/* Optional: Add file type badge */}
                                         {asset.type && (
                                             <Badge variant="outline" className="text-xs">
@@ -296,12 +301,60 @@ const CampaignDetailsModal = ({
                             </Button>
                         </>
                     )}
-                    <Button onClick={onClose} variant="secondary" className="order-3">
+                    <Button onClick={onClose} variant="default" className="order-3">
                         Close
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            onClose()
+                            onWillDeleteCampaign(campaign.id,campaign.name)
+                        }}
+                        variant="secondary"
+                        className="order-3"
+                    >
+                        Delete
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    )
+};
+
+
+//================================================================================
+//Delete Dialog For Campaign
+
+function confirmDeleteToast(campaignId:string,campaignName:string) {
+    // Create a temporary div with buttons and handlers
+    toast(
+        <div className="flex flex-col space-y-2">
+            <p>Are you sure you want to delete {campaignName}? This action is irreversible.</p>
+            <div className="flex space-x-2 mt-2">
+                <button
+                    className="px-3 py-1 bg-[#e85c51] text-white rounded"
+                    onClick={async (e) => {
+                        e.stopPropagation() // prevent toast click bubbling
+                        const { error } = await supabaseClient.from('campaigns').delete().eq('id', campaignId)
+
+                        if (error) {
+                            toast.error('Failed to delete campaign')
+                        } else {
+                            toast.success('Campaign deleted')
+                        };
+
+                        
+
+                        toast.dismiss() // dismiss all toasts
+                    }}
+                >
+                    Yes, delete
+                </button>
+                <button className="px-3 py-1 bg-gray-300 rounded" onClick={() => toast.dismiss()}>
+                    Cancel
+                </button>
+            </div>
+        </div>,
+        { duration: Infinity } // keep open until user acts
     )
 }
 
@@ -319,6 +372,8 @@ export default function CampaignManagementPage() {
         fetchCampaigns()
     }, [filter])
 
+    
+    //used to fetch campaigns
     const fetchCampaigns = async () => {
         setLoading(true)
         try {
@@ -339,7 +394,7 @@ export default function CampaignManagementPage() {
                 return
             }
 
-            console.log('received-campaign', data)
+            
 
             // CRITICAL: Ensure `brand_name` is correctly mapped from the nested object
             const formattedCampaigns = data.map((c: any) => ({
@@ -467,6 +522,7 @@ export default function CampaignManagementPage() {
                     onClose={() => setViewCampaignModal(false)}
                     onAction={handleAction}
                     getStatusBadge={getStatusBadge}
+                    onWillDeleteCampaign={confirmDeleteToast}
                 />
             )}
         </div>

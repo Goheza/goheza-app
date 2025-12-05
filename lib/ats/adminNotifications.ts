@@ -27,6 +27,6 @@ export async function addNotificationToTheAdmin(options: IAdminNotification) {
     if (error) {
         console.error('Error inserting brand notification:', error.message)
     } else {
-        console.log('Brand notification created:', data)
+        
     }
 }

@@ -33,7 +33,7 @@ export default function ResetPasswordFormComponent() {
     useEffect(() => {
         const checkForAvailableUserSession = () => {
             checkCurrentUserSession().then((v) => {
-                console.log('Available User Session', v)
+                
             })
         }
 

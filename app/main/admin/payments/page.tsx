@@ -17,7 +17,7 @@ const generateInvoicePDF = async (invoiceData: any) => {
     // In a real application, you would make an API call to a serverless function
     // or a backend route that uses a library like 'html-pdf' or 'puppeteer' to create the PDF.
     await new Promise((resolve) => setTimeout(resolve, 1500))
-    console.log('Invoice data for PDF:', invoiceData)
+    
     toast.success('Invoice PDF generated! (Placeholder)')
     // The real function would return a file URL or a Blob
     return 'https://goheza.com/invoices/invoice-123.pdf'

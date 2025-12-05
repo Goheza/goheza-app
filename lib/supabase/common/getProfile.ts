@@ -19,7 +19,7 @@ export async function fetchBrandProfile() {
     const { data, error } = await supabaseClient.from('brand_profiles').select('*').eq('user_id', user.id).single()
 
     if (error) {
-        console.log('Error fetching brand profile:', error.message)
+        
         return null
     }
 

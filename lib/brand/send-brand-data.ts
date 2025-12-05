@@ -36,7 +36,7 @@ export async function sendBrandEmailData({
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Failed to send email')
 
-        console.log('✅ Email sent successfully to:', to)
+        
     } catch (error: any) {
         console.error('❌ Email sending failed:', error.message)
     }

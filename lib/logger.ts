@@ -29,7 +29,7 @@ class LogsDetails {
 
     displayLogs(){
         this._logDetails.forEach((value,key)=>{
-            console.log(`STATION:${key},LOGS:${value}`)
+            
         })
     }   
 

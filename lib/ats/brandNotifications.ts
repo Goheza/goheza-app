@@ -17,7 +17,7 @@ export async function fetchBrandNotifications() {
         .single()
 
     if (error) {
-        console.log('Error fetching Brand Notifications')
+        
     }
     return data
 }
@@ -49,6 +49,6 @@ export async function addNotificationToBrand(options: IBrandNotification) {
     if (error) {
         console.error('Error inserting brand notification:', error.message)
     } else {
-        console.log('Brand notification created:', data)
+        
     }
 }

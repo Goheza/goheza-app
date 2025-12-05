@@ -128,7 +128,7 @@ export default function Dashboard() {
                     return v.status == "approved"
                 });
 
-                console.log(_approvedCampaigns)
+                
 
                 //@ts-ignore
                 setActiveCampaigns(_approvedCampaigns.length)

@@ -45,7 +45,7 @@ export default function MainPage() {
 
                 const { type } = await getUserProfileType()
 
-                console.log("Received-type",type)
+                
 
                 if (type) {
                     /**

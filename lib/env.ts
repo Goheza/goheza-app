@@ -9,4 +9,3 @@ function setURL() {
 export const baseURL = "https://goheza.com"
 
 
-console.log("Current URL For Basis",baseURL)

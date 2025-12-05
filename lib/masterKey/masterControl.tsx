@@ -16,12 +16,12 @@ export const useMasterControlStore = create<MasterControlState>((set) => ({
     activateControl: () => {
         // Set the state to true when the sequence is typed
         set({ isMasterControlActiv: true })
-        console.log('MASTER CONTROL: State activated via Zustand.')
+        
     },
 
     resetControlt: () => {
         // Set the state back to false
         set({ isMasterControlActiv: false })
-        console.log('MASTER CONTROL: State reset.')
+        
     },
 }))

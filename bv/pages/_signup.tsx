@@ -67,7 +67,7 @@ export default function SignUpPageForUser() {
             })
         } catch (error) {
             if (error && error instanceof AuthError) {
-                console.log('Error Signing Up with Google', error.message)
+                
             }
         }
     }
@@ -107,8 +107,8 @@ export default function SignUpPageForUser() {
              */
 
             if (!phone || !country) {
-                console.log('phone', phone)
-                console.log('country', country)
+                
+                
 
                 toast.error('Please fill in all required fields for Creator.', {
                     style: { fontSize: 14, padding: 10 },
