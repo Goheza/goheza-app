@@ -55,6 +55,8 @@ export default function HeaderItemMainBre() {
         { name: 'Campaigns', href: '/main/brand/campaigns' },
         { name: 'Support', href: '/main/brand/support' },
         { name: 'Settings', href: '/main/brand/profile' },
+        { name: 'Analytics', href: '/main/brand/analytics' },
+
 
     ]
 
