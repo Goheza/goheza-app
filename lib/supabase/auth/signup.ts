@@ -24,7 +24,7 @@ export const signUpUserNormalAuth = async ({ email, password, fullName, role, co
             password,
             phone : phone,
             options: {
-                emailRedirectTo: `${baseURL}/main/auth/profile-make?role=${role}`,
+                // emailRedirectTo: `${window.location.origin}/main/auth/profile-make?role=${role}`,
                 data: { fullName, role, phone, country },
                 // stored in user_metadata
             },
@@ -54,42 +54,3 @@ export const signUpUserNormalAuth = async ({ email, password, fullName, role, co
     }
 }
 
-
-
-export const signUpUserNormalBrandAuth = async ({ email, password, fullName, role, country, phone }: ISignUpUser) => {
-    try {
-        // Create account in Supabase auth
-        const { data, error } = await supabaseClient.auth.signUp({
-            email,
-            password,
-            phone : phone,
-            options: {
-                emailRedirectTo: `${baseURL}/main/auth/profile-make?role=${role}`,
-                data: { fullName, role, phone, country },
-                // stored in user_metadata
-            },
-        })
-
-        if (error) {
-            return { isErrorTrue: true, errorMessage: error.message }
-        }
-
-        const user = data.user
-        if (!user) {
-            return { isErrorTrue: true, errorMessage: 'No user returned after signup.' }
-        }
-
-        // Insert role-specific profile
-
-        return {
-            isErrorTrue: false,
-            data: {
-                user,
-                message: 'Account created successfully',
-            },
-        }
-    } catch (err) {
-        console.error('Unexpected signup error:', err)
-        return { isErrorTrue: true, errorMessage: 'Unexpected error occurred.' }
-    }
-}

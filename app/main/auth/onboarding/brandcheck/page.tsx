@@ -1,6 +1,6 @@
 'use client'
 
-import { sendBrandEmailData } from '@/lib/brand/send-brand-data'
+import { sendEmail } from '@/lib/brand/send-brand-data'
 import { supabaseClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -10,47 +10,42 @@ import { useEffect, useState } from 'react'
 export default function Page() {
     const params = useSearchParams()
     const router = useRouter()
-    /**
-     * Used when creating profile or reading things;
-     */
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
+        /**
+         * Inform the user it time to wait for the people
+         * to verify for the data for the brand
+         */
         const mainLoader = async () => {
             const getverif = params.get('verif')
-
-            if (getverif && getverif=='brand') {
+            if (getverif && getverif == 'brand') {
                 const {
                     data: { user },
                 } = await supabaseClient.auth.getUser()
 
                 if (user) {
+                    //user-data
                     let currentName = user.identities![0]?.identity_data?.full_name || user.user_metadata?.fullName
                     let currentEmail = user!.email!
                     let currentPhone = user.user_metadata.phone || 'unknown Phone number'
-                    const __email__ = sendBrandEmailData({
+
+                    sendEmail({
+                        currentName,
                         email: currentEmail,
-                        name: currentName,
-                        message: ` 
-                    name : ${currentName}\n
-                     phoneNumber: ${currentPhone}\n
-                    email : ${currentEmail}\n
-                    provider : (NormalAuthentication)
-                    `,
-                    })
-                    /**
-                     * We send them to the feedback page after here...
-                     */
-                    __email__.then(() => {
+                        currentPhone: currentPhone,
+                    }).then(() => {
                         router.push('/main/auth/feedback')
                     })
                 }
             }
         }
+
+        //run the function here
         mainLoader().finally(() => {
             setLoading(false)
         })
-    })
+    }, [])
 
     if (loading) {
         return (

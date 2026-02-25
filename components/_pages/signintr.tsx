@@ -1,53 +1,43 @@
-"use client"
+'use client'
 
 import { baseURL } from '@/lib/env'
 import { signInUser, signInWithGoogle } from '@/lib/supabase/auth/signin'
-import { supabaseClient } from '@/lib/supabase/client'
 import { Eye, EyeOff } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import {  useState } from 'react'
 import { toast } from 'sonner'
 import logo from '@/assets/GOHEZA-02.png'
-
+import { getProfileBasedOnUser } from '@/lib/supabase/auth/new/getProfiletype'
 
 export default function SigninPage() {
-    /**
-     * ControlBase
-     */
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-
-    /**
-     * Travel between pages
-     */
     const router = useRouter()
 
-    /**
-     * Submition for normal Authentication
-     */
     const onWillSubmitForNormalAuthentication = async () => {
         setIsLoading(true)
         try {
-            const result = await signInUser({ email, password })
+            const { isErrorTrue, data, errorMessage } = await signInUser({ email, password })
 
-            if (result.isErrorTrue) {
-                /**
-                 * Authentication Failed
-                 */
-                toast.error('Sign In Failed')
-            } else {
-                toast.success('Welcome back!', { description: 'Signed in successfully.' })
+            if (isErrorTrue) {
+                toast.error('Error Signing In', {
+                    description: errorMessage,
+                })
+            }
 
-                /**
-                 * Since they are now signed in we take them back to the
-                 * base page, which will check of the profile they belog
-                 */
+            toast.success('Succefully Signed In')
 
-                router.push('/main')
+            if (data?.user) {
+                let currentProfile = await getProfileBasedOnUser(data.user)
+                if (currentProfile?.profileType == 'brand') {
+                    router.push('/main/brand/')
+                } else {
+                    router.push('/main/creator/dashboard')
+                }
             }
         } catch (err) {
             toast.error('Sign In Failed')
@@ -56,18 +46,9 @@ export default function SigninPage() {
         }
     }
 
-    /**
-     * Handle Google Authentication
-     */
-
     const onWillUseGoogleAuth = async () => {
         setIsLoading(true)
         try {
-            /**
-             * After we redirect them direct to the creator dashboarf
-             * because we know the creator is the only one who uses the google authentication
-             * 
-             */
             await signInWithGoogle({
                 redirectURL: `${baseURL}/main/creator/dashboard?profilecheck=no`,
             })
@@ -75,44 +56,13 @@ export default function SigninPage() {
             toast.success('Redirecting....')
         } catch (error) {
             toast.success('Google Signin Failed....', {
-                 className:'text-black',
+                className: 'text-black',
                 description: 'Please try again',
             })
         } finally {
             setIsLoading(false)
         }
     }
-
-    useEffect(() => {
-        /**
-         * This is here to ensure a logged in or
-         * present auth token routes the user back to the
-         * signin user.
-         */
-        const InitialLoadStartup = async () => {
-            /**
-             *
-             * Get current user from existing Session
-             *
-             */
-            const {
-                data: { user },
-            } = await supabaseClient.auth.getUser()
-
-            /**
-             * If the user is present we are going to
-             * take them to the basePage, (they will be routed to their
-             * dashboard, for them to log out
-             * and then they can create an account)
-             */
-
-            if (user) {
-                router.push('/main')
-            }
-        }
-
-        InitialLoadStartup()
-    })
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex justify-center py-8">

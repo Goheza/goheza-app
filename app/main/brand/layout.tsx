@@ -2,104 +2,98 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import NotVerifiedPage from '@/components/components/brand/not-verified' // Create this component next
+import NotVerifiedPage from '@/components/components/brand/not-verified'
 import HeaderItemMainBre from '@/components/components/common/header/header-bre'
 import { supabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 
-// Define the interface for your brand profile to use in the state
 interface BrandProfile {
     user_id: string
     is_verified: boolean
 }
 
-export default function RootLayout(props: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter()
-
-    // State to manage loading, verification status, and profile data
     const [loading, setLoading] = useState(true)
     const [profile, setProfile] = useState<BrandProfile | null>(null)
 
+    // ✅ Always declare hooks before any return
     useEffect(() => {
         async function checkVerification() {
-            setLoading(true)
+            try {
+                setLoading(true)
 
-            // 1. Get the current user session
-            const {
-                data: { user },
-            } = await supabaseClient.auth.getUser()
+                const {
+                    data: { user },
+                } = await supabaseClient.auth.getUser()
 
-            if (!user) {
-                // If no user, redirect them to login (or your brand onboarding path)
-                router.push('/main')
-                return
+                if (!user) {
+                    router.replace('/main/auth/signin')
+                    return
+                }
+
+                const { data, error } = await supabaseClient
+                    .from('brand_profiles')
+                    .select('user_id, is_verified')
+                    .eq('user_id', user.id)
+                    .single()
+
+                if (error && error.code !== 'PGRST116') {
+                    console.error('Error fetching brand profile:', error)
+                }
+
+                setProfile(data ?? null)
+            } catch (err) {
+                console.error('Unexpected error:', err)
+            } finally {
+                setLoading(false)
             }
-
-            // 2. Fetch the brand profile for the current user
-            const { data: profileData, error } = await supabaseClient
-                .from('brand_profiles')
-                .select(`user_id, is_verified`)
-                .eq('user_id', user.id)
-                .single() // Expecting one profile per user
-
-            if (error && error.code !== 'PGRST116') {
-                // PGRST116 is "No rows found"
-                // Handle other errors (e.g., network, database error)
-                console.error('Error fetching brand profile:', error)
-            }
-
-            setProfile(profileData)
-            setLoading(false)
         }
 
         checkVerification()
-    }, [router, supabaseClient])
+    }, [router])
 
-     const onWillSignOutUser = async () => {
-        await supabaseClient.auth.signOut({scope : "global"})
-        router.push('/main/auth/signin')
+    const onWillSignOutUser = async () => {
+        await supabaseClient.auth.signOut({ scope: 'global' })
+        router.replace('/main/auth/signin')
     }
 
-    // --- GUARD LOGIC ---
-
-    // 3. Show Loading State
+    // ✅ Loading state
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-white">
                 <span className="mb-2">Loading Brand Profile...</span>
-                <div className="w-12 h-12 border-4 border-[#e85c51] border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-12 h-12 border-4 border-[#e85c51] border-t-transparent rounded-full animate-spin" />
             </div>
-        ) // Replace with your actual loading component
+        )
     }
 
-    // 4. Check Verification Status
     const isVerified = profile?.is_verified === true
 
+    // ✅ Not verified view
     if (!isVerified) {
-        // If not verified, show the special "wait" page.
         return (
-            <div className="flex flex-col h-screen">
-                <div className='w-full'>
-                   <Button
-                            size="lg"
-                            onClick={onWillSignOutUser}
-                            className="font-semibold cursor-pointer absolute right-10 top-6  bg-[#e85c51] hover:bg-[#df4848] transform-gpu transition-all hover:scale-105"
-                        >
-                            <ArrowLeft/>
-                           Sign out
-                        </Button>
-                </div>
+            <div className="flex flex-col min-h-screen">
+                <Button
+                    size="lg"
+                    onClick={onWillSignOutUser}
+                    className="absolute right-10 top-6 font-semibold bg-[#e85c51] hover:bg-[#df4848] transition-all hover:scale-105"
+                >
+                    <ArrowLeft className="mr-2" />
+                    Sign out
+                </Button>
+
                 <NotVerifiedPage />
             </div>
         )
     }
 
-    // 5. Render the content for verified brands
+    // ✅ Verified view
     return (
         <div>
             <HeaderItemMainBre />
-            <div className="translate-y-14 ">{props.children}</div>
+            <div className="translate-y-14">{children}</div>
         </div>
     )
 }

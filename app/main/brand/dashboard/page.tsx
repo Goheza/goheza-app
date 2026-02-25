@@ -4,13 +4,12 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
-import { baseLogger } from '@/lib/logger'
-import NotificationsDialog from '@/components/components/brand/notifications'
+import { toast } from 'sonner'
 
 interface Campaign {
     id: string
     name: string
-    status: "approved" | "inreview" | "cancelled"
+    status: 'approved' | 'inreview' | 'cancelled'
     budget: string
     createdAt: string
     submissionsCount: number
@@ -35,8 +34,6 @@ export default function Dashboard() {
     useEffect(() => {
         const fetchBrandData = async () => {
             try {
-                baseLogger('BRAND-OPERATIONS', 'WillGetAuthenticatedBrandUser')
-
                 const {
                     data: { user },
                     error: userError,
@@ -46,9 +43,6 @@ export default function Dashboard() {
                     throw new Error('Brand not authenticated')
                 }
 
-                baseLogger('BRAND-OPERATIONS', 'DidGetAuthenticatedBrandUser')
-                baseLogger('BRAND-OPERATIONS', 'WillFetchBrandProfile')
-
                 // Fetch brand profile
                 const { data: profileData, error: profileError } = await supabaseClient
                     .from('brand_profiles')
@@ -57,26 +51,18 @@ export default function Dashboard() {
                     .single()
 
                 if (profileError) {
-                    // If no brand profile exists, fallback to user data
-                    setBrandProfile({
-                        id: user.id,
-                        brandName: user.user_metadata?.brand_name || user.email?.split('@')[0] || 'Brand',
-                        email: user.email || '',
+                    toast.error('Unknown Error with Brand Profile', {
+                        description: 'Contact Support For Help.',
                     })
-                } else {
-                    baseLogger('BRAND-OPERATIONS', `DidFetchBrandProfile:${profileData}`)
-                    baseLogger('BRAND-OPERATIONS', 'WillSetBrandProfile')
+                }
 
+                if (profileData) {
                     setBrandProfile({
                         id: profileData.id,
                         brandName: profileData.brand_name,
                         email: profileData.email || user.email || '',
                     })
-
-                    baseLogger('BRAND-OPERATIONS', 'DidSetBrandProfile')
                 }
-
-                baseLogger('BRAND-OPERATIONS', 'WillFetchBrandCamapignsAndSubmission')
 
                 // Fetch brand's campaigns with submission + approved counts
                 const { data: campaignsData, error: campaignsError } = await supabaseClient
@@ -101,8 +87,9 @@ export default function Dashboard() {
                     throw new Error(campaignsError.message)
                 }
 
-                baseLogger('BRAND-OPERATIONS', `DidFetchBrandCampaigns:${campaignsData}`)
-
+                /**
+                 * 00000000000000000000000000000000
+                 */
                 const campaigns: Campaign[] = (campaignsData || []).map((campaign: any) => ({
                     id: campaign.id,
                     name: campaign.name,
@@ -112,23 +99,21 @@ export default function Dashboard() {
                     submissionsCount: campaign.campaign_submissions?.[0]?.count || 0,
                     approvedSubmissions: campaign.approved?.[0]?.count || 0,
                 }))
-                
-                baseLogger('BRAND-OPERATIONS', 'WillSetBrandCampaigns')
+
                 setRecentCampaigns(campaigns)
-                baseLogger('BRAND-OPERATIONS', 'DidSetBrandCampaigns')
+
+                /**
+                 * 00000000000000000000000000000000
+                 */
 
 
                 /**
                  * Set the Active Campaigns as only the ones that have been approved
                  */
 
-            
-
-                let _approvedCampaigns = campaigns.filter((v)=>{
-                    return v.status == "approved"
-                });
-
-                
+                let _approvedCampaigns = campaigns.filter((v) => {
+                    return v.status == 'approved'
+                })
 
                 //@ts-ignore
                 setActiveCampaigns(_approvedCampaigns.length)
@@ -171,8 +156,8 @@ export default function Dashboard() {
         }
     }
 
-    const gotoCampaigns = () =>{
-        router.push("/main/brand/campaigns")
+    const gotoCampaigns = () => {
+        router.push('/main/brand/campaigns')
     }
 
     const handleCreateCampaign = () => {
@@ -221,7 +206,6 @@ export default function Dashboard() {
 
     return (
         <div className="font-sans p-5 max-w-6xl mx-auto bg-white">
-            
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Welcome, {brandProfile?.brandName || 'Brand'}!</h1>
                 <p className="text-gray-600">Here's an overview of your campaigns and performance.</p>
@@ -240,7 +224,10 @@ export default function Dashboard() {
             {/* Campaign Stats: Active Campaigns and Completed Campaigns UI elements */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
                 {/* Active Campaigns */}
-                <div className="p-6 rounded-lg border transition-all bg-neutral-100 shadow-sm cursor-pointer hover:border-[#e93838]" onClick={gotoCampaigns}>
+                <div
+                    className="p-6 rounded-lg border transition-all bg-neutral-100 shadow-sm cursor-pointer hover:border-[#e93838]"
+                    onClick={gotoCampaigns}
+                >
                     <h2 className="text-xl font-semibold text-gray-700">Active Campaigns</h2>
                     <p className="text-4xl font-bold text-[#e93838] mt-2">{activeCampaigns}</p>
                 </div>

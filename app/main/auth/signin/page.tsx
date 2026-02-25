@@ -1,4 +1,4 @@
-import SigninPage from '@/bv/pages/_signin'
+import SigninPage from '@/components/_pages/signintr'
 import type { Metadata } from 'next'
 
 export const metadata:Metadata = {

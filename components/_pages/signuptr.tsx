@@ -4,31 +4,23 @@
  */
 
 import { GoogleSignupBtn } from '@/components/auth/googleSignup'
-import { sendBrandEmailData } from '@/lib/brand/send-brand-data'
 import { ALL_COUNTRIES } from '@/lib/countries'
 import { baseURL } from '@/lib/env'
 import logo from '@/assets/GOHEZA-02.png'
 import { signInWithGoogle } from '@/lib/supabase/auth/signin'
-import { ISignUpUser, signUpUserNormalAuth, signUpUserNormalBrandAuth } from '@/lib/supabase/auth/signup'
-import { supabaseClient } from '@/lib/supabase/client'
+import { signUpUserNormalAuth } from '@/lib/supabase/auth/signup'
 import { AuthError } from '@supabase/supabase-js'
 import { Building2, Eye, EyeOff, Users } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import ContentDivider from '@/components/auth/divider'
-import MasterControlDialog from '@/lib/masterKey/masterDialog'
-import MasterControlDetectorContainer from '@/lib/masterKey/masterDialog'
 
 type UserRole = 'creator' | 'brand' | null
 
 export default function SignUpPageForUser() {
-    /**
-     *
-     * The current feasible details to be obtained
-     */
     const [fullName, setFullName] = useState<string>('')
     const [confirmPassword, setConfirmPassword] = useState<string>('')
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false)
@@ -36,19 +28,8 @@ export default function SignUpPageForUser() {
     const [password, setPassword] = useState<string>('')
     const [email, setEmail] = useState<string>('')
     const [selectedRole, setSelectedRole] = useState<UserRole>(null)
-
-    /**
-     * This is user to check the master Control Environemtn
-     */
-    const [isMasterControlEnv, setMasterControlEnv] = useState(false)
-    /**
-     * Other Unique Special Fields
-     */
     const [phone, setPhone] = useState<string>('')
     const [country, setCountry] = useState<string>('')
-    /**
-     * The current router.
-     */
     const router = useRouter()
 
     /**
@@ -63,11 +44,10 @@ export default function SignUpPageForUser() {
              * so when used we take him to the onboarding page.
              */
             await signInWithGoogle({
-                redirectURL: `${baseURL}/main/auth/onboarding?io=creator`,
+                redirectURL: `${window.location.origin}/main/auth/onboarding?type=google`,
             })
         } catch (error) {
             if (error && error instanceof AuthError) {
-                
             }
         }
     }
@@ -77,179 +57,103 @@ export default function SignUpPageForUser() {
      * @param e
      */
     const onWillSubmitForm = async (e: React.FormEvent<HTMLFormElement>) => {
-        /**
-         * Prevent the natural way of things;
-         */
         e.preventDefault()
-
-        /**
-         * The current common checkers////
-         */
 
         if (!selectedRole) {
             toast.info('Please select your role', { style: { fontSize: 14, padding: 10 } })
             return
         }
-
         if (password !== confirmPassword) {
             toast.error("Passwords don't match", { style: { fontSize: 14, padding: 10 } })
             return
         }
 
+        if (!phone || !country) {
+            toast.error('Please fill in all required fields for Creator.', {
+                style: { fontSize: 14, padding: 10 },
+            })
+            return
+        }
+
         /**
-         *ROLE_BASED_CHECKER
-         * Role Checker based........:
+         * SignUp For the creator
          */
-
         if (selectedRole == 'creator') {
-            /**
-             * If the selected Role is a creator.....
-             */
-
-            if (!phone || !country) {
-                
-                
-
-                toast.error('Please fill in all required fields for Creator.', {
-                    style: { fontSize: 14, padding: 10 },
-                })
-                return
-            }
-
-            /**
-             * ###########################################
-             * THE CURRENT NORMAL(AUTHENTICATION PART FOR THE CREATOR) HERE:
-             * ##########################################
-             */
-
-            const signinData: ISignUpUser = {
-                email: email,
-                country: country,
-                fullName: fullName,
-                password: password,
-                phone: phone,
-                role: 'creator',
-            }
-
             try {
                 toast.success('Creating Account...')
-                /**
-                 * Create the userAccount (Normal Authentication)
-                 */
-                const { isErrorTrue, errorMessage } = await signUpUserNormalAuth(signinData)
-
-                if (!isErrorTrue) {
-                    router.push(`${baseURL}/main/auth/profile-make?role=${selectedRole}`)
-
-                    /**
-                     * On Will Signup User
-                     */
-                    toast.success('Welcome to Goheza!', {
-                        className: 'text-black',
-                        style: { fontSize: 14, padding: 10 },
-                        description: `Account created successfully as ${selectedRole}.`,
+                const { isErrorTrue, errorMessage } = await signUpUserNormalAuth({
+                    country: country,
+                    email: email,
+                    fullName: fullName,
+                    password: password,
+                    phone: phone,
+                    role: 'creator',
+                })
+                if (isErrorTrue) {
+                    toast.error('Error Signing Up', {
+                        description: errorMessage,
                     })
-                    return
-                } else {
-                    console.error('SIGNUP-ERROR', errorMessage)
                 }
 
-                /**
-                 * We take them for verification
-                 */
-            } catch (error) {
-                toast.error('Sign Up Failed', {
+                toast.success('Welcome to Goheza!', {
+                    className: 'text-black',
                     style: { fontSize: 14, padding: 10 },
-                    description: 'Account Already Present with another Email or Name',
+                    description: `Account created successfully as ${selectedRole}.`,
                 })
+                router.push(`/main/auth/onboarding/profile-make?role=${selectedRole}`)
+
+                return
+            } catch (error) {
+                if (error instanceof Error) {
+                    toast.error('Sign Up Failed', {
+                        style: { fontSize: 14, padding: 10 },
+                        description: error.message,
+                    })
+                } else {
+                    let _error_ = error! as string
+                    toast.error('Sign Up Failed', {
+                        style: { fontSize: 14, padding: 10 },
+                        description: _error_,
+                    })
+                }
             }
         } else {
-            /**
-             * No More MasterControlActivate
-             */
-            /**
-             * If the selected Role is a brand.....
-             */
-
-            const signinData2: ISignUpUser = {
-                email: email,
-                country: country,
-                fullName: fullName,
-                password: password,
-                phone: phone,
-                role: 'brand',
-            }
-
             try {
                 toast.success('Creating Account....')
-                /**
-                 * Creating User Account of brand with normalAuthentication
-                 */
-                const { isErrorTrue, errorMessage } = await signUpUserNormalAuth(signinData2)
-
-                if (!isErrorTrue) {
-                    router.push(`${baseURL}/main/auth/profile-make?role=${selectedRole}`)                   
-
-                    /**
-                     * Pre band send:;::
-                     */
-
-                    toast.success('Registration Complete!', {
-                        className: 'text-black',
-                        style: { fontSize: 14, padding: 10 },
-                        description: `Account created successfully as ${selectedRole}.`,
-                    })
-                    return
-                } else {
+                const { isErrorTrue, errorMessage } = await signUpUserNormalAuth({
+                    email: email,
+                    country: country,
+                    fullName: fullName,
+                    password: password,
+                    phone: phone,
+                    role: 'brand',
+                })
+                if (isErrorTrue) {
                     console.error('SIGNUP-ERROR', errorMessage)
                 }
-
-                /**
-                 * We take it to the mainPage (for profile creation)
-                 */
-            } catch (error) {
-                toast.error('Sign Up Failed', {
+                toast.success('Registration Complete!', {
+                    className: 'text-black',
                     style: { fontSize: 14, padding: 10 },
-                    description: 'Account Already Present with another Email or Name',
+                    description: `Account created successfully as ${selectedRole}.`,
                 })
+                router.push(`/main/auth/onboarding/profile-make?role=${selectedRole}`)
+                return
+            } catch (error) {
+                if (error instanceof Error) {
+                    toast.error('Sign Up Failed', {
+                        style: { fontSize: 14, padding: 10 },
+                        description: error.message,
+                    })
+                } else {
+                    let _error_ = error! as string
+                    toast.error('Sign Up Failed', {
+                        style: { fontSize: 14, padding: 10 },
+                        description: _error_,
+                    })
+                }
             }
         }
     }
-
-    /**
-     * Main BaseLoad
-     */
-
-    useEffect(() => {
-        /**
-         * This is here to ensure a logged in or
-         * present auth token routes the user back to the
-         * signin user.
-         */
-        const InitialLoadStartup = async () => {
-            /**
-             *
-             * Get current user from existing Session
-             *
-             */
-            const {
-                data: { user },
-            } = await supabaseClient.auth.getUser()
-
-            /**
-             * If the user is present we are going to
-             * take them to the basePage, (they will be routed to their
-             * dashboard, for them to log out
-             * and then they can create an account)
-             */
-
-            if (user) {
-                router.push('/main')
-            }
-        }
-
-        InitialLoadStartup()
-    }, [])
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex justify-center py-8">
@@ -458,7 +362,6 @@ export default function SignUpPageForUser() {
                         </Link>
                     </p>
                 </div>
-                <MasterControlDetectorContainer onDidActivateOrDeActivateMasterControl={setMasterControlEnv} />
 
                 {/* Terms */}
                 <p className="text-xs text-gray-500 text-center mt-4 leading-relaxed">

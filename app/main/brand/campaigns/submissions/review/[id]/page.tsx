@@ -7,6 +7,7 @@ import { baseLogger } from '@/lib/logger'
 import { toast } from 'sonner'
 import { sendFeedbackToCreator } from '@/lib/ats/sendFeedbackToCreator'
 import { removeStorageObject } from '@/lib/supabase/common/deleteStorageItems'
+import { IPublishVideoToInstagram, PublishVideoOrReelToInsgram } from '@/lib/social-media/instagram/publish-video'
 
 const supabase = supabaseClient
 
@@ -23,7 +24,7 @@ interface RawSubmissionRow {
     submitted_at: string
     reviewed_by: string | null
     reviewed_at: string | null
-    feedback: string | null 
+    feedback: string | null
     campaigns?: { name?: string; description?: string; payout?: string; requirements?: string[]; status?: string }
     creator_profiles?: { full_name?: string | null; email?: string | null }
 }
@@ -51,7 +52,7 @@ export default function ContentReviewPage() {
     const [submission, setSubmission] = useState<DisplaySubmission | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [feedback, setFeedback] = useState('') 
+    const [feedback, setFeedback] = useState('')
     const [actionLoading, setActionLoading] = useState(false)
     const [apsData, setApsData] = useState({
         campaign_brand: '',
@@ -127,10 +128,10 @@ export default function ContentReviewPage() {
                     file_size: row.file_size,
                     feedback: row.feedback,
                 }
-                
+
                 // Set existing feedback into the input state if it exists
                 if (row.feedback) {
-                    setFeedback(row.feedback);
+                    setFeedback(row.feedback)
                 }
 
                 setApsData({
@@ -155,13 +156,13 @@ export default function ContentReviewPage() {
 
     const handleDecision = async (decision: 'approved' | 'rejected') => {
         if (!submissionId || !submission) return
-        
+
         // Check for feedback if rejecting
         if (decision === 'rejected' && !feedback.trim()) {
             toast.error('Feedback is required when rejecting a submission.')
             return
         }
-        
+
         baseLogger('BRAND-OPERATIONS', `WillApproveOrRejectCampaignSubmissionForReview:${submissionId}`)
         setActionLoading(true)
 
@@ -182,7 +183,7 @@ export default function ContentReviewPage() {
                 reviewed_by: user.id,
                 reviewed_at: new Date().toISOString(),
                 // Include feedback for both decisions. Will be null if approved and no feedback is provided.
-                feedback: feedback.trim() || null, 
+                feedback: feedback.trim() || null,
             }
 
             if (decision === 'approved') {
@@ -201,17 +202,23 @@ export default function ContentReviewPage() {
                     `ApprovedCampaignSubmissionForReview:${submissionId} reviewer:${user.id}`
                 )
 
-                // Send Approval notification to creator (includes optional feedback)
-                sendFeedbackToCreator({
-                    decision: decision,
-                    campaignBrand: '',
-                    creatorEmail: apsData.creator_profiles_email,
-                    campaignName: apsData.campaigns_name,
-                    feedback: feedback.trim(), 
-                    message: '',
-                })
+                /**
+                 *
+                 * THIS IS WHERE WE WOULD LIKE TO PUBLISH THE VIDEO TO INSTAGRAM
+                 */
 
-                toast.success(`Submission approved successfully!`)
+                let dataToBeSubmitted: IPublishVideoToInstagram = {
+                    videoURL: submission.video_url,
+                    campaignId: submission.campaign_id,
+                    caption: submission.caption!,
+                    creatorId: submission.creator_name,
+                    isReel: false,
+                }
+
+                PublishVideoOrReelToInsgram(dataToBeSubmitted).then(() => {
+                    toast.success(`Submission approved successfully!`)
+                    toast.success(`Submission Posted Online`)
+                })
 
                 // Redirect back to the campaign submissions list for this campaign
                 router.push(`/main/brand/campaigns/${submission.campaign_id}`)
@@ -219,23 +226,25 @@ export default function ContentReviewPage() {
                 /**
                  * The Brand Rejected the Submission (This path currently deletes the entire submission)
                  */
-                
+
                 // 1. Send rejection notification to creator (Must be done before deletion)
                 sendFeedbackToCreator({
                     decision: decision,
                     campaignBrand: '',
                     creatorEmail: apsData.creator_profiles_email,
                     campaignName: apsData.campaigns_name,
-                    feedback: feedback.trim(), 
+                    feedback: feedback.trim(),
                     message: '',
                 })
-                
-                // 2. Log status and feedback briefly before deletion (important for logging/history, though row will be removed)
-                const { error: updateErr } = await supabase.from('campaign_submissions').update(updateData).eq('id', submissionId)
-                if (updateErr) {
-                    console.warn('Warning: Failed to log rejection status before deletion:', updateErr);
-                }
 
+                // 2. Log status and feedback briefly before deletion (important for logging/history, though row will be removed)
+                const { error: updateErr } = await supabase
+                    .from('campaign_submissions')
+                    .update(updateData)
+                    .eq('id', submissionId)
+                if (updateErr) {
+                    console.warn('Warning: Failed to log rejection status before deletion:', updateErr)
+                }
 
                 // 3. Attempt to remove storage objects
                 baseLogger('BRAND-OPERATIONS', `WillDeleteRejectedSubmissionAssets:${submissionId}`)
@@ -344,18 +353,20 @@ export default function ContentReviewPage() {
                             rows={4}
                             value={submission.status === 'pending' ? feedback : submission.feedback || ''}
                             onChange={(e) => setFeedback(e.target.value)}
-                            placeholder={"Detailed Feedback (Required for Rejection)"}
+                            placeholder={'Detailed Feedback (Required for Rejection)'}
                             // Only allow editing when the status is 'pending'
-                            disabled={submission.status !== 'pending'} 
+                            disabled={submission.status !== 'pending'}
                         />
                         {submission.status === 'pending' && (
                             <p className="text-xs text-gray-500 mt-1">
-                                Feedback is required if you choose to **Reject** the submission. Approving with text here will save the feedback for administrative review.
+                                Feedback is required if you choose to **Reject** the submission. Approving with text
+                                here will save the feedback for administrative review.
                             </p>
                         )}
                         {submission.status !== 'pending' && submission.feedback && (
-                             <p className="text-sm text-gray-600 mt-2">
-                                Review Note: Submission status is **{submission.status}**. The saved feedback is displayed above.
+                            <p className="text-sm text-gray-600 mt-2">
+                                Review Note: Submission status is **{submission.status}**. The saved feedback is
+                                displayed above.
                             </p>
                         )}
                     </div>
@@ -426,7 +437,8 @@ export default function ContentReviewPage() {
                                 {actionLoading ? 'Processing...' : 'Reject'}
                             </button>
                             <p className="text-xs text-red-500 mt-1 font-semibold">
-                                NOTE: Rejecting a submission is a permanent action that will delete the submission video and the database record.
+                                NOTE: Rejecting a submission is a permanent action that will delete the submission video
+                                and the database record.
                             </p>
                         </div>
                     )}

@@ -1,4 +1,7 @@
 'use client'
+
+//app/main/auth/onboarding/page.tsx
+
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Building2, Users } from 'lucide-react'
@@ -6,7 +9,6 @@ import { toast } from 'sonner'
 import { supabaseClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import logo from '@/assets/GOHEZA-02.png'
-import { getUserProfileType } from '@/lib/supabase/auth/new/getProfiletype'
 import { ALL_COUNTRIES } from '@/lib/countries'
 
 const supabase = supabaseClient
@@ -25,9 +27,13 @@ type BrandData = {
 }
 
 // Combined type for the onboarding state
-type OnboardingData = Partial<CreatorData & BrandData>
+export type OnboardingData = Partial<CreatorData & BrandData>
 
 export default function OnboardingDialog() {
+    const searchParams = useSearchParams()
+    //this parameter is for telling which type signup: google / normal-user
+    const signInType = searchParams.get('type')
+
     const router = useRouter()
 
     const [step, setStep] = useState(1)
@@ -38,44 +44,6 @@ export default function OnboardingDialog() {
         paymentMethod: 'unknown',
         brandName: '',
     })
-
-    // On component mount, check if the user is signed in and if their profile is already complete.
-    useEffect(() => {
-        /**
-         * Checking the user profile for the user
-         * @returns
-         */
-        const checkUserProfile = async () => {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser()
-
-            if (!user) {
-                // No user found, redirect to sign-in page
-                router.push('/main/auth/signup')
-                return
-            }
-
-            /**
-             * Check for existing profile
-             */
-            const { type } = await getUserProfileType()
-
-            if (type) {
-                if (type == 'creator') {
-                    
-                    /**
-                     * The profile exists
-                     */
-                    router.push('/main/')
-                    return
-                }
-            }else{
-                return;
-            }
-        }
-        checkUserProfile()
-    }, [router])
 
     // Handler for all form field changes
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -136,15 +104,29 @@ export default function OnboardingDialog() {
         } else {
             toast.success('Profile created successfully! Welcome to Goheza.', { style: { fontSize: 14 } })
             /**
-             * We take him direct to where he belongs
+             * We take theme to add their social media accounts
              */
-            router.push('/main/creator/dashboard') // Redirect to the user's dashboard
+            router.push('/main/auth/onboarding/socials')
         }
     }
 
+    useEffect(() => {
+        const onLoad = () => {
+            /**
+             * Check for SignIn type searchParams
+             */
+
+            if (signInType) {
+                if (signInType == 'user') {
+                    router.push('/main/auth/onboarding/socials')
+                }
+            }
+        }
+        onLoad();
+    }, [router])
+
     // Renders the different steps of the form based on the user's role
     const renderContent = () => {
-        // Step 1: Initial fields for both roles
         if (step === 1) {
             return (
                 <div>
@@ -156,7 +138,6 @@ export default function OnboardingDialog() {
                         Just a few more details to set up your profile and get you started on Goheza.
                     </p>
 
-                    {/* Conditional fields for Creator vs. Brand */}
                     <div className="space-y-4">
                         <input
                             type="tel"
@@ -186,7 +167,7 @@ export default function OnboardingDialog() {
                     </div>
 
                     <button
-                        onClick={() => setStep(2)}
+                        onClick={handleSubmit}
                         disabled={!onboardingData.phone || !onboardingData.country}
                         className={`w-full py-3 px-4 mt-6 rounded-2xl text-sm font-medium transition-all duration-200 ${
                             onboardingData.phone && onboardingData.country
@@ -195,25 +176,6 @@ export default function OnboardingDialog() {
                         }`}
                     >
                         Next Step
-                    </button>
-                </div>
-            )
-        }
-
-        // Step 2: Creator-specific final fields
-        if (step === 2) {
-            return (
-                <div>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={!onboardingData.paymentMethod || loading}
-                        className={`w-full py-3 px-4 mt-6 rounded-2xl text-sm font-medium transition-all duration-200 ${
-                            onboardingData.paymentMethod
-                                ? 'bg-[#e85c51] hover:bg-[#f3867e] text-white '
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
-                    >
-                        {loading ? 'Saving...' : 'Finish Setup'}
                     </button>
                 </div>
             )

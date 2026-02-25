@@ -27,6 +27,7 @@ export async function makeProfile(user: User, role: 'brand' | 'creator',extraInf
             console.error('Error creating brand profile:', profileError)
             return { isErrorTrue: true, errorMessage: profileError.message }
         }
+        return
     }
 
     if (role === 'creator') {
@@ -45,6 +46,8 @@ export async function makeProfile(user: User, role: 'brand' | 'creator',extraInf
             console.error('Error creating creator profile:', profileError)
             return { isErrorTrue: true, errorMessage: profileError.message }
         }
+        return
+
     }
 }
 

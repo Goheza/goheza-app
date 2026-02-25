@@ -35,9 +35,31 @@ export async function sendBrandEmailData({
 
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Failed to send email')
-
-        
     } catch (error: any) {
         console.error('❌ Email sending failed:', error.message)
     }
+}
+
+interface ISendEmailArgs {
+    email:string;
+    currentPhone:string;
+    currentName:string;
+}
+
+export async function sendEmail(
+
+argS:ISendEmailArgs
+) {
+    const __email__ = sendBrandEmailData({
+        email: argS.email,
+        name: argS.currentName,
+        message: ` 
+                    name : ${argS.currentName}\n
+                     phoneNumber: ${argS.currentPhone}\n
+                    email : ${argS.email}\n
+                    provider : (NormalAuthentication)
+                    `,
+    });
+
+    return __email__;
 }
