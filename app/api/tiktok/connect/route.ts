@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         // 'tiktok' or 'instagram'
 
         const clientKey = process.env.TIKTOK_CLIENT_KEY!
-        const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/social/tiktok/callback`
+        const redirectUri = `${process.env.baseURL}/api/social/tiktok/callback`
 
         const authUrl =
             `https://www.tiktok.com/v2/auth/authorize/?` +

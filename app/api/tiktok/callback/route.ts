@@ -41,7 +41,7 @@ export async function GET(req: Request) {
                 client_secret: process.env.TIKTOK_CLIENT_SECRET!,
                 code: code!,
                 grant_type: 'authorization_code',
-                redirect_uri: `${process.env.NEXT_PUBLIC_BASE_URL}/api/social/tiktok/callback`,
+                redirect_uri: `${baseURL}/api/social/tiktok/callback`,
             }),
         })
 
