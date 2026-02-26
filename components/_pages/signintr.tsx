@@ -6,10 +6,11 @@ import { Eye, EyeOff } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {  useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import logo from '@/assets/GOHEZA-02.png'
 import { getProfileBasedOnUser } from '@/lib/supabase/auth/new/getProfiletype'
+import { checkIFSocialsArePresent } from '@/lib/social-media/verifySocials'
 
 export default function SigninPage() {
     const [email, setEmail] = useState('')
@@ -36,7 +37,15 @@ export default function SigninPage() {
                 if (currentProfile?.profileType == 'brand') {
                     router.push('/main/brand/')
                 } else {
-                    router.push('/main/creator/dashboard')
+                    //if its a creator we need to check if they had their socials connected earlier
+
+                    const areSocialsPresent = await checkIFSocialsArePresent()
+                    if (areSocialsPresent) {
+                        router.push('/main/creator/dashboard')
+                    } else {
+                        //take them to the page to add those socials to their account
+                        router.push("/main/auth/onboarding/socials")
+                    }
                 }
             }
         } catch (err) {
