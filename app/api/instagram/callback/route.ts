@@ -1,3 +1,4 @@
+import { baseURL } from '@/lib/env'
 import { createClient } from '@/lib/supabase/ssr-server-client'
 
 export async function GET(req: Request) {
@@ -43,7 +44,7 @@ export async function GET(req: Request) {
             `https://graph.facebook.com/v20.0/oauth/access_token?` +
                 `client_id=${process.env.INSTAGRAM_APP_ID}&` +
                 `client_secret=${process.env.INSTAGRAM_APP_SECRET}&` +
-                `redirect_uri=${encodeURIComponent(`${process.env.NEXT_PUBLIC_URL}/api/instagram/callback`)}&` +
+                `redirect_uri=${encodeURIComponent(`${baseURL}/api/instagram/callback`)}&` +
                 `code=${code}`
         )
 
@@ -78,7 +79,7 @@ export async function GET(req: Request) {
             expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
         })
 
-        return Response.redirect(`${process.env.NEXT_PUBLIC_URL}/main/auth/onboarding/socials`)
+        return Response.redirect(`${baseURL}/main/auth/onboarding/socials`)
     } catch (error) {
         console.error(error)
         return Response.json({ error: error }, { status: 500 })

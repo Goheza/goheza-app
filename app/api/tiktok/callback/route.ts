@@ -1,3 +1,4 @@
+import { baseURL } from '@/lib/env'
 import { supabaseClient } from '@/lib/supabase/client'
 import { createClient } from '@/lib/supabase/ssr-server-client'
 
@@ -54,7 +55,7 @@ export async function GET(req: Request) {
             refresh_token,
             expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
         })
-        return Response.redirect(`${process.env.NEXT_PUBLIC_URL}/main/auth/onboarding/socials`)
+        return Response.redirect(`${baseURL}/main/auth/onboarding/socials`)
     } catch (error) {
         console.error(error)
         return Response.json({ error: 'Generation failed' }, { status: 500 })

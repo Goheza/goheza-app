@@ -1,3 +1,4 @@
+import { baseURL } from '@/lib/env'
 import { createClient } from '@/lib/supabase/ssr-server-client'
 
 // app/api/instagram/connect/route.ts
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
          */
 
         const clientId = process.env.INSTAGRAM_APP_ID // Your Meta App ID
-        const redirectUri = `${process.env.NEXT_PUBLIC_URL}/api/instagram/callback`
+        const redirectUri = `${baseURL}/api/instagram/callback`
 
         const authUrl =
             `https://www.facebook.com/v20.0/dialog/oauth?` +
