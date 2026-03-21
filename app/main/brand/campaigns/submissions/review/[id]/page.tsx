@@ -210,15 +210,16 @@ export default function ContentReviewPage() {
                 let dataToBeSubmitted: IPublishVideoToInstagram = {
                     videoURL: submission.video_url,
                     campaignId: submission.campaign_id,
-                    caption: submission.caption!,
-                    creatorId: submission.creator_name,
+                    caption: submission.caption ?? '',
+                    creatorId: submission.id,
                     isReel: false,
                 }
-
-                PublishVideoOrReelToInsgram(dataToBeSubmitted).then(() => {
-                    toast.success(`Submission approved successfully!`)
-                    toast.success(`Submission Posted Online`)
-                })
+                try {
+                    await PublishVideoOrReelToInsgram(dataToBeSubmitted)
+                    toast.success(`Submission approved & posted to Instagram!`)
+                } catch {
+                    toast.error('Approved but failed to post to Instagram. Please retry.')
+                }
 
                 // Redirect back to the campaign submissions list for this campaign
                 router.push(`/main/brand/campaigns/${submission.campaign_id}`)

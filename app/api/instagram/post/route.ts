@@ -39,9 +39,11 @@ export async function POST(req: Request) {
         const { data: account } = await supabase
             .from('social_accounts')
             .select('instagram_business_id, access_token')
-            .eq('user_id', creatorId)
-            .single()
+            .eq('user_id', creatorId) // needs a UUID, not a name
 
+        if (!account) {
+            return Response.json({ error: 'No Instagram account found for this creator' }, { status: 400 })
+        }
         //@ts-ignore
         const igUserId = account.instagram_business_id
         //@ts-ignore

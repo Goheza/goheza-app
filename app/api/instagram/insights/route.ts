@@ -49,8 +49,11 @@ export async function POST(req: Request) {
         if (postsError) {
             return NextResponse.json({ error: postsError.message }, { status: 500 })
         }
-
-        const { data: account } = await supabase.from('social_accounts').select('access_token').single()
+        const { data: account } = await supabase
+            .from('social_accounts')
+            .select('access_token')
+            .eq('user_id', user.id)
+            .single()
 
         if (!account?.access_token) {
             return NextResponse.json({ error: 'No Instagram account connected' }, { status: 400 })
@@ -89,5 +92,4 @@ export async function POST(req: Request) {
         console.error('Error updatiing Instagram Insights:', err)
         return Response.json({ error: err.message }, { status: 500 })
     }
-   
 }

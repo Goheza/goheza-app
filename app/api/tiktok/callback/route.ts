@@ -1,63 +1,70 @@
 import { baseURL } from '@/lib/env'
-import { supabaseClient } from '@/lib/supabase/client'
 import { createClient } from '@/lib/supabase/ssr-server-client'
+import { cookies } from 'next/headers'
 
 export async function GET(req: Request) {
     try {
         const supabase = await createClient()
 
-        // ✅ Read Bearer token from Authorization header
-        const authHeader = req.headers.get('Authorization')
-        const token = authHeader?.replace('Bearer ', '')
-
-        if (!token) {
-            console.log('No token provided')
-            return Response.json({ error: 'No token provided' }, { status: 401 })
-        }
-
-        /**
-         * Ensure the user is logged in and Exists
-         */
-        // ✅ Pass token directly to getUser()
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser(token)
-
-        if (authError || !user) {
-            console.log('Auth error:', authError)
-            return Response.json({ error: 'User not authenticated' }, { status: 401 })
-        }
-
         const { searchParams } = new URL(req.url)
+
         const code = searchParams.get('code')
-        const state = searchParams.get('state') // user_id
+        const state = searchParams.get('state') // your user_id
+        const errorParam = searchParams.get('error')
+
+        if (errorParam) {
+            return Response.redirect(`${baseURL}/main/auth/onboarding/socials?error=tiktok_denied`)
+        }
+
+        if (!code || !state) {
+            return Response.json({ error: 'Missing code or state' }, { status: 400 })
+        }
+
+        // 🔐 Retrieve stored PKCE verifier (example: from cookie)
+        const cookieStore = await cookies()
+        const codeVerifier = cookieStore.get('tiktok_code_verifier')?.value
+
+        if (!codeVerifier) {
+            return Response.json({ error: 'Missing PKCE verifier' }, { status: 400 })
+        }
 
         const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
             body: new URLSearchParams({
                 client_key: process.env.TIKTOK_CLIENT_KEY!,
                 client_secret: process.env.TIKTOK_CLIENT_SECRET!,
-                code: code!,
+                code,
                 grant_type: 'authorization_code',
-                redirect_uri: `${baseURL}/api/social/tiktok/callback`,
+                redirect_uri: `${baseURL}/api/tiktok/callback`,
+                code_verifier: codeVerifier, // 🔥 REQUIRED
             }),
         })
 
-        const { access_token, refresh_token, expires_in, open_id } = await tokenRes.json()
+        const tokenData = await tokenRes.json()
 
-        await supabaseClient.from('social_accounts').upsert({
+        if (!tokenRes.ok) {
+            console.error('TikTok token error:', tokenData)
+            return Response.json({ error: 'Token exchange failed' }, { status: 400 })
+        }
+
+        const { access_token, refresh_token, expires_in, open_id, scope } = tokenData
+
+        await supabase.from('social_accounts').upsert({
             user_id: state,
             platform: 'tiktok',
             external_user_id: open_id,
             access_token,
             refresh_token,
+            scope,
             expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
         })
+
         return Response.redirect(`${baseURL}/main/auth/onboarding/socials`)
     } catch (error) {
         console.error(error)
-        return Response.json({ error: 'Generation failed' }, { status: 500 })
+        return Response.json({ error: 'Callback failed' }, { status: 500 })
     }
 }

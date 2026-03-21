@@ -16,7 +16,7 @@ export async function publishTikTokVideo(params: PublishTikTokParams) {
         throw new Error('User not logged in')
     }
 
-    const res = await fetch('/api/tiktok/publish', {
+    const res = await fetch('/api/tiktok/post', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

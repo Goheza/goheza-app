@@ -8,29 +8,6 @@ export async function GET(req: Request) {
          */
         const supabase = await createClient()
 
-        // ✅ Read Bearer token from Authorization header
-        const authHeader = req.headers.get('Authorization')
-        const __token = authHeader?.replace('Bearer ', '')
-
-        if (!__token) {
-            console.log('No token provided')
-            return Response.json({ error: 'No token provided' }, { status: 401 })
-        }
-
-        /**
-         * Ensure the user is logged in and Exists
-         */
-        // ✅ Pass token directly to getUser()
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser(__token)
-
-        if (authError || !user) {
-            console.log('Auth error:', authError)
-            return Response.json({ error: 'User not authenticated' }, { status: 401 })
-        }
-
         /**
          * ----------------------------------------------s
          */
@@ -72,12 +49,13 @@ export async function GET(req: Request) {
         const igAccount = pages?.[0]?.instagram_business_account
         if (!igAccount) throw new Error('No Instagram Business account connected')
 
-        await supabase.from('social_accounts').upsert({
-            user_id: state,
-            instagram_business_id: igAccount.id,
-            access_token: longToken,
-            expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
-        })
+     await supabase.from('social_accounts').upsert({
+    user_id: state,
+    platform: 'instagram',  // ✅ add this
+    instagram_business_id: igAccount.id,
+    access_token: longToken,
+    expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
+})
 
         return Response.redirect(`${baseURL}/main/auth/onboarding/socials`)
     } catch (error) {

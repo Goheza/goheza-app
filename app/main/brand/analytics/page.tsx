@@ -24,6 +24,7 @@ export default function CampaignAnalytics() {
     // Fetch available campaigns
     useEffect(() => {
         const fetchCampaigns = async () => {
+            setLoading(true)
             try {
                 // 1️⃣ Get current logged-in user
                 const {
@@ -51,7 +52,8 @@ export default function CampaignAnalytics() {
                 if (error) {
                     console.error('Error fetching campaigns:', error)
                 } else {
-                    setCampaigns(modifiedData!)
+                    // ✅ Fix
+                    setCampaigns(modifiedData ?? [])
                 }
             } catch {
                 console.error('Unexpected error:', 'Error with Campaign')
@@ -59,7 +61,7 @@ export default function CampaignAnalytics() {
                 setLoading(false)
             }
         }
-        fetchCampaigns();
+        fetchCampaigns()
     }, [])
 
     // Fetch posts + insights when a campaign is selected
@@ -94,8 +96,8 @@ export default function CampaignAnalytics() {
     const totalLikes = posts.reduce((sum, p) => sum + (p.insight?.likes || 0), 0)
     const totalComments = posts.reduce((sum, p) => sum + (p.insight?.comments || 0), 0)
     const totalReach = posts.reduce((sum, p) => sum + (p.insight?.reach || 0), 0)
-    const avgEngagementRate = posts.length ? (((totalLikes + totalComments) / totalViews) * 100).toFixed(1) : 0
-
+    const avgEngagementRate =
+        posts.length && totalViews > 0 ? (((totalLikes + totalComments) / totalViews) * 100).toFixed(1) : 0
     // Chart data
     const performanceData = posts.map((p, i) => ({
         name: `Post ${i + 1}`,

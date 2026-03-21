@@ -29,7 +29,7 @@ export async function PublishVideoOrReelToInsgram(args: IPublishVideoToInstagram
         body: JSON.stringify({
             campaignId: args.campaignId,
             creatorId: args.creatorId,
-            caption: args.videoURL,
+            caption: args.caption,
             videoUrl: args.videoURL,
             isReel: args.isReel,
         }),

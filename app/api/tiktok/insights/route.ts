@@ -1,50 +1,81 @@
 import { NextResponse } from 'next/server'
-import { supabaseClient } from '@/lib/supabase/client'
 import { createClient } from '@/lib/supabase/ssr-server-client'
 
 export async function POST(req: Request) {
     try {
-        /**
-         * -----------------------------------------
-         */
         const supabase = await createClient()
 
-        // ✅ Read Bearer token from Authorization header
         const authHeader = req.headers.get('Authorization')
         const token = authHeader?.replace('Bearer ', '')
 
         if (!token) {
-            console.log('No token provided')
-            return Response.json({ error: 'No token provided' }, { status: 401 })
+            return NextResponse.json({ error: 'No token provided' }, { status: 401 })
         }
 
-        /**
-         * Ensure the user is logged in and Exists
-         */
-        // ✅ Pass token directly to getUser()
         const {
             data: { user },
             error: authError,
         } = await supabase.auth.getUser(token)
 
         if (authError || !user) {
-            console.log('Auth error:', authError)
-            return Response.json({ error: 'User not authenticated' }, { status: 401 })
+            return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
         }
-
-        /**
-         * ----------------------------------------------s
-         */
 
         const { campaignId } = await req.json()
         if (!campaignId) {
             return NextResponse.json({ error: 'Missing campaignId' }, { status: 400 })
         }
 
-        // Get all TikTok posts for this campaign
-        const { data: posts, error: postsError } = await supabaseClient
+        // 🔒 Fetch only THIS user's TikTok account
+        const { data: account, error: accountError } = await supabase
+            .from('social_accounts')
+            .select('access_token, refresh_token, expires_at')
+            .eq('platform', 'tiktok')
+            .eq('user_id', user.id)
+            .single()
+
+        if (accountError || !account) {
+            return NextResponse.json({ error: 'TikTok account not connected' }, { status: 400 })
+        }
+
+        let accessToken = account.access_token
+
+        // 🔄 OPTIONAL: Refresh token if expired
+        if (new Date(account.expires_at) <= new Date()) {
+            const refreshRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    client_key: process.env.TIKTOK_CLIENT_KEY!,
+                    client_secret: process.env.TIKTOK_CLIENT_SECRET!,
+                    grant_type: 'refresh_token',
+                    refresh_token: account.refresh_token,
+                }),
+            })
+
+            const refreshData = await refreshRes.json()
+
+            if (!refreshRes.ok) {
+                return NextResponse.json({ error: 'Token refresh failed' }, { status: 400 })
+            }
+
+            accessToken = refreshData.access_token
+
+            await supabase
+                .from('social_accounts')
+                .update({
+                    access_token: refreshData.access_token,
+                    refresh_token: refreshData.refresh_token,
+                    expires_at: new Date(Date.now() + refreshData.expires_in * 1000).toISOString(),
+                })
+                .eq('user_id', user.id)
+                .eq('platform', 'tiktok')
+        }
+
+        // 📦 Get campaign posts
+        const { data: posts, error: postsError } = await supabase
             .from('campaign_posts')
-            .select('media_id, platform')
+            .select('media_id')
             .eq('campaign_id', campaignId)
             .eq('platform', 'tiktok')
 
@@ -54,23 +85,16 @@ export async function POST(req: Request) {
         }
 
         for (const post of posts) {
-            // Get TikTok access token (simplified; ideally match creator)
-            const { data: account, error: accountError } = await supabaseClient
-                .from('social_accounts')
-                .select('access_token')
-                .eq('platform', 'tiktok')
-                .single() // assumes only one TikTok account
-
-            if (accountError || !account) continue
-
-            // Fetch TikTok video insights
             const res = await fetch('https://open.tiktokapis.com/v2/video/query/', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${account.access_token}`,
+                    Authorization: `Bearer ${accessToken}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ video_ids: [post.media_id] }),
+                body: JSON.stringify({
+                    filters: { video_ids: [post.media_id] },
+                    fields: ['like_count', 'comment_count', 'view_count', 'share_count'],
+                }),
             })
 
             const json = await res.json()
@@ -78,22 +102,23 @@ export async function POST(req: Request) {
 
             if (!videoData) continue
 
-            // Upsert insights to Supabase
-            await supabaseClient.from('campaign_insights').upsert({
+            await supabase.from('campaign_insights').upsert({
                 campaign_id: campaignId,
                 platform: 'tiktok',
                 media_id: post.media_id,
-                likes: videoData.like_count || 0,
-                comments: videoData.comment_count || 0,
-                views: videoData.view_count || 0,
-                shares: videoData.share_count || 0,
+                likes: videoData.like_count ?? 0,
+                comments: videoData.comment_count ?? 0,
+                views: videoData.view_count ?? 0,
+                shares: videoData.share_count ?? 0,
                 last_updated: new Date().toISOString(),
             })
         }
 
-        return NextResponse.json({ message: 'TikTok insights updated successfully' })
+        return NextResponse.json({
+            message: 'TikTok insights updated successfully',
+        })
     } catch (err: any) {
         console.error('Error updating TikTok insights:', err)
-        return NextResponse.json({ error: err.message }, { status: 500 })
+        return NextResponse.json({ error: 'Server error' }, { status: 500 })
     }
 }

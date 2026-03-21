@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
     // The email will go to your inbox (info@goheza.com)
     const data = await resend.emails.send({
-      from: 'info@goheza.com',
+      from: email,
       to: ['info@goheza.com'],
       subject: `New Message from ${name}`,
       html: `
