@@ -1,11 +1,8 @@
 'use client'
 import { getUserProfileType } from '@/lib/supabase/auth/new/getProfiletype'
-/**
- * This is where the authentication begins with everything;
- */
 import { supabaseClient } from '@/lib/supabase/client'
 import Image from 'next/image'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter} from 'next/navigation'
 import { useEffect, useState } from 'react'
 import logo from '@/assets/GOHEZA-02.png'
 import { toast } from 'sonner'
@@ -78,7 +75,7 @@ export default function MainPage() {
                  * So we take them to the signin page
                  */
 
-                router.replace('/main/auth/signin')
+                router.replace('/main/auth/signup')
             }
         }
         MainStartup().finally(() => {

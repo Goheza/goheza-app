@@ -44,7 +44,7 @@ export default function SignUpPageForUser() {
              * so when used we take him to the onboarding page.
              */
             await signInWithGoogle({
-                redirectURL: `${window.location.origin}/main/auth/onboarding?type=google`,
+                redirectURL: `${window.location.origin}/main/auth/profile-make?role=creator&google=goheza`,
             })
         } catch (error) {
             if (error && error instanceof AuthError) {
@@ -95,11 +95,7 @@ export default function SignUpPageForUser() {
                     })
                 }
 
-                toast.success('Welcome to Goheza!', {
-                    className: 'text-black',
-                    style: { fontSize: 14, padding: 10 },
-                    description: `Account created successfully as ${selectedRole}.`,
-                })
+               
                 router.push(`/main/auth/onboarding/profile-make?role=${selectedRole}`)
 
                 return

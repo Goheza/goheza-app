@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import logo from '@/assets/GOHEZA-02.png'
 import { getProfileBasedOnUser } from '@/lib/supabase/auth/new/getProfiletype'
-import { checkIFSocialsArePresent } from '@/lib/social-media/verifySocials'
+import { checkAllPlatformsConnected } from '@/lib/social-media/verifySocials'
 
 export default function SigninPage() {
     const [email, setEmail] = useState('')
@@ -39,12 +39,11 @@ export default function SigninPage() {
                 } else {
                     //if its a creator we need to check if they had their socials connected earlier
 
-                    const areSocialsPresent = await checkIFSocialsArePresent()
-                    if (areSocialsPresent) {
+                    if (await checkAllPlatformsConnected(['instagram', 'tiktok'])) {
                         router.push('/main/creator/dashboard')
                     } else {
                         //take them to the page to add those socials to their account
-                        router.push("/main/auth/onboarding/socials")
+                        router.push('/main/auth/onboarding/socials')
                     }
                 }
             }

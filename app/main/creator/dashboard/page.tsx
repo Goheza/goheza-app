@@ -86,6 +86,12 @@ export default function AnalyticsDashboard() {
                 const avatar = user.identities![0]?.identity_data?.avatar_url || user.user_metadata?.avatar_url || ''
 
                 setUserName(name)
+            }else{
+                /**
+                 * User not found
+                 */
+
+                router.push("/main/auth/account-not-found")
             }
         }
 

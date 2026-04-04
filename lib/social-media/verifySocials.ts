@@ -3,23 +3,15 @@ import { supabaseClient } from '../supabase/client'
 /**
  * Check if the user has socials connected or not
  */
-export async function checkIFSocialsArePresent(): Promise<boolean> {
+export const checkAllPlatformsConnected = async (platforms: string[]) => {
     const {
         data: { user },
-        error: userError,
     } = await supabaseClient.auth.getUser()
+    if (!user) return false
 
-    if (userError || !user) return false
+    const { data: accounts } = await supabaseClient.from('social_accounts').select('platform').eq('user_id', user.id)
 
-  const { data, error } = await supabaseClient
-    .from('social_accounts')
-    .select('id')
-    .eq('user_id', user.id)
-    .limit(1)
-    if (error) {
-        console.error(error)
-        return false
-    }
+    if (!accounts) return false
 
-    return (data?.length ?? 0) > 0
+    return platforms.every((platform) => accounts.some((a) => a.platform === platform))
 }

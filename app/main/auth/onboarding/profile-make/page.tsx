@@ -20,6 +20,7 @@ export default function ProfileMaker() {
 
                 const { type, user } = await getUserProfileType()
                 const roleParam = params.get('role') // can be null
+                const googleParam = params.get('google')
 
                 if (!user) {
                     toast.error('No user found. Please sign in.')
@@ -41,6 +42,9 @@ export default function ProfileMaker() {
                 if (roleParam === 'brand') {
                     router.push('/main/auth/onboarding/brandcheck?verif=brand')
                 } else {
+                    if (googleParam && googleParam === 'goheza') {
+                        router.push('/main/auth/onboarding?type=google')
+                    }
                     router.push('/main/auth/onboarding?type=user')
                 }
             } catch (err) {
