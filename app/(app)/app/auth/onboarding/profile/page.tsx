@@ -1,3 +1,5 @@
+"use client"
+
 import { makeProfile } from '@/lib/supabase/auth/helpers'
 import { supabaseClient } from '@/lib/supabase/client'
 import Image from 'next/image'
