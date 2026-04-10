@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import { baseURL } from '@/lib/env'
-import { createClient } from '@/lib/supabase/ssr-server-client'
+import { createClient } from '@/lib/supabase/serverSideClient'
 import { cookies } from 'next/headers'
 
 function generatePKCE() {
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         const redirectUri = `${baseURL}/api/tiktok/callback`
 
         const authUrl =
-            `https://www.tiktok.com/v2/auth/authorize/?` +
+            `https://www.tiktok.com/v2/app/auth/app/authorize/?` +
             `client_key=${clientKey}&` +
             `scope=user.info.basic,video.upload,video.publish&` +
             `response_type=code&` +

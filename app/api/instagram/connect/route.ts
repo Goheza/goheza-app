@@ -1,5 +1,5 @@
 import { baseURL } from '@/lib/env'
-import { createClient } from '@/lib/supabase/ssr-server-client'
+import { createClient } from '@/lib/supabase/serverSideClient'
 
 // app/api/instagram/connect/route.ts
 export async function POST(req: Request) {

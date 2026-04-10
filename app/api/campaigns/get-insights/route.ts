@@ -1,5 +1,5 @@
 // app/api/campaigns/get-insights/route.ts
-import { createClient } from '@/lib/supabase/ssr-server-client'
+import { createClient } from '@/lib/supabase/serverSideClient'
 import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {

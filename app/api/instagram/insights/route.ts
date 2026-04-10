@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/ssr-server-client'
+import { createClient } from '@/lib/supabase/serverSideClient'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {

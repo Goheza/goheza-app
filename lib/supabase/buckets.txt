@@ -1,2 +1,0 @@
-campaign-assets - for brand assets, reference images, guidelines
-campaign-videos - for creator video submissions

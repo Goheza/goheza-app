@@ -1,5 +1,5 @@
 import { baseURL } from '@/lib/env'
-import { createClient } from '@/lib/supabase/ssr-server-client'
+import { createClient } from '@/lib/supabase/serverSideClient'
 
 export async function GET(req: Request) {
     try {
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
 
         // Get user's Instagram Business accounts (via connected FB Pages)
         const accountsRes = await fetch(
-            `https://graph.facebook.com/v20.0/me/accounts?` +
+            `https://graph.facebook.com/v20.0/me/app/accounts?` +
                 `fields=instagram_business_account{id,name}&` +
                 `access_token=${longToken}`
         )
@@ -57,7 +57,7 @@ export async function GET(req: Request) {
     expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
 })
 
-        return Response.redirect(`${baseURL}/main/auth/onboarding/socials`)
+        return Response.redirect(`${baseURL}/app/auth/onboarding/socials`)
     } catch (error) {
         console.error(error)
         return Response.json({ error: error }, { status: 500 })

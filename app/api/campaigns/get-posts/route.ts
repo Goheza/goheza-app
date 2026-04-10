@@ -1,6 +1,6 @@
 // app/api/campaigns/get-posts/route.ts
 import { supabaseClient } from '@/lib/supabase/client'
-import { createClient } from '@/lib/supabase/ssr-server-client'
+import { createClient } from '@/lib/supabase/serverSideClient'
 import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
