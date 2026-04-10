@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabaseClient } from '@/lib/supabase/client'

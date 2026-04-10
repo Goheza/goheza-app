@@ -3,7 +3,7 @@
 import { sendEmail } from '@/lib/appServiceData/send-brand-data'
 import { supabaseClient } from '@/lib/supabase/client'
 import Image from 'next/image'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import logo from '@/assets/GOHEZA-02.png'
 import { useEffect, useState } from 'react'
 
