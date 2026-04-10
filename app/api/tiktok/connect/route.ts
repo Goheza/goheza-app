@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         const redirectUri = `${baseURL}/api/tiktok/callback`
 
         const authUrl =
-            `https://www.tiktok.com/v2/app/auth/app/authorize/?` +
+            `https://www.tiktok.com/v2/auth/authorize/?` +
             `client_key=${clientKey}&` +
             `scope=user.info.basic,video.upload,video.publish&` +
             `response_type=code&` +
