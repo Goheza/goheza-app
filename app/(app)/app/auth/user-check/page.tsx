@@ -6,13 +6,30 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import logo from '@/assets/GOHEZA-02.png'
 import { supabaseClient } from '@/lib/supabase/client'
-import { getProfileBasedOnUser } from '@/lib/supabase/auth/helpers'
+import { clearAuthSession, getProfileBasedOnUser } from '@/lib/supabase/auth/helpers'
 
 const supabase = supabaseClient
 
 export default function MainUserCheck() {
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(true)
+
+    /**
+     * We call this function because there is no valid account
+     * that was created from the beginning and registered well,
+     * this is to enable things to get back to normal
+     */
+    const forceFullyDeleteAuthenticationToken = async () => {
+        const dataArgs = await clearAuthSession()
+        toast.success('Authentication Renewed, Please Sign In')
+        if (dataArgs.success) {
+            router.push('/app/auth/signin')
+        }
+
+        if (dataArgs.error) {
+            toast.error(`(Auth) :${dataArgs.error}`)
+        }
+    }
 
     useEffect(() => {
         const initializeUserCheck = async () => {
@@ -51,10 +68,8 @@ export default function MainUserCheck() {
                     break
 
                 case 'unknown':
-                    toast.error('Authentication error. Please sign in again.')
-                    setTimeout(() => {
-                        router.push('/app/auth/signup')
-                    }, 2000)
+                    forceFullyDeleteAuthenticationToken()
+
                     break
             }
         }

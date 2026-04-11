@@ -92,7 +92,7 @@ export async function signInWithGoogle(): Promise<{ error?: Error }> {
  * Used to Log Out USer
  */
 export async function LogOutUser() {
-    await supabaseClient.auth.signOut({scope : 'global'})
+    await supabaseClient.auth.signOut({scope : 'local'})
 }
 
 interface IResetPassword {

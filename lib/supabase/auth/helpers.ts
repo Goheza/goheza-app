@@ -224,3 +224,26 @@ export async function getUserProfileType(): Promise<UserProfile> {
         return { type: null, user }
     }
 }
+
+/**
+ * Clears the current user's authentication token and session from Supabase.
+ * @returns { success: boolean, error?: string }
+ */
+export async function clearAuthSession(): Promise<{ success: boolean; error?: string }> {
+    if (!supabaseClient) {
+        console.warn('clearAuthSession: supabaseClient is not initialized')
+        return { success: false, error: 'Supabase client not initialized' }
+    }
+
+    try {
+        const { error } = await supabaseClient.auth.signOut({scope : 'local'})
+
+        if (error) throw error
+
+        return { success: true }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        console.error('clearAuthSession error:', error)
+        return { success: false, error: message }
+    }
+}
