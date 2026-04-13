@@ -126,7 +126,9 @@ export default function PaymentDialog(props: IPaymentDialogProps) {
         }
 
         await savePaymentOptions(payload)
-        setIsSubmitting(false)
+        setIsSubmitting(false);
+
+        
     }
 
     return (

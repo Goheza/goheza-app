@@ -565,6 +565,9 @@ export default function CampaignOverview() {
                     />
                     <button
                         type="submit"
+                        onClick={()=>{
+                            toast.success('uploading...')
+                        }}
                         className={`w-[150px] mb-5 float-right font-bold py-3 px-4 text-white rounded-lg transition-colors duration-200 ${
                             uploadStatus === 'uploading' || !file || !isAgreedToTerms
                                 ? 'bg-gray-400 cursor-not-allowed'
