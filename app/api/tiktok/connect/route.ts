@@ -5,16 +5,13 @@ import { cookies } from 'next/headers'
 
 function generatePKCE() {
     const codeVerifier = crypto.randomBytes(32).toString('base64url')
-
     const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url')
-
     return { codeVerifier, codeChallenge }
 }
 
 export async function POST(req: Request) {
     try {
         const supabase = await createClient()
-
         const authHeader = req.headers.get('Authorization')
         const token = authHeader?.replace('Bearer ', '')
 
@@ -33,13 +30,13 @@ export async function POST(req: Request) {
 
         const { codeVerifier, codeChallenge } = generatePKCE()
 
-        // TODO: store codeVerifier in DB or secure cookie
         const cookieStore = await cookies()
         cookieStore.set('tiktok_code_verifier', codeVerifier, {
             httpOnly: true,
             secure: true,
             maxAge: 60 * 10, // 10 minutes
             path: '/',
+            sameSite: 'lax', // 👈 fix: allows cookie to survive TikTok's redirect
         })
 
         const clientKey = process.env.TIKTOK_CLIENT_KEY!

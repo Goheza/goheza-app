@@ -24,6 +24,9 @@ export async function GET(req: Request) {
         const cookieStore = await cookies()
         const codeVerifier = cookieStore.get('tiktok_code_verifier')?.value
 
+   
+
+        
         if (!codeVerifier) {
             return Response.json({ error: 'Missing PKCE verifier' }, { status: 400 })
         }
@@ -52,7 +55,7 @@ export async function GET(req: Request) {
 
         const { access_token, refresh_token, expires_in, open_id, scope } = tokenData
 
-        await supabase.from('social_accounts').upsert({
+        await supabase.from('social_accounts').insert({
             user_id: state,
             platform: 'tiktok',
             external_user_id: open_id,
