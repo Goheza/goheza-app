@@ -155,8 +155,29 @@ const CampaignBriefForm: React.FC = () => {
 
     const { getRootProps: getBrandAssetsRootProps, getInputProps: getBrandAssetsInputProps } = useDropzone({
         onDrop: onDropBrandAssets,
-        accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.gif'], 'video/*': ['.mp4', '.mov', '.avi', '.webm'] },
         multiple: true,
+        accept: {
+            // Images
+            'image/jpeg': ['.jpg', '.jpeg'],
+            'image/png': ['.png'],
+            'image/gif': ['.gif'],
+            'image/webp': ['.webp'],
+            'image/heic': ['.heic'], // iPhone photos (iOS 11+)
+            'image/heif': ['.heif'], // HEIF variant
+            'image/svg+xml': ['.svg'],
+            'image/tiff': ['.tiff', '.tif'],
+
+            // Videos
+            'video/mp4': ['.mp4'],
+            'video/quicktime': ['.mov'], // iPhone default format
+            'video/x-mov': ['.mov'], // alternate MOV MIME
+            'video/webm': ['.webm'],
+            'video/avi': ['.avi'],
+            'video/x-msvideo': ['.avi'], // alternate AVI MIME
+            'video/x-matroska': ['.mkv'],
+            'video/3gpp': ['.3gp'], // older mobile format
+            'video/x-m4v': ['.m4v'], // iTunes/Apple video
+        },
     })
 
     const { getRootProps: getReferenceImagesRootProps, getInputProps: getReferenceImagesInputProps } = useDropzone({
@@ -276,7 +297,7 @@ const CampaignBriefForm: React.FC = () => {
             }))
             setProgressState('idle') // Reset state
             toast.success('Budget Calculated!', {
-                className : 'text-black',
+                className: 'text-black',
                 description: `Total cost: $${result.brandTotalPay.toLocaleString()}`,
             })
         } catch (err: any) {
@@ -330,14 +351,12 @@ const CampaignBriefForm: React.FC = () => {
         setError('')
 
         try {
-
             const {
                 data: { user },
                 error: userError,
             } = await supabaseClient.auth.getUser()
 
             if (userError || !user) throw new Error('Brand not authenticated')
-
 
             // Filter out empty requirements
             let filteredRequirements = (formData.requirementsText || []).filter((req) => req.trim() !== '')
@@ -400,7 +419,6 @@ const CampaignBriefForm: React.FC = () => {
 
                 if (guidelinesError) throw guidelinesError
 
-
                 const {
                     data: { publicUrl },
                 } = supabaseClient.storage.from('campaign-assets').getPublicUrl(filePath)
@@ -424,9 +442,9 @@ const CampaignBriefForm: React.FC = () => {
             setProgressState('inserting-data')
 
             /**
-             * 
-             * Expiry time for the campaign 
-             * 
+             *
+             * Expiry time for the campaign
+             *
              * A campaign will expire and not allow submissions from creators after 7 days.
              */
 
@@ -477,7 +495,7 @@ const CampaignBriefForm: React.FC = () => {
                         /**
                          * Expiring Manager
                          */
-                        expires_at: sevenDaysFromNow.toISOString(), 
+                        expires_at: sevenDaysFromNow.toISOString(),
                     },
                 ])
                 .select()
@@ -487,13 +505,11 @@ const CampaignBriefForm: React.FC = () => {
                 throw new Error(campaignError.message)
             }
 
-
             // --- ADMIN NOTIFICATION ---
             setProgressState('notifying-admin')
 
             toast.success('Campaign Successfully Created', {
-
-                 className:'text-black',
+                className: 'text-black',
                 description: 'An invoice will be sent to your email once the campaign has been reviewed.',
             })
 

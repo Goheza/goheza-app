@@ -121,11 +121,22 @@ export default function CampaignOverview() {
         }
     }, [])
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        multiple: false,
-        accept: { 'video/mp4': ['.mp4'] },
-    })
+   const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    multiple: false,
+    accept: {
+        'video/mp4': ['.mp4'],
+        'video/quicktime': ['.mov'],        // iPhone default format
+        'video/x-mov': ['.mov'],            // alternate MOV MIME
+        'video/webm': ['.webm'],
+        'video/ogg': ['.ogv'],
+        'video/avi': ['.avi'],
+        'video/x-msvideo': ['.avi'],        // alternate AVI MIME
+        'video/x-matroska': ['.mkv'],
+        'video/3gpp': ['.3gp'],             // older mobile format
+        'video/x-m4v': ['.m4v'],            // iTunes/Apple video
+    },
+})
 
     const handleCaptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setCaption(e.target.value)

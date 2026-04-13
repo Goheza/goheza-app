@@ -62,7 +62,7 @@ export async function GET(req: Request) {
             },
             { onConflict: 'user_id, platform' }
         )
-
+        
         if (upsertError) {
             console.error('Supabase upsert error:', upsertError)
             return Response.redirect(`${baseURL}/app/accounts/creator/socials?return=error`)
