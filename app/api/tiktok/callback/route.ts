@@ -24,9 +24,15 @@ export async function GET(req: Request) {
         const cookieStore = await cookies()
         const codeVerifier = cookieStore.get('tiktok_code_verifier')?.value
 
-   
+        console.log('=== TIKTOK CALLBACK ===')
+        console.log('code:', !!code)
+        console.log('state:', state)
+        console.log('codeVerifier found:', !!codeVerifier)
+        console.log(
+            'all cookies:',
+            cookieStore.getAll().map((c) => c.name)
+        )
 
-        
         if (!codeVerifier) {
             return Response.json({ error: 'Missing PKCE verifier' }, { status: 400 })
         }
