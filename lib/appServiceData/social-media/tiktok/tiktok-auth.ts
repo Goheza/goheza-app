@@ -19,12 +19,14 @@ export async function activateTiktokOAuth() {
         headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session.access_token}`,
+            credentials: 'include',
         },
     })
 
     const data = await res.json()
 
     if (data.authUrl) {
+        await new Promise(r => setTimeout(r, 50))
         window.location.href = data.authUrl
     }
 }

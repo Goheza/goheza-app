@@ -74,6 +74,24 @@ export async function GET(req: Request) {
         return Response.redirect(`${baseURL}/app/accounts/creator/socials?return=accepted`)
     } catch (error) {
         console.error(error)
-        return Response.json({ error: 'Callback failed' }, { status: 500 })
+        if (error instanceof Error) {
+            return Response.json(
+                {
+                    error: {
+                        msg: error.message,
+                    },
+                },
+                { status: 500 }
+            )
+        } else {
+            return Response.json(
+                {
+                    error: {
+                        msg: error
+                    },
+                },
+                { status: 500 }
+            )
+        }
     }
 }
