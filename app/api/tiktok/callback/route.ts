@@ -5,11 +5,9 @@ import { cookies } from 'next/headers'
 export async function GET(req: Request) {
     try {
         const supabase = await createClient()
-
         const { searchParams } = new URL(req.url)
-
         const code = searchParams.get('code')
-        const state = searchParams.get('state') // your user_id
+        const state = searchParams.get('state')
         const errorParam = searchParams.get('error')
 
         if (errorParam) {
@@ -20,18 +18,8 @@ export async function GET(req: Request) {
             return Response.json({ error: 'Missing code or state' }, { status: 400 })
         }
 
-        // 🔐 Retrieve stored PKCE verifier (example: from cookie)
         const cookieStore = await cookies()
         const codeVerifier = cookieStore.get('tiktok_code_verifier')?.value
-
-        console.log('=== TIKTOK CALLBACK ===')
-        console.log('code:', !!code)
-        console.log('state:', state)
-        console.log('codeVerifier found:', !!codeVerifier)
-        console.log(
-            'all cookies:',
-            cookieStore.getAll().map((c) => c.name)
-        )
 
         if (!codeVerifier) {
             return Response.json({ error: 'Missing PKCE verifier' }, { status: 400 })
@@ -48,7 +36,7 @@ export async function GET(req: Request) {
                 code,
                 grant_type: 'authorization_code',
                 redirect_uri: `${baseURL}/api/tiktok/callback`,
-                code_verifier: codeVerifier, // 🔥 REQUIRED
+                code_verifier: codeVerifier,
             }),
         })
 
@@ -59,9 +47,10 @@ export async function GET(req: Request) {
             return Response.json({ error: 'Token exchange failed' }, { status: 400 })
         }
 
-        const { access_token, refresh_token, expires_in, open_id, scope } = tokenData
+        // 👇 TikTok v2 nests token data under `data`
+        const { access_token, refresh_token, expires_in, open_id, scope } = tokenData.data
 
-        await supabase.from('social_accounts').insert({
+        await supabase.from('social_accounts').upsert({
             user_id: state,
             platform: 'tiktok',
             external_user_id: open_id,
@@ -75,23 +64,9 @@ export async function GET(req: Request) {
     } catch (error) {
         console.error(error)
         if (error instanceof Error) {
-            return Response.json(
-                {
-                    error: {
-                        msg: error.message,
-                    },
-                },
-                { status: 500 }
-            )
+            return Response.json({ error: { msg: error.message } }, { status: 500 })
         } else {
-            return Response.json(
-                {
-                    error: {
-                        msg: error
-                    },
-                },
-                { status: 500 }
-            )
+            return Response.json({ error: { msg: error } }, { status: 500 })
         }
     }
 }
