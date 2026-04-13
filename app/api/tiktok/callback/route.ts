@@ -41,6 +41,7 @@ export async function GET(req: Request) {
         })
 
         const tokenData = await tokenRes.json()
+        console.log('tokenData:', JSON.stringify(tokenData)) // 👈 add this
 
         if (!tokenRes.ok) {
             console.error('TikTok token error:', tokenData)
@@ -48,7 +49,7 @@ export async function GET(req: Request) {
         }
 
         // 👇 TikTok v2 nests token data under `data`
-        const { access_token, refresh_token, expires_in, open_id, scope } = tokenData.data
+        const { access_token, refresh_token, expires_in, open_id, scope } = tokenData
 
         await supabase.from('social_accounts').upsert({
             user_id: state,
