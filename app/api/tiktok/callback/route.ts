@@ -41,25 +41,32 @@ export async function GET(req: Request) {
         })
 
         const tokenData = await tokenRes.json()
-        console.log('tokenData:', JSON.stringify(tokenData)) // 👈 add this
 
         if (!tokenRes.ok) {
             console.error('TikTok token error:', tokenData)
-            return Response.json({ error: 'Token exchange failed' }, { status: 400 })
+            return Response.redirect(`${baseURL}/app/accounts/creator/socials?return=error`)
         }
 
-        // 👇 TikTok v2 nests token data under `data`
-        const { access_token, refresh_token, expires_in, open_id, scope } = tokenData
+        const tokenPayload = tokenData.data ?? tokenData
+        const { access_token, refresh_token, expires_in, open_id, scope } = tokenPayload
 
-        await supabase.from('social_accounts').upsert({
-            user_id: state,
-            platform: 'tiktok',
-            external_user_id: open_id,
-            access_token,
-            refresh_token,
-            scope,
-            expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
-        })
+        const { error: upsertError } = await supabase.from('social_accounts').upsert(
+            {
+                user_id: state,
+                platform: 'tiktok',
+                external_user_id: open_id,
+                access_token,
+                refresh_token,
+                scope,
+                expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
+            },
+            { onConflict: 'user_id, platform' }
+        )
+
+        if (upsertError) {
+            console.error('Supabase upsert error:', upsertError)
+            return Response.redirect(`${baseURL}/app/accounts/creator/socials?return=error`)
+        }
 
         return Response.redirect(`${baseURL}/app/accounts/creator/socials?return=accepted`)
     } catch (error) {
