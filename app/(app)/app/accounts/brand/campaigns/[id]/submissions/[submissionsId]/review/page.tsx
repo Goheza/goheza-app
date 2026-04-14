@@ -105,6 +105,7 @@ export default function ContentReviewWorkspace() {
                 creatorUserId: dataToBeSubmitted.creatorId,
                 videoUrl: dataToBeSubmitted.videoURL,
             })
+            console.log('publishTikTokVideo result:', returnArgs)
 
             if (returnArgs.success) {
                 const currentTiktokURL = await getTitktokURL({
@@ -242,7 +243,7 @@ export default function ContentReviewWorkspace() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto bg-gray-50">
-            <TikTokReviewBanner/>
+            <TikTokReviewBanner />
             <PostConfirmDialog
                 isOpen={showPostDialog}
                 creatorName={submission.creator_name}
