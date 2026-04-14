@@ -20,7 +20,7 @@ export async function POST(req: Request) {
         if (!campaignId || !videoUrl) {
             return Response.json({ error: 'Missing required fields' }, { status: 400 })
         }
-        console.log("Current-Data",videoUrl)
+        console.log('Current-Data', videoUrl)
 
         /**
          * get the user-account information
@@ -38,6 +38,12 @@ export async function POST(req: Request) {
         }
 
         let accessToken = account.access_token
+
+        /**
+         * Get the filename
+         */
+        const filename = videoUrl.split('/').pop()
+        const proxyVideoUrl = `https://goheza.com/api/video/${filename}`
 
         if (new Date(account.expires_at) <= new Date()) {
             const refreshRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
@@ -88,7 +94,7 @@ export async function POST(req: Request) {
                 },
                 source_info: {
                     source: 'PULL_FROM_URL',
-                    video_url: videoUrl,
+                    video_url: proxyVideoUrl,
                 },
             }),
         })
