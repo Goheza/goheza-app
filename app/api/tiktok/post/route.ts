@@ -9,25 +9,22 @@ export async function POST(req: Request) {
             return Response.json({ error: 'No token provided' }, { status: 401 })
         }
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser(token)
         if (authError || !user) {
             return Response.json({ error: 'User not authenticated' }, { status: 401 })
-        }
+        };
+
+
 
         const { campaignId, videoUrl, caption } = await req.json()
         if (!campaignId || !videoUrl) {
             return Response.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
-        const { data: campaign } = await supabase
-            .from('campaigns')
-            .select('id, user_id')
-            .eq('id', campaignId)
-            .single()
-
-        if (!campaign || campaign.user_id !== user.id) {
-            return Response.json({ error: 'Unauthorized campaign access' }, { status: 403 })
-        }
+        
 
         const { data: account } = await supabase
             .from('social_accounts')
