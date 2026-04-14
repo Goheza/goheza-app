@@ -34,7 +34,7 @@ export async function POST(req: Request) {
             .single()
 
         if (!account) {
-            return Response.json({ error: 'No TikTok account connected' }, { status: 400 })
+            return Response.json({ error: `No tiktok Account Connected : ${user.id,`${account}`}` }, { status: 400 })
         }
 
         let accessToken = account.access_token
