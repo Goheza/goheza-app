@@ -4,11 +4,6 @@ export async function POST(req: Request) {
     try {
         const supabase = await createClient()
 
-        const authHeader = req.headers.get('Authorization')
-        const token = authHeader?.replace('Bearer ', '')
-        if (!token) {
-            return Response.json({ error: 'No token provided' }, { status: 401 })
-        }
 
         const { publishId,creatorId } = await req.json()
         if (!publishId) {

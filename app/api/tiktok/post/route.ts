@@ -6,11 +6,6 @@ export async function POST(req: Request) {
          * Get the authorization and authentication tokens
          */
         const supabase = await createClient()
-        const authHeader = req.headers.get('Authorization')
-        const token = authHeader?.replace('Bearer ', '')
-        if (!token) {
-            return Response.json({ error: 'No token provided' }, { status: 401 })
-        }
 
         /**
          * Compare the values
@@ -112,9 +107,8 @@ export async function POST(req: Request) {
             campaign_id: campaignId,
             platform: 'tiktok',
             media_id: publishId,
-            video_url: videoUrl,
-            status: 'PROCESSING',
-            created_at: new Date().toISOString(),
+            permalink: videoUrl,
+            posted_at: new Date().toISOString(),
         })
 
         return Response.json({ success: true, publishId })
