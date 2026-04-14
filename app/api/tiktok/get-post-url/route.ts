@@ -10,15 +10,7 @@ export async function POST(req: Request) {
             return Response.json({ error: 'No token provided' }, { status: 401 })
         }
 
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser(token)
-        if (authError || !user) {
-            return Response.json({ error: 'Unauthorized' }, { status: 401 })
-        }
-
-        const { publishId } = await req.json()
+        const { publishId,creatorId } = await req.json()
         if (!publishId) {
             return Response.json({ error: 'Missing publishId' }, { status: 400 })
         }
@@ -26,7 +18,7 @@ export async function POST(req: Request) {
         const { data: account, error } = await supabase
             .from('social_accounts')
             .select('access_token, refresh_token, expires_at, username')
-            .eq('user_id', user.id)
+            .eq('user_id', creatorId)
             .eq('platform', 'tiktok')
             .single()
 
@@ -61,7 +53,7 @@ export async function POST(req: Request) {
                     refresh_token: refreshData.refresh_token,
                     expires_at: new Date(Date.now() + refreshData.expires_in * 1000).toISOString(),
                 })
-                .eq('user_id', user.id)
+                .eq('user_id', creatorId)
                 .eq('platform', 'tiktok')
 
             if (updateError) {
@@ -84,7 +76,7 @@ export async function POST(req: Request) {
                 await supabase
                     .from('social_accounts')
                     .update({ username })
-                    .eq('user_id', user.id)
+                    .eq('user_id', creatorId)
                     .eq('platform', 'tiktok')
             }
         }

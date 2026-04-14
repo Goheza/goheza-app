@@ -31,8 +31,6 @@ interface SubmissionUpdateData {
     feedback: string | null
 }
 
-
-
 export default function ContentReviewWorkspace() {
     const params = useParams()
     const router = useRouter()
@@ -108,7 +106,10 @@ export default function ContentReviewWorkspace() {
             })
 
             if (returnArgs.success) {
-                const currentTiktokURL = await getTitktokURL(returnArgs.publishId)
+                const currentTiktokURL = await getTitktokURL({
+                    publishId: returnArgs.publishId,
+                    creatorId: dataToBeSubmitted.creatorId,
+                })
 
                 if (!currentTiktokURL) {
                     toast.error('Failed to retrieve TikTok URL after posting')
