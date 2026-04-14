@@ -13,15 +13,12 @@ export async function POST(req: Request) {
         }
 
         /**
-         * Get the user data of the currently logged in User
+         * Compare the values
          */
 
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser(token)
-        if (authError || !user || !user.id) {
-            return Response.json({ error: 'User not authenticated' }, { status: 401 })
+        const { campaignId, videoUrl, caption, creatorUserId } = await req.json()
+        if (!campaignId || !videoUrl) {
+            return Response.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
         /**
@@ -31,24 +28,15 @@ export async function POST(req: Request) {
         const { data: account } = await supabase
             .from('social_accounts')
             .select('access_token, refresh_token, expires_at')
-            .eq('user_id', user.id)
+            .eq('user_id', creatorUserId)
             .eq('platform', 'tiktok')
             .single()
 
         if (!account) {
-            return Response.json({ error: `No tiktok Account Connected : ${(user.id)}` }, { status: 400 })
+            return Response.json({ error: `No tiktok Account Connected : ${creatorUserId}` }, { status: 400 })
         }
 
         let accessToken = account.access_token
-
-        /**
-         * Compare the values
-         */
-
-        const { campaignId, videoUrl, caption } = await req.json()
-        if (!campaignId || !videoUrl) {
-            return Response.json({ error: 'Missing required fields' }, { status: 400 })
-        }
 
         if (new Date(account.expires_at) <= new Date()) {
             const refreshRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
@@ -74,7 +62,7 @@ export async function POST(req: Request) {
                     refresh_token: refreshData.refresh_token,
                     expires_at: new Date(Date.now() + refreshData.expires_in * 1000).toISOString(),
                 })
-                .eq('user_id', user.id)
+                .eq('user_id', creatorUserId)
                 .eq('platform', 'tiktok')
 
             if (updateError) {
