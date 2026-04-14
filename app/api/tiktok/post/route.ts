@@ -20,6 +20,7 @@ export async function POST(req: Request) {
         if (!campaignId || !videoUrl) {
             return Response.json({ error: 'Missing required fields' }, { status: 400 })
         }
+        console.log("Current-Data",videoUrl)
 
         /**
          * get the user-account information
