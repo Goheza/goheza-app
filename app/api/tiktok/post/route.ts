@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/serverSideClient'
 
 export async function POST(req: Request) {
     try {
+        /**
+         * Get the authorization and authentication tokens
+         */
         const supabase = await createClient()
         const authHeader = req.headers.get('Authorization')
         const token = authHeader?.replace('Bearer ', '')
@@ -9,22 +12,21 @@ export async function POST(req: Request) {
             return Response.json({ error: 'No token provided' }, { status: 401 })
         }
 
+        /**
+         * Get the user data of the currently logged in User
+         */
+
         const {
             data: { user },
             error: authError,
         } = await supabase.auth.getUser(token)
-        if (authError || !user) {
+        if (authError || !user || !user.id) {
             return Response.json({ error: 'User not authenticated' }, { status: 401 })
-        };
-
-
-
-        const { campaignId, videoUrl, caption } = await req.json()
-        if (!campaignId || !videoUrl) {
-            return Response.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
-        
+        /**
+         * get the user-account information
+         */
 
         const { data: account } = await supabase
             .from('social_accounts')
@@ -34,10 +36,19 @@ export async function POST(req: Request) {
             .single()
 
         if (!account) {
-            return Response.json({ error: `No tiktok Account Connected : ${user.id,`${account}`}` }, { status: 400 })
+            return Response.json({ error: `No tiktok Account Connected : ${(user.id)}` }, { status: 400 })
         }
 
         let accessToken = account.access_token
+
+        /**
+         * Compare the values
+         */
+
+        const { campaignId, videoUrl, caption } = await req.json()
+        if (!campaignId || !videoUrl) {
+            return Response.json({ error: 'Missing required fields' }, { status: 400 })
+        }
 
         if (new Date(account.expires_at) <= new Date()) {
             const refreshRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
