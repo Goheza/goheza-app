@@ -123,7 +123,7 @@ export default function ContentReviewWorkspace() {
 
             if (returnArgs.success) {
                 const currentTiktokURL = await waitForTikTokURL(returnArgs.publishId, dataToBeSubmitted.creatorId)
-
+                setPostLoading(false)
                 if (!currentTiktokURL) {
                     toast.error('Failed to retrieve TikTok URL after posting')
                     return
@@ -154,7 +154,6 @@ export default function ContentReviewWorkspace() {
             console.error('Unexpected error posting to TikTok:', err)
             toast.error('An unexpected error occurred while posting to TikTok')
         } finally {
-            setPostLoading(false)
         }
     }
 
