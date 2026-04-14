@@ -13,6 +13,7 @@ import { getAuthUser } from '@/lib/supabase/auth/authHelpers'
 import { publishTikTokVideo } from '@/lib/appServiceData/social-media/tiktok/publish-video-tk'
 import { getTitktokURL } from '@/lib/appServiceData/social-media/tiktok/get-titkurl'
 import PostConfirmDialog from '@/components/workspace/pages/brand/PostConfiriming/PostConfirmingDialog'
+import TikTokReviewBanner from '@/components/workspace/pages/brand/banner/tiktokbanner'
 
 const supabase = supabaseClient
 
@@ -241,6 +242,7 @@ export default function ContentReviewWorkspace() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto bg-gray-50">
+            <TikTokReviewBanner/>
             <PostConfirmDialog
                 isOpen={showPostDialog}
                 creatorName={submission.creator_name}
