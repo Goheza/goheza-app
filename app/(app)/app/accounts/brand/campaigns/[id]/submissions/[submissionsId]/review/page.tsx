@@ -32,6 +32,20 @@ interface SubmissionUpdateData {
     feedback: string | null
 }
 
+const waitForTikTokURL = async (publishId: string, creatorId: string): Promise<string | null> => {
+    const maxAttempts = 10
+    const delay = 5000 // 5 seconds between each attempt
+
+    for (let i = 0; i < maxAttempts; i++) {
+        const url = await getTitktokURL({ publishId, creatorId })
+        if (url) return url
+        await new Promise((res) => setTimeout(res, delay))
+    }
+    return null
+}
+
+// Then replace getTikTokURL call with:
+
 export default function ContentReviewWorkspace() {
     const params = useParams()
     const router = useRouter()
@@ -108,10 +122,7 @@ export default function ContentReviewWorkspace() {
             console.log('publishTikTokVideo result:', returnArgs)
 
             if (returnArgs.success) {
-                const currentTiktokURL = await getTitktokURL({
-                    publishId: returnArgs.publishId,
-                    creatorId: dataToBeSubmitted.creatorId,
-                })
+                const currentTiktokURL = await waitForTikTokURL(returnArgs.publishId, dataToBeSubmitted.creatorId)
 
                 if (!currentTiktokURL) {
                     toast.error('Failed to retrieve TikTok URL after posting')
