@@ -3,37 +3,32 @@ import { createClient } from '@/lib/supabase/serverSideClient'
 export async function POST(req: Request) {
     try {
         const supabase = await createClient()
-
         const authHeader = req.headers.get('Authorization')
         const token = authHeader?.replace('Bearer ', '')
-
         if (!token) {
             return Response.json({ error: 'No token provided' }, { status: 401 })
         }
 
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser(token)
-
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
         if (authError || !user) {
             return Response.json({ error: 'User not authenticated' }, { status: 401 })
         }
 
         const { campaignId, videoUrl, caption } = await req.json()
-
         if (!campaignId || !videoUrl) {
             return Response.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
-        // 🔒 Verify campaign belongs to this user
-        const { data: campaign } = await supabase.from('campaigns').select('id, user_id').eq('id', campaignId).single()
+        const { data: campaign } = await supabase
+            .from('campaigns')
+            .select('id, user_id')
+            .eq('id', campaignId)
+            .single()
 
         if (!campaign || campaign.user_id !== user.id) {
             return Response.json({ error: 'Unauthorized campaign access' }, { status: 403 })
         }
 
-        // 🔒 Fetch user's TikTok account
         const { data: account } = await supabase
             .from('social_accounts')
             .select('access_token, refresh_token, expires_at')
@@ -47,7 +42,6 @@ export async function POST(req: Request) {
 
         let accessToken = account.access_token
 
-        // 🔄 Refresh if expired
         if (new Date(account.expires_at) <= new Date()) {
             const refreshRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
                 method: 'POST',
@@ -59,16 +53,13 @@ export async function POST(req: Request) {
                     refresh_token: account.refresh_token,
                 }),
             })
-
             const refreshData = await refreshRes.json()
-
             if (!refreshRes.ok) {
                 return Response.json({ error: 'Token refresh failed' }, { status: 400 })
             }
-
             accessToken = refreshData.access_token
 
-            await supabase
+            const { error: updateError } = await supabase
                 .from('social_accounts')
                 .update({
                     access_token: refreshData.access_token,
@@ -77,9 +68,13 @@ export async function POST(req: Request) {
                 })
                 .eq('user_id', user.id)
                 .eq('platform', 'tiktok')
+
+            if (updateError) {
+                console.error('Failed to persist refreshed token:', updateError)
+            }
         }
 
-        // 🚀 Step 1: Init publish
+        // ✅ Single init call is all that's needed for PULL_FROM_URL
         const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
             method: 'POST',
             headers: {
@@ -87,10 +82,6 @@ export async function POST(req: Request) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                source_info: {
-                    source: 'PULL_FROM_URL',
-                    video_url: videoUrl,
-                },
                 post_info: {
                     title: caption,
                     privacy_level: 'PUBLIC_TO_EVERYONE',
@@ -98,10 +89,15 @@ export async function POST(req: Request) {
                     disable_comment: false,
                     disable_stitch: false,
                 },
+                source_info: {
+                    source: 'PULL_FROM_URL',
+                    video_url: videoUrl,
+                },
             }),
         })
 
         const initJson = await initRes.json()
+        console.log('TikTok init response:', JSON.stringify(initJson, null, 2))
 
         if (!initRes.ok || !initJson.data?.publish_id) {
             return Response.json({ error: 'Init failed', details: initJson }, { status: 400 })
@@ -109,23 +105,6 @@ export async function POST(req: Request) {
 
         const publishId = initJson.data.publish_id
 
-        // 🚀 Step 2: Trigger publish
-        const publishRes = await fetch('https://open.tiktokapis.com/v2/post/publish/video/publish/', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ publish_id: publishId }),
-        })
-
-        const publishJson = await publishRes.json()
-
-        if (!publishRes.ok) {
-            return Response.json({ error: 'Publish failed', details: publishJson }, { status: 400 })
-        }
-
-        // 🗄 Store post record
         await supabase.from('campaign_posts').insert({
             campaign_id: campaignId,
             platform: 'tiktok',

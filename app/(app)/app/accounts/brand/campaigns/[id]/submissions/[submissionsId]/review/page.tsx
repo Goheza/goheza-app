@@ -10,9 +10,9 @@ import {
     RawSubmissionRow,
 } from '@/lib/appServiceData/brand/brandHelpers'
 import { getAuthUser } from '@/lib/supabase/auth/authHelpers'
-import PostConfirmDialog from '@/components/workspace/pages/brand/PostConfiriming/PostConfirmingDialog'
 import { publishTikTokVideo } from '@/lib/appServiceData/social-media/tiktok/publish-video-tk'
 import { getTitktokURL } from '@/lib/appServiceData/social-media/tiktok/get-titkurl'
+import PostConfirmDialog from '@/components/workspace/pages/brand/PostConfiriming/PostConfirmingDialog'
 
 const supabase = supabaseClient
 
@@ -31,10 +31,13 @@ interface SubmissionUpdateData {
     feedback: string | null
 }
 
+
+
 export default function ContentReviewWorkspace() {
     const params = useParams()
     const router = useRouter()
     const submissionId = params?.submissionsId as string | undefined
+
     const [submission, setSubmission] = useState<DisplaySubmission | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -83,26 +86,12 @@ export default function ContentReviewWorkspace() {
 
     const handlePostToTikTok = async () => {
         if (!submissionId || !submission) return
+
+        // Close dialog immediately to prevent double-submit
+        setShowPostDialog(false)
         setPostLoading(true)
+
         try {
-            const user = await getAuthUser()
-            const updateData = {
-                status: 'approved',
-                reviewed_by: user.id,
-                reviewed_at: new Date().toISOString(),
-                feedback: feedback.trim() || null,
-            }
-            const { error: updateError } = await supabase
-                .from('campaign_submissions')
-                .update(updateData)
-                .eq('id', submissionId)
-
-            if (updateError) {
-                console.error('Error updating submission status:', updateError)
-                toast.error('Failed to update submission status')
-                return
-            }
-
             const dataToBeSubmitted: IPublishableDataToPlatform = {
                 videoURL: submission.video_url,
                 campaignId: submission.campaign_id,
@@ -157,11 +146,14 @@ export default function ContentReviewWorkspace() {
 
     const handleDecisionConflict = async (decision: 'approved' | 'rejected') => {
         if (!submissionId || !submission) return
+
         if (decision === 'rejected' && !feedback.trim()) {
             toast.error('Feedback is required when rejecting a submission.')
             return
         }
+
         setActionLoading(true)
+
         try {
             const user = await getAuthUser()
             const updateData: SubmissionUpdateData = {
@@ -172,26 +164,24 @@ export default function ContentReviewWorkspace() {
             }
 
             if (decision === 'approved') {
-                const { error } = await supabase
-                    .from('campaign_submissions')
-                    .update(updateData)
-                    .eq('id', submissionId)
+                const { error } = await supabase.from('campaign_submissions').update(updateData).eq('id', submissionId)
+
                 if (error) {
                     toast.error('Failed to approve submission')
                     return
                 }
+
                 setSubmission((prev) => (prev ? { ...prev, status: 'approved' } : prev))
                 toast.success('Submission approved!')
             } else {
-                const { error } = await supabase
-                    .from('campaign_submissions')
-                    .update(updateData)
-                    .eq('id', submissionId)
+                const { error } = await supabase.from('campaign_submissions').update(updateData).eq('id', submissionId)
+
                 if (error) {
                     console.error('Error rejecting submission:', error)
                     toast.error('Failed to reject submission')
                     return
                 }
+
                 toast.success('Submission rejected and assets deleted. Creator notified.')
                 router.push(`/app/accounts/brand/campaigns/${submission.campaign_id}/submissions`)
             }
@@ -210,21 +200,28 @@ export default function ContentReviewWorkspace() {
                 setLoading(false)
                 return
             }
+
             setError(null)
+
             try {
                 const submissionsData = await fetchSubmissionById(submissionId)
+
                 if (!submissionsData.data) {
                     setError('Failed to Fetch Submissions Data')
                     return
                 }
+
                 const row = submissionsData.data as unknown as RawSubmissionRow
                 const mappedAndTransformedData = mappedSubmissionsData(row)
+
                 if (row.feedback) {
                     setFeedback(row.feedback)
                 }
+
                 if ((row as any).tiktok_url) {
                     setTiktokUrl((row as any).tiktok_url)
                 }
+
                 setSubmission(mappedAndTransformedData)
             } catch (err) {
                 console.error('Unexpected error:', err)
@@ -233,6 +230,7 @@ export default function ContentReviewWorkspace() {
                 setLoading(false)
             }
         }
+
         initializeReviewWorkspacePage()
     }, [submissionId])
 
@@ -249,6 +247,7 @@ export default function ContentReviewWorkspace() {
                 onCancel={() => setShowPostDialog(false)}
                 isLoading={postLoading}
             />
+
             <div className="mb-6">
                 <button onClick={() => router.back()} className="text-blue-600 hover:text-blue-800 mb-4">
                     ← Back to submissions
@@ -258,6 +257,7 @@ export default function ContentReviewWorkspace() {
                     <p className="text-neutral-400 mt-4">Review and approve content submissions for the campaign</p>
                 </div>
             </div>
+
             <div className="bg-white rounded-lg p-8 grid grid-cols-1 lg:grid-cols-2 gap-20">
                 {/* Video Preview Section */}
                 <div>
@@ -272,6 +272,7 @@ export default function ContentReviewWorkspace() {
                             Your browser does not support the video tag.
                         </video>
                     </div>
+
                     <div className="mt-8">
                         <label htmlFor="feedback" className="block font-bold text-xl text-black mb-2">
                             Provide Feedback
@@ -280,7 +281,7 @@ export default function ContentReviewWorkspace() {
                             id="feedback"
                             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             rows={4}
-                            value={submission.status === 'pending' ? feedback : submission.feedback || ''}
+                            value={feedback}
                             onChange={(e) => setFeedback(e.target.value)}
                             placeholder="Detailed Feedback (Required for Rejection)"
                             disabled={submission.status !== 'pending'}
@@ -291,7 +292,7 @@ export default function ContentReviewWorkspace() {
                                 with text here will save the feedback for administrative review.
                             </p>
                         )}
-                        {submission.status !== 'pending' && submission.feedback && (
+                        {submission.status !== 'pending' && feedback && (
                             <p className="text-sm text-gray-600 mt-2">
                                 Review Note: Submission status is <strong>{submission.status}</strong>. The saved
                                 feedback is displayed above.
@@ -299,6 +300,7 @@ export default function ContentReviewWorkspace() {
                         )}
                     </div>
                 </div>
+
                 {/* Details and Actions Section */}
                 <div className="space-y-6">
                     <div>
@@ -336,12 +338,35 @@ export default function ContentReviewWorkspace() {
                             </div>
                         </div>
                     </div>
+
                     {submission.caption && (
                         <div className="mt-4">
                             <h3 className="text-gray-400 font-medium mb-2">Caption:</h3>
                             <p className="text-gray-600 bg-gray-50 p-3 rounded">{submission.caption}</p>
                         </div>
                     )}
+
+                    {/* Pending Actions */}
+                    {submission.status === 'pending' && (
+                        <div className="flex gap-3 pt-4">
+                            <button
+                                onClick={() => handleDecisionConflict('approved')}
+                                disabled={actionLoading}
+                                className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors font-medium"
+                            >
+                                {actionLoading ? 'Processing...' : 'Approve'}
+                            </button>
+                            <button
+                                onClick={() => handleDecisionConflict('rejected')}
+                                disabled={actionLoading}
+                                className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors font-medium"
+                            >
+                                {actionLoading ? 'Processing...' : 'Reject'}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Already Reviewed State */}
                     {submission.status !== 'pending' && (
                         <div className="p-4 bg-gray-100 rounded-lg space-y-3">
                             <div className="flex items-center gap-2">
@@ -358,6 +383,7 @@ export default function ContentReviewWorkspace() {
                             <p className="text-gray-500 text-xs">
                                 This submission has already been reviewed and cannot be modified.
                             </p>
+
                             {submission.status === 'approved' && !tiktokUrl && (
                                 <button
                                     onClick={() => setShowPostDialog(true)}
@@ -375,6 +401,7 @@ export default function ContentReviewWorkspace() {
                                     {postLoading ? 'Posting...' : 'Post to TikTok'}
                                 </button>
                             )}
+
                             {tiktokUrl && (
                                 <button
                                     onClick={() => window.open(tiktokUrl, '_blank')}
