@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import local from 'next/font/local'
+import { Toaster } from 'sonner'
 
 const Lexendfont = local({
     src: './fonts/lexend.ttf',
@@ -17,7 +18,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="en" className={Lexendfont.className}>
-            <body>{children}</body>
+            <body>
+                {children}
+                <Toaster richColors position="bottom-right" />
+            </body>
         </html>
     )
 }
