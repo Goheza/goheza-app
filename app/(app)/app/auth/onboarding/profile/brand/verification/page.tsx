@@ -32,7 +32,7 @@ export default function Page() {
                     email: currentEmail,
                     currentPhone: currentPhone,
                 }).then(() => {
-                    router.push('/app/auth/onboarding/brand/feedback')
+                    router.push('/app/auth/onboarding/profile/brand/feedback')
                 })
             }
         }
