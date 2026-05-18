@@ -9,56 +9,70 @@ import { useEffect, useState } from 'react'
 
 export default function Page() {
     const router = useRouter()
-    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        /**
-         * Inform the user it time to wait for the people
-         * to verify for the data for the brand
-         */
         const mainLoader = async () => {
-            const {
-                data: { user },
-            } = await supabaseClient.auth.getUser()
+            try {
+                const {
+                    data: { user },
+                    error: authError,
+                } = await supabaseClient.auth.getUser()
 
-            if (user) {
-                //user-data
-                let currentName = user.identities![0]?.identity_data?.full_name || user.user_metadata?.fullName
-                let currentEmail = user!.email!
-                let currentPhone = user.user_metadata.phone || 'unknown Phone number'
+                if (authError) throw new Error(authError.message)
 
-                sendEmail({
+                if (!user) {
+                    router.push('/app/auth/signin')
+                    return
+                }
+
+                const currentName =
+                    user.identities?.[0]?.identity_data?.full_name ?? user.user_metadata?.fullName ?? 'Unknown'
+                const currentEmail = user.email ?? ''
+                const currentPhone = user.user_metadata?.phone ?? 'Unknown Phone Number'
+
+                await sendEmail({
                     currentName,
                     email: currentEmail,
-                    currentPhone: currentPhone,
-                }).then(() => {
-                    router.push('/app/auth/onboarding/profile/brand/feedback')
+                    currentPhone,
                 })
+
+                router.push('/app/auth/onboarding/profile/brand/feedback')
+            } catch (err) {
+                console.error('Brand verification failed:', err)
+                setError(err instanceof Error ? err.message : 'Something went wrong.')
             }
         }
 
-        //run the function here
-        mainLoader().finally(() => {
-            setLoading(false)
-        })
+        mainLoader()
     }, [router])
 
-    if (loading) {
+    if (error) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-white space-y-6">
-                <div className=" flex items-center justify-center">
-                    <Image
-                        src={logo.src}
-                        width={100}
-                        height={30}
-                        alt="Goheza Logo"
-                        className=" p-0 m-0 object-contain"
-                    />
-                </div>
-                <div className="w-12 h-12 border-4 border-[#e85c51] border-t-transparent rounded-full animate-spin"></div>
-                <span>Verifying Brand...</span>
+            <div className="flex flex-col items-center justify-center min-h-screen bg-white space-y-4">
+                <Image src={logo} width={100} height={30} alt="Goheza Logo" className="object-contain" />
+                <p className="text-red-500 font-medium">{error}</p>
+                <button
+                    onClick={() => {
+                        setError(null)
+                        router.refresh()
+                    }}
+                    className="px-4 py-2 bg-[#e85c51] text-white rounded-lg hover:bg-[#d44b40] transition-colors"
+                >
+                    Try Again
+                </button>
             </div>
         )
     }
-    return null
+
+    // Keep showing the loader until navigation completes
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-white space-y-6">
+            <div className="flex items-center justify-center">
+                <Image src={logo} width={100} height={30} alt="Goheza Logo" className="object-contain" />
+            </div>
+            <div className="w-12 h-12 border-4 border-[#e85c51] border-t-transparent rounded-full animate-spin" />
+            <span>Verifying Brand...</span>
+        </div>
+    )
 }
