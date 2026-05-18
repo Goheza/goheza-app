@@ -6,7 +6,7 @@
 import { GoogleSignupBtn } from '@/components/workspace/pages/auth/GoogleSignup/googleSignup'
 import { ALL_COUNTRIES } from '@/lib/appServiceData/countries'
 import logo from '@/assets/GOHEZA-02.png'
-import { signInWithGoogle, signUpUser } from '@/lib/supabase/auth/authHelpers'
+import { signInWithGoogle, signUpUser, signUpUserForBrand } from '@/lib/supabase/auth/authHelpers'
 import { Building2, Eye, EyeOff, Users } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -57,7 +57,7 @@ export default function WorkspaceSignUp() {
             createErrorMessage('Passwords do not match')
             return
         }
-        if (!phone || !country) {
+        if (!phone) {
             createErrorMessage('Please fill in all fields')
             return
         }
@@ -93,9 +93,9 @@ export default function WorkspaceSignUp() {
         }
 
         if (selectedRole == 'brand') {
+            console.log('Did_Select_Brand')
             try {
-                const { isErrorTrue, errorMessage } = await signUpUser({
-                    country: country,
+                const { isErrorTrue, errorMessage } = await signUpUserForBrand({
                     email: email,
                     fullName: fullName,
                     password: password,
@@ -104,9 +104,11 @@ export default function WorkspaceSignUp() {
                 })
 
                 if (isErrorTrue) {
+                    console.log('Did_Get_Signup Error')
                     toast.error('Error Signing Up', {
                         description: errorMessage,
                     })
+                    console.log(`_BrandError:${errorMessage}`)
                     return
                 }
 

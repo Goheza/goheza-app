@@ -35,7 +35,7 @@ export default function ProfilePageBoundary() {
                     //make the profile for the brand
                     await makeProfile(User!, 'brand')
                     //take the brand user for verifying
-                    router.push('/app/auth/onboarding/brand/verification')
+                    router.push('/app/auth/onboarding/profile/brand/verification')
                     return
                 }
 
