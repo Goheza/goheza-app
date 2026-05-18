@@ -32,6 +32,7 @@ export default function WorkspaceSignUp() {
     const [country, setCountry] = useState<string>('')
     const [error, setError] = useState('')
     const [phone, setPhone] = useState<string>('')
+    const [isLoading, setIsLoading] = useState<boolean>(false)
     const [email, setEmail] = useState<string>('')
     const [fullName, setFullName] = useState<string>('')
     const [confirmPassword, setConfirmPassword] = useState<string>('')
@@ -94,27 +95,35 @@ export default function WorkspaceSignUp() {
 
         if (selectedRole == 'brand') {
             console.log('Did_Select_Brand')
+            setIsLoading(true)
+            const brandPromise = signUpUserForBrand({
+                email,
+                fullName,
+                password,
+                phone,
+                role: 'brand',
+            })
+
+            toast.promise(brandPromise, {
+                loading: 'Creating your brand account...',
+                success: (data) => {
+                    if (data.isErrorTrue) {
+                        throw new Error(data.errorMessage)
+                    }
+                    return 'Account created! Redirecting...'
+                },
+                error: (err) => err?.message ?? 'Unknown Sign Up Error: Contact Support',
+            })
+
             try {
-                const { isErrorTrue, errorMessage } = await signUpUserForBrand({
-                    email: email,
-                    fullName: fullName,
-                    password: password,
-                    phone: phone,
-                    role: 'brand',
-                })
-
-                if (isErrorTrue) {
-                    console.log('Did_Get_Signup Error')
-                    toast.error('Error Signing Up', {
-                        description: errorMessage,
-                    })
-                    console.log(`_BrandError:${errorMessage}`)
-                    return
+                const { isErrorTrue } = await brandPromise
+                if (!isErrorTrue) {
+                    router.push('/app/auth/onboarding/profile?role=brand')
                 }
-
-                router.push('/app/auth/onboarding/profile?role=brand')
             } catch (error) {
-                toast.error('Unknown Sign Up Error:Contact Support')
+                // error toast already handled above
+            } finally {
+                setIsLoading(false)
             }
         }
     }
@@ -300,14 +309,14 @@ export default function WorkspaceSignUp() {
                     {/* Submit Button */}
                     <button
                         type="submit"
-                        disabled={!selectedRole}
+                        disabled={!selectedRole || isLoading}
                         className={`w-full py-3 px-4 rounded-2xl text-sm font-medium transition-all duration-200 ${
-                            selectedRole
+                            selectedRole && !isLoading
                                 ? 'bg-[#e85c51] hover:bg-[#f3867e] cursor-pointer text-white shadow-lg hover:shadow-xl'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         }`}
                     >
-                        Create Account
+                        {isLoading ? 'Creating Account...' : 'Create Account'}
                     </button>
                 </form>
 
