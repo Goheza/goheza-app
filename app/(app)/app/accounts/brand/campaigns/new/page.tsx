@@ -20,12 +20,13 @@ import {
     CheckCircle2,
     AlertCircle,
 } from 'lucide-react'
+import DosDontsList from '@/components/workspace/pages/brand/DosDonts/DosDonts'
 
 // ─────────────────────────────────────────────
 // CONSTANTS — fixed rules, never user-editable
 // ─────────────────────────────────────────────
 const COST_PER_1K_VIEWS = 10_000 // UGX — fixed platform rule
-const VIEWS_DIVISOR = 10          // requiredViews = totalBudget / 10
+const VIEWS_DIVISOR = 10 // requiredViews = totalBudget / 10
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -68,17 +69,9 @@ type ProgressState =
 // HELPERS
 // ─────────────────────────────────────────────
 const fmt = (n: number) =>
-    n >= 1_000_000
-        ? `${(n / 1_000_000).toFixed(2)}M`
-        : n >= 1_000
-        ? `${(n / 1_000).toFixed(1)}K`
-        : n.toLocaleString()
+    n >= 1_000_000 ? `${(n / 1_000_000).toFixed(0)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(0)}000` : n.toLocaleString()
 
-const computeBudgetState = (
-    totalBudgetPool: number,
-    totalViewsAccumulated: number,
-    requiredViews: number
-) => {
+const computeBudgetState = (totalBudgetPool: number, totalViewsAccumulated: number, requiredViews: number) => {
     // Uses the fixed rate: every 1k views costs COST_PER_1K_VIEWS UGX
     const units1k = totalViewsAccumulated / 1000
     const creatorEarnings = units1k * COST_PER_1K_VIEWS
@@ -105,10 +98,7 @@ const computeBudgetState = (
  *   requiredViews = totalBudget / VIEWS_DIVISOR  (budget ÷ 10)
  *   costPer1kViews is always COST_PER_1K_VIEWS   (10,000 UGX)
  */
-const derivePaymentSummary = (
-    totalBudget: number,
-    minCreators: number
-): ViewsPaymentSummary => {
+const derivePaymentSummary = (totalBudget: number, minCreators: number): ViewsPaymentSummary => {
     const requiredViews = Math.floor(totalBudget / VIEWS_DIVISOR)
     const total1kViewUnits = requiredViews / 1000
     return {
@@ -129,23 +119,14 @@ interface BudgetMeterPreviewProps {
     minCreators: number
 }
 
-const BudgetMeterPreview: React.FC<BudgetMeterPreviewProps> = ({
-    totalBudgetPool,
-    requiredViews,
-    minCreators,
-}) => {
-    const state = useMemo(
-        () => computeBudgetState(totalBudgetPool, 0, requiredViews),
-        [totalBudgetPool, requiredViews]
-    )
+const BudgetMeterPreview: React.FC<BudgetMeterPreviewProps> = ({ totalBudgetPool, requiredViews, minCreators }) => {
+    const state = useMemo(() => computeBudgetState(totalBudgetPool, 0, requiredViews), [totalBudgetPool, requiredViews])
 
     return (
         <div className="mt-6 space-y-4">
             <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#e85c51] animate-pulse" />
-                <p className="text-xs uppercase tracking-wide font-semibold text-red-600">
-                    Live Budget Pool Preview
-                </p>
+                <p className="text-xs uppercase tracking-wide font-semibold text-red-600">Live Budget Pool Preview</p>
             </div>
 
             <div className="bg-white border border-red-100 rounded-2xl p-5 shadow-sm">
@@ -226,7 +207,7 @@ const BudgetMeterPreview: React.FC<BudgetMeterPreviewProps> = ({
                 <ul className="space-y-1 text-xs text-gray-600 list-disc list-inside">
                     <li>
                         Total views needed: <strong>{fmt(requiredViews)}</strong>{' '}
-                        <span className="text-gray-400">(budget ÷ 10)</span>
+                        {/* <span className="text-gray-400">(budget ÷ 10)</span> */}
                     </li>
                     <li>
                         Pay per 1,000 views: <strong>UGX {fmt(COST_PER_1K_VIEWS)}</strong>
@@ -328,12 +309,20 @@ const ViewsBasedCampaignForm: React.FC = () => {
             urls[`cover-${brandCoverImage.name}`] = URL.createObjectURL(brandCoverImage)
         }
         Object.values(assetUrls).forEach((u) => {
-            try { URL.revokeObjectURL(u) } catch { /* ignore */ }
+            try {
+                URL.revokeObjectURL(u)
+            } catch {
+                /* ignore */
+            }
         })
         setAssetUrls(urls)
         return () => {
             Object.values(urls).forEach((u) => {
-                try { URL.revokeObjectURL(u) } catch { /* ignore */ }
+                try {
+                    URL.revokeObjectURL(u)
+                } catch {
+                    /* ignore */
+                }
             })
         }
     }, [brandAssets, referenceImages, brandCoverImage])
@@ -404,7 +393,10 @@ const ViewsBasedCampaignForm: React.FC = () => {
         setError('')
 
         try {
-            const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+            const {
+                data: { user },
+                error: userError,
+            } = await supabaseClient.auth.getUser()
             if (userError || !user) throw new Error('Brand not authenticated')
 
             const filteredRequirements = (formData.requirementsText || []).filter((r) => r.trim() !== '')
@@ -427,9 +419,9 @@ const ViewsBasedCampaignForm: React.FC = () => {
                     .from('campaign-assets')
                     .upload(filePath, brandCoverImage)
                 if (coverError) throw coverError
-                const { data: { publicUrl } } = supabaseClient.storage
-                    .from('campaign-assets')
-                    .getPublicUrl(filePath)
+                const {
+                    data: { publicUrl },
+                } = supabaseClient.storage.from('campaign-assets').getPublicUrl(filePath)
                 coverImageUrl = publicUrl
             }
 
@@ -520,8 +512,7 @@ const ViewsBasedCampaignForm: React.FC = () => {
         error: 'Retry Submission',
     }
 
-    const isSubmitDisabled =
-        loading || (progressState !== 'idle' && progressState !== 'error') || !summaryCalculated
+    const isSubmitDisabled = loading || (progressState !== 'idle' && progressState !== 'error') || !summaryCalculated
 
     return (
         <div className="max-w-5xl mx-auto p-6 bg-white mt-2">
@@ -535,7 +526,6 @@ const ViewsBasedCampaignForm: React.FC = () => {
 
             <form onSubmit={handleSubmit}>
                 <div className="space-y-8">
-
                     {/* TITLE */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Campaign Title</label>
@@ -591,7 +581,6 @@ const ViewsBasedCampaignForm: React.FC = () => {
                                 type="text"
                                 value={formData.countries}
                                 onChange={(e) => handleInput('countries', e.target.value)}
-                                placeholder="Uganda, Kenya, Tanzania"
                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400"
                             />
                         </div>
@@ -714,24 +703,18 @@ const ViewsBasedCampaignForm: React.FC = () => {
 
                     {/* DOS & DONTS */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Content Dos</label>
-                            <textarea
-                                rows={5}
-                                value={formData.dos}
-                                onChange={(e) => handleInput('dos', e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Content Don'ts</label>
-                            <textarea
-                                rows={5}
-                                value={formData.donts}
-                                onChange={(e) => handleInput('donts', e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
-                            />
-                        </div>
+                        <DosDontsList
+                            title="Content Dos (What to include)"
+                            value={formData.dos || ''}
+                            onChange={(e) => handleInput('dos', e)}
+                            placeholder="1. Use our new logo in the corner.\n2.  clearly.\n3. Keep video under 60 seconds."
+                        />
+                        <DosDontsList
+                            title="Content Don'ts (What to avoid)"
+                            value={formData.donts || ''}
+                            onChange={(e) => handleInput('donts', e)}
+                            placeholder="1. Do not mention competitor brand X.\n2. Do not use background music with explicit lyrics.\n3. Do not show the product package."
+                        />
                     </div>
 
                     {/* BUDGET ENGINE — now only 2 inputs */}
@@ -747,9 +730,7 @@ const ViewsBasedCampaignForm: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                             {/* Input 1: Minimum Creators */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Minimum Creators
-                                </label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Creators</label>
                                 <input
                                     type="number"
                                     min="1"
@@ -873,7 +854,6 @@ const ViewsBasedCampaignForm: React.FC = () => {
                             </p>
                         )}
                     </div>
-
                 </div>
             </form>
         </div>
