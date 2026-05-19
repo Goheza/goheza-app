@@ -72,7 +72,7 @@ const formatListItems = (data: string | string[] | null | undefined): string[] =
 interface ICampaignDetailsModel {
     campaign: Campaign
     isOpen: boolean
-    onWillDeleteCampaign: (campaignID: string,campaignName:string) => void
+    onWillDeleteCampaign: (campaignID: string, campaignName: string) => void
     onClose: () => void
     onAction: (id: string, status: 'approved' | 'cancelled') => void
     //@ts-ignore
@@ -95,9 +95,7 @@ const CampaignDetailsModal = ({
     const targetCountriesList = formatListItems(campaign.target_countries)
     // The assets array is directly available as campaign.assets
 
-    useEffect(() => {
-        
-    }, [])
+    useEffect(() => {}, [])
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -307,7 +305,7 @@ const CampaignDetailsModal = ({
                     <Button
                         onClick={() => {
                             onClose()
-                            onWillDeleteCampaign(campaign.id,campaign.name)
+                            onWillDeleteCampaign(campaign.id, campaign.name)
                         }}
                         variant="secondary"
                         className="order-3"
@@ -318,13 +316,12 @@ const CampaignDetailsModal = ({
             </DialogContent>
         </Dialog>
     )
-};
-
+}
 
 //================================================================================
 //Delete Dialog For Campaign
 
-function confirmDeleteToast(campaignId:string,campaignName:string) {
+function confirmDeleteToast(campaignId: string, campaignName: string) {
     // Create a temporary div with buttons and handlers
     toast(
         <div className="flex flex-col space-y-2">
@@ -340,9 +337,7 @@ function confirmDeleteToast(campaignId:string,campaignName:string) {
                             toast.error('Failed to delete campaign')
                         } else {
                             toast.success('Campaign deleted')
-                        };
-
-                        
+                        }
 
                         toast.dismiss() // dismiss all toasts
                     }}
@@ -372,7 +367,6 @@ export default function CampaignManagementPage() {
         fetchCampaigns()
     }, [filter])
 
-    
     //used to fetch campaigns
     const fetchCampaigns = async () => {
         setLoading(true)
@@ -393,8 +387,6 @@ export default function CampaignManagementPage() {
                 toast.error('Failed to load campaigns.')
                 return
             }
-
-            
 
             // CRITICAL: Ensure `brand_name` is correctly mapped from the nested object
             const formattedCampaigns = data.map((c: any) => ({
@@ -492,7 +484,10 @@ export default function CampaignManagementPage() {
                                     <p>
                                         By: <span className="font-medium text-neutral-700">{campaign.brand_name}</span>
                                     </p>
-                                    <p>Created: {format(new Date(campaign.created_at), 'PPP')}</p>
+                                    <p>
+                                        Created: {format(new Date(campaign.created_at), 'PPP')} at{' '}
+                                        {format(new Date(campaign.created_at), 'h:mm a')}
+                                    </p>
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-4">
