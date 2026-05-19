@@ -249,6 +249,8 @@ const ViewsBasedCampaignForm: React.FC = () => {
     const [summaryCalculated, setSummaryCalculated] = useState(false)
     const [progressState, setProgressState] = useState<ProgressState>('idle')
     const [loading, setLoading] = useState(false)
+    const prevUrlsRef = React.useRef<Record<string, string>>({})
+
     const [error, setError] = useState('')
 
     // ─────────────────────────────────────────────
@@ -308,13 +310,16 @@ const ViewsBasedCampaignForm: React.FC = () => {
         if (brandCoverImage) {
             urls[`cover-${brandCoverImage.name}`] = URL.createObjectURL(brandCoverImage)
         }
-        Object.values(assetUrls).forEach((u) => {
+
+        // Then in the useEffect, replace the revoke logic:
+        Object.values(prevUrlsRef.current).forEach((u) => {
             try {
                 URL.revokeObjectURL(u)
             } catch {
                 /* ignore */
             }
         })
+        prevUrlsRef.current = urls
         setAssetUrls(urls)
         return () => {
             Object.values(urls).forEach((u) => {
@@ -640,13 +645,12 @@ const ViewsBasedCampaignForm: React.FC = () => {
                                     className="border-2 border-dashed border-red-200 rounded-2xl p-8 text-center cursor-pointer hover:bg-red-50 transition-colors"
                                 >
                                     <input {...coverInput()} />
-                                    {brandCoverImage ? (
-                                        <div className="flex items-center justify-center gap-3">
-                                            <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                            <p className="font-medium text-gray-900">{brandCoverImage.name}</p>
-                                        </div>
-                                    ) : (
-                                        <p className="text-gray-400 text-sm">Upload campaign cover image</p>
+                                    {brandCoverImage && assetUrls[`cover-${brandCoverImage.name}`] && (
+                                        <img
+                                            src={assetUrls[`cover-${brandCoverImage.name}`]}
+                                            alt="Cover preview"
+                                            className="mt-3 w-full h-40 object-cover rounded-xl border border-gray-200"
+                                        />
                                     )}
                                 </div>
                             </div>
@@ -670,6 +674,12 @@ const ViewsBasedCampaignForm: React.FC = () => {
                                                 <div className="flex items-center gap-2 text-sm text-gray-700">
                                                     {file.type.startsWith('video/') ? (
                                                         <Video className="w-4 h-4 text-blue-500" />
+                                                    ) : assetUrls[`brand-${i}-${file.name}`] ? (
+                                                        <img
+                                                            src={assetUrls[`brand-${i}-${file.name}`]}
+                                                            alt={file.name}
+                                                            className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                                                        />
                                                     ) : (
                                                         <ImageIcon className="w-4 h-4 text-green-500" />
                                                     )}
@@ -695,8 +705,47 @@ const ViewsBasedCampaignForm: React.FC = () => {
                                     className="border-2 border-dashed border-red-200 rounded-2xl p-8 text-center cursor-pointer hover:bg-red-50 transition-colors"
                                 >
                                     <input {...referenceInput()} />
-                                    <p className="text-gray-400 text-sm">Upload references for creators</p>
+                                    <p className="text-gray-400 text-sm">
+                                        {referenceImages.length > 0
+                                            ? `${referenceImages.length} image${
+                                                  referenceImages.length > 1 ? 's' : ''
+                                              } selected`
+                                            : 'Upload references for creators'}
+                                    </p>
                                 </div>
+                                {referenceImages.length > 0 && (
+                                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                        {referenceImages.map((file, i) => {
+                                            const key = `reference-${i}-${file.name}`
+                                            const url = assetUrls[key]
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-square bg-gray-50"
+                                                >
+                                                    {url && (
+                                                        <img
+                                                            src={url}
+                                                            alt={file.name}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    )}
+                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeFile('referenceImages', i)}
+                                                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                    <p className="absolute bottom-0 left-0 right-0 text-[10px] text-white bg-black/40 px-1.5 py-1 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {file.name}
+                                                    </p>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
