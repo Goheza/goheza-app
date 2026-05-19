@@ -469,7 +469,7 @@ const ViewsBasedCampaignForm: React.FC = () => {
                         max_submissions: formData.minCreators,
                         budget: formData.totalBudget.toLocaleString(),
                         payout_type: 'view_pool',
-                        payout: 'view_pool',
+                        payout: 'UGX 10,000 per 1k views',
                         pool_status: 'healthy',
                     },
                 ])
