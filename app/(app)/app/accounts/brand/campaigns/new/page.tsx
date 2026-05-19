@@ -1,335 +1,386 @@
 'use client'
-
-import React, { useState, useEffect, useCallback } from 'react'
-import {
-    Bold,
-    Italic,
-    Underline,
-    List,
-    ListOrdered,
-    Image as ImageIcon,
-    ChevronLeft,
-    ChevronRight,
-    Wallet,
-    Users,
-    DollarSign,
-    Airplay,
-    Video, // Added Video icon for assets
-} from 'lucide-react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useRouter } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
-import { calculateGohezaPayment } from '@/lib/appServiceData/payment-calculator'
 import { toast } from 'sonner'
 import { addNotificationToTheAdmin } from '@/lib/appServiceData/adminNotifications'
-import {
-    ProgressState,
-    ProgressStep,
-    getButtonText,
-    getProgressStatus,
-} from '@/components/workspace/pages/brand/progressStep/progress-step'
-import DosDontsList from '@/components/workspace/pages/brand/DosDonts/DosDonts'
 import { uploadFilesToStorage } from '@/lib/appServiceData/services/uploadFilesToStorage'
+import {
+    Image as ImageIcon,
+    Video,
+    TrendingUp,
+    TrendingDown,
+    Users,
+    Eye,
+    DollarSign,
+    Wallet,
+    Globe,
+    Clock3,
+    CheckCircle2,
+    AlertCircle,
+} from 'lucide-react'
 
-interface CampaignFormData {
+// ─────────────────────────────────────────────
+// CONSTANTS — fixed rules, never user-editable
+// ─────────────────────────────────────────────
+const COST_PER_1K_VIEWS = 10_000 // UGX — fixed platform rule
+const VIEWS_DIVISOR = 10          // requiredViews = totalBudget / 10
+
+// ─────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────
+interface ViewsCampaignFormData {
     title: string
     description: string
-    objectives: string // single selected objective (keeps newer UI behavior)
-    objectivesArray: string[] // for DB compatibility (older file expected array)
-    contentRequirements: string[]
-    estimatedViews: number
-    totalBudget: number
-    // fields pulled from older component
-    budget?: string // string representation used for DB (e.g., "$5,000")
-    payout?: string
-    timeline?: string
-    requirementsText?: string[] // free-form requirements list
-
-    // NEW fields
     information?: string
     dos?: string
     donts?: string
-    countries?: string // comma separated input
-    numCreators?: number
-    maxPay?: string
-    max_submissions?: number
-    flatFee?: string
-
-    // REQUESTED: Field for Brand Cover Image URL
+    countries?: string
+    timeline?: string
+    requirementsText?: string[]
+    // Views campaign logic
+    minCreators: number
+    totalBudget: number
+    requiredViews: number
+    // cover image
     coverImageUrl?: string
 }
 
-interface PaymentBreakdown {
-    numCreators: number
-    maxPayout: number
-    flatFee: number
-    creatorPayoutTotal: number
-    platformFee: number
-    brandTotalPay: number
-    perCreatorTotal: number
-    totalViews: number
+interface ViewsPaymentSummary {
+    totalBudget: number
+    minCreators: number
+    costPer1kViews: number
+    requiredViews: number
+    total1kViewUnits: number
 }
 
-const CampaignBriefForm: React.FC = () => {
+type ProgressState =
+    | 'idle'
+    | 'calculating'
+    | 'uploading-assets'
+    | 'inserting-data'
+    | 'notifying-admin'
+    | 'complete'
+    | 'error'
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+const fmt = (n: number) =>
+    n >= 1_000_000
+        ? `${(n / 1_000_000).toFixed(2)}M`
+        : n >= 1_000
+        ? `${(n / 1_000).toFixed(1)}K`
+        : n.toLocaleString()
+
+const computeBudgetState = (
+    totalBudgetPool: number,
+    totalViewsAccumulated: number,
+    requiredViews: number
+) => {
+    // Uses the fixed rate: every 1k views costs COST_PER_1K_VIEWS UGX
+    const units1k = totalViewsAccumulated / 1000
+    const creatorEarnings = units1k * COST_PER_1K_VIEWS
+    const remainingBudget = Math.max(totalBudgetPool - creatorEarnings, 0)
+    const spentBudget = totalBudgetPool - remainingBudget
+    const reductionPercent = totalBudgetPool > 0 ? Math.min((spentBudget / totalBudgetPool) * 100, 100) : 0
+    const remainingPercent = Math.max(100 - reductionPercent, 0)
+    const viewProgressPercent = requiredViews > 0 ? Math.min((totalViewsAccumulated / requiredViews) * 100, 100) : 0
+    return {
+        creatorEarnings,
+        remainingBudget,
+        spentBudget,
+        reductionPercent,
+        remainingPercent,
+        viewProgressPercent,
+        isExhausted: remainingBudget <= 0,
+        isNearlyExhausted: remainingPercent <= 20 && remainingPercent > 0,
+        isHealthy: remainingPercent > 50,
+    }
+}
+
+/**
+ * Fixed formula:
+ *   requiredViews = totalBudget / VIEWS_DIVISOR  (budget ÷ 10)
+ *   costPer1kViews is always COST_PER_1K_VIEWS   (10,000 UGX)
+ */
+const derivePaymentSummary = (
+    totalBudget: number,
+    minCreators: number
+): ViewsPaymentSummary => {
+    const requiredViews = Math.floor(totalBudget / VIEWS_DIVISOR)
+    const total1kViewUnits = requiredViews / 1000
+    return {
+        totalBudget,
+        minCreators,
+        costPer1kViews: COST_PER_1K_VIEWS,
+        requiredViews,
+        total1kViewUnits,
+    }
+}
+
+// ─────────────────────────────────────────────
+// BUDGET PREVIEW COMPONENT
+// ─────────────────────────────────────────────
+interface BudgetMeterPreviewProps {
+    totalBudgetPool: number
+    requiredViews: number
+    minCreators: number
+}
+
+const BudgetMeterPreview: React.FC<BudgetMeterPreviewProps> = ({
+    totalBudgetPool,
+    requiredViews,
+    minCreators,
+}) => {
+    const state = useMemo(
+        () => computeBudgetState(totalBudgetPool, 0, requiredViews),
+        [totalBudgetPool, requiredViews]
+    )
+
+    return (
+        <div className="mt-6 space-y-4">
+            <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#e85c51] animate-pulse" />
+                <p className="text-xs uppercase tracking-wide font-semibold text-red-600">
+                    Live Budget Pool Preview
+                </p>
+            </div>
+
+            <div className="bg-white border border-red-100 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                            <TrendingDown className="w-4 h-4 text-[#e85c51]" />
+                            Budget Pool Meter
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-1">
+                            Budget reduces dynamically as creators accumulate verified views.
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-2xl font-bold text-green-600">{state.remainingPercent.toFixed(0)}%</p>
+                        <p className="text-xs text-gray-400">remaining</p>
+                    </div>
+                </div>
+
+                <div className="w-full h-4 rounded-full bg-green-100 overflow-hidden mb-4">
+                    <div
+                        className="h-full bg-green-500 rounded-full transition-all duration-700"
+                        style={{ width: `${state.remainingPercent}%` }}
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                        <p className="text-gray-400 text-xs">Budget Pool</p>
+                        <p className="font-bold text-gray-900 mt-1">UGX {fmt(totalBudgetPool)}</p>
+                    </div>
+                    <div className="bg-red-50 rounded-xl p-3 border border-red-100">
+                        <p className="text-[#e85c51] text-xs">Cost Per 1k Views</p>
+                        {/* Display only — fixed at 10,000 UGX */}
+                        <p className="font-bold text-red-700 mt-1">UGX {fmt(COST_PER_1K_VIEWS)}</p>
+                    </div>
+                    <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                        <p className="text-blue-500 text-xs">Views To Exhaust Pool</p>
+                        <p className="font-bold text-blue-700 mt-1">{fmt(requiredViews)}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-gray-100 bg-white p-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-gray-400">Minimum Creators</p>
+                        <Users className="w-4 h-4 text-[#e85c51]" />
+                    </div>
+                    <p className="text-lg font-bold text-gray-900">{minCreators}</p>
+                </div>
+                <div className="rounded-xl border border-gray-100 bg-white p-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-gray-400">Payout Logic</p>
+                        <Wallet className="w-4 h-4 text-[#e85c51]" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900">First Come First Serve</p>
+                </div>
+                <div className="rounded-xl border border-gray-100 bg-white p-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-gray-400">Pool State</p>
+                        <TrendingUp className="w-4 h-4 text-green-500" />
+                    </div>
+                    <p className="text-sm font-semibold text-green-600">Healthy</p>
+                </div>
+                <div className="rounded-xl border border-gray-100 bg-white p-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-gray-400">Creator Competition</p>
+                        <Eye className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900">View Based</p>
+                </div>
+            </div>
+
+            {/* What creators will see */}
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-red-700 mb-2">What creators will see:</p>
+                <ul className="space-y-1 text-xs text-gray-600 list-disc list-inside">
+                    <li>
+                        Total views needed: <strong>{fmt(requiredViews)}</strong>{' '}
+                        <span className="text-gray-400">(budget ÷ 10)</span>
+                    </li>
+                    <li>
+                        Pay per 1,000 views: <strong>UGX {fmt(COST_PER_1K_VIEWS)}</strong>
+                    </li>
+                    <li>Remaining budget pool decreases live as views accumulate.</li>
+                    <li>Creators who gain views first are paid first.</li>
+                </ul>
+            </div>
+        </div>
+    )
+}
+
+// ─────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────
+const ViewsBasedCampaignForm: React.FC = () => {
     const router = useRouter()
 
-    const [formData, setFormData] = useState<CampaignFormData>({
+    const [formData, setFormData] = useState<ViewsCampaignFormData>({
         title: '',
         description: '',
-        objectives: 'increase-brand-awareness',
-        objectivesArray: ['increase-brand-awareness'],
-        contentRequirements: ['video-ad', 'social-media-posts'],
-        estimatedViews: 1000000,
-        totalBudget: 1500,
-        budget: '$1,500',
-        payout: '$500',
-        timeline: '1 month',
-        requirementsText: [''],
+        information: '',
         dos: '',
         donts: '',
         countries: '',
-        numCreators: 80, // sensible default
-        maxPay: '',
-        flatFee: '',
-        max_submissions: 5, // sensible default
+        timeline: '1 month',
+        requirementsText: [''],
+        minCreators: 40,
+        totalBudget: 0,
+        requiredViews: 0,
+        // costPer1kViews removed — it's always COST_PER_1K_VIEWS
     })
 
-    /**
-     * Used for handling the assets that are going to the brand
-     */
     const [brandCoverImage, setBrandCoverImage] = useState<File | null>(null)
     const [brandAssets, setBrandAssets] = useState<File[]>([])
     const [referenceImages, setReferenceImages] = useState<File[]>([])
-    const [brandGuidelines, setBrandGuidelines] = useState<File | null>(null)
-
-    /**
-     * Used for progress errors and states
-     */
+    const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
+    const [paymentSummary, setPaymentSummary] = useState<ViewsPaymentSummary | null>(null)
+    const [summaryCalculated, setSummaryCalculated] = useState(false)
     const [progressState, setProgressState] = useState<ProgressState>('idle')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
-    /**
-     * Used for Calculating Payments (for the brand)
-     */
-    const [numCreators, setNumCreators] = useState(formData.numCreators || 30)
-    const [maxPayout, setMaxPayout] = useState(70) // $250 max per creator (example)
-    const [flatFee, setFlatFee] = useState(0)
-    const [estimatedViewsInput, setEstimatedViewsInput] = useState(formData.estimatedViews.toLocaleString())
-    const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentBreakdown | null>(null)
-    const [paymentError, setPaymentError] = useState<string | null>(null)
-
-    // Local previews (object URLs) so users can download/view before upload
-    const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
-
-    /**
-     *
-     * Assets DropZones Handlers for the campaign
-     *
-     */
-
-    const onDropBrandCoverImage = useCallback((acceptedFiles: File[]) => {
-        if (acceptedFiles.length > 0) setBrandCoverImage(acceptedFiles[0])
+    // ─────────────────────────────────────────────
+    // DROPZONES
+    // ─────────────────────────────────────────────
+    const onDropCover = useCallback((files: File[]) => {
+        if (files.length > 0) setBrandCoverImage(files[0])
+    }, [])
+    const onDropAssets = useCallback((files: File[]) => {
+        setBrandAssets((prev) => [...prev, ...files])
+    }, [])
+    const onDropReference = useCallback((files: File[]) => {
+        setReferenceImages((prev) => [...prev, ...files])
     }, [])
 
-    const onDropBrandAssets = useCallback((acceptedFiles: File[]) => {
-        setBrandAssets((prev) => [...prev, ...acceptedFiles])
-    }, [])
-
-    const onDropReferenceImages = useCallback((acceptedFiles: File[]) => {
-        setReferenceImages((prev) => [...prev, ...acceptedFiles])
-    }, [])
-
-    const onDropBrandGuidelines = useCallback((acceptedFiles: File[]) => {
-        if (acceptedFiles.length > 0) setBrandGuidelines(acceptedFiles[0])
-    }, [])
-
-    /**
-     * DropZone handlers Placed And Attached Evenly
-     */
-    const { getRootProps: getCoverImageRootProps, getInputProps: getCoverImageInputProps } = useDropzone({
-        onDrop: onDropBrandCoverImage,
-        accept: { 'image/*': ['.jpg', '.jpeg', '.png'] },
+    const { getRootProps: coverRoot, getInputProps: coverInput } = useDropzone({
+        onDrop: onDropCover,
         multiple: false,
-    })
-
-    const { getRootProps: getBrandAssetsRootProps, getInputProps: getBrandAssetsInputProps } = useDropzone({
-        onDrop: onDropBrandAssets,
-        multiple: true,
         accept: {
-            // Images
             'image/jpeg': ['.jpg', '.jpeg'],
             'image/png': ['.png'],
-            'image/gif': ['.gif'],
             'image/webp': ['.webp'],
-            'image/heic': ['.heic'], // iPhone photos (iOS 11+)
-            'image/heif': ['.heif'], // HEIF variant
-            'image/svg+xml': ['.svg'],
-            'image/tiff': ['.tiff', '.tif'],
-
-            // Videos
-            'video/mp4': ['.mp4'],
-            'video/quicktime': ['.mov'], // iPhone default format
-            'video/x-mov': ['.mov'], // alternate MOV MIME
-            'video/webm': ['.webm'],
-            'video/avi': ['.avi'],
-            'video/x-msvideo': ['.avi'], // alternate AVI MIME
-            'video/x-matroska': ['.mkv'],
-            'video/3gpp': ['.3gp'], // older mobile format
-            'video/x-m4v': ['.m4v'], // iTunes/Apple video
         },
     })
-
-    const { getRootProps: getReferenceImagesRootProps, getInputProps: getReferenceImagesInputProps } = useDropzone({
-        onDrop: onDropReferenceImages,
-        accept: { 'image/*': ['.jpg', '.jpeg', '.png'] },
+    const { getRootProps: assetsRoot, getInputProps: assetsInput } = useDropzone({
+        onDrop: onDropAssets,
         multiple: true,
-    })
-
-    const { getRootProps: getBrandGuidelinesRootProps, getInputProps: getBrandGuidelinesInputProps } = useDropzone({
-        onDrop: onDropBrandGuidelines,
         accept: {
-            'application/pdf': ['.pdf'],
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+            'image/jpeg': ['.jpg', '.jpeg'],
+            'image/png': ['.png'],
+            'image/webp': ['.webp'],
+            'video/mp4': ['.mp4'],
+            'video/quicktime': ['.mov'],
+            'video/webm': ['.webm'],
         },
-        multiple: false,
+    })
+    const { getRootProps: referenceRoot, getInputProps: referenceInput } = useDropzone({
+        onDrop: onDropReference,
+        multiple: true,
+        accept: {
+            'image/jpeg': ['.jpg', '.jpeg'],
+            'image/png': ['.png'],
+        },
     })
 
-    // --- File URL Effect ---
+    // ─────────────────────────────────────────────
+    // OBJECT URL MANAGEMENT
+    // ─────────────────────────────────────────────
     useEffect(() => {
-        /**
-         * Generate Object URLs for Easy download and Preview
-         * @returns
-         */
-
-        const generateObjectURLSForEasyDownloadAndPreview = () => {
-            const urls: Record<string, string> = {}
-
-            brandAssets.forEach((f, i) => {
-                const key = `brand-${i}-${f.name}`
-                urls[key] = URL.createObjectURL(f)
-            })
-
-            referenceImages.forEach((f, i) => {
-                const key = `ref-${i}-${f.name}`
-                urls[key] = URL.createObjectURL(f)
-            })
-
-            // Handle Brand Cover Image
-            if (brandCoverImage) {
-                const key = `cover-${brandCoverImage.name}`
-                urls[key] = URL.createObjectURL(brandCoverImage)
-            }
-
-            if (brandGuidelines) {
-                const key = `guidelines-${brandGuidelines.name}`
-                urls[key] = URL.createObjectURL(brandGuidelines)
-            }
-
-            return urls
+        const urls: Record<string, string> = {}
+        brandAssets.forEach((f, i) => {
+            urls[`brand-${i}-${f.name}`] = URL.createObjectURL(f)
+        })
+        referenceImages.forEach((f, i) => {
+            urls[`reference-${i}-${f.name}`] = URL.createObjectURL(f)
+        })
+        if (brandCoverImage) {
+            urls[`cover-${brandCoverImage.name}`] = URL.createObjectURL(brandCoverImage)
         }
-
-        /**
-         * Generated URLS
-         */
-        let urls = generateObjectURLSForEasyDownloadAndPreview()
-
-        /**
-         * Used to Revoke the Object URLS
-         */
         Object.values(assetUrls).forEach((u) => {
-            try {
-                URL.revokeObjectURL(u)
-            } catch {
-                // ignore
-            }
+            try { URL.revokeObjectURL(u) } catch { /* ignore */ }
         })
         setAssetUrls(urls)
-
-        // cleanup when component unmounts
         return () => {
             Object.values(urls).forEach((u) => {
-                try {
-                    URL.revokeObjectURL(u)
-                } catch {
-                    // ignore
-                }
+                try { URL.revokeObjectURL(u) } catch { /* ignore */ }
             })
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [brandAssets, referenceImages, brandGuidelines, brandCoverImage])
+    }, [brandAssets, referenceImages, brandCoverImage])
 
-    // --- Core Functions ---
-
-    // Helper to safely parse any input string into a number
-    const parseToNumber = (value: string): number => {
-        // Remove all non-digit characters (e.g., commas, letters)
-        const cleanedValue = value.replace(/[^0-9]/g, '')
-        // Parse to integer, default to 0 if empty
-        return parseInt(cleanedValue) || 0
-    }
-
-    /**
-     * Handles payment calculation and aligns the result with the main formData.
-     */
-    const handlePaymentCalculate = () => {
-        setProgressState('calculating') // Set state
-        try {
-            if (numCreators <= 0 || maxPayout <= 0) {
-                throw new Error('Number of creators and Max Payout must be greater than zero.')
-            }
-
-            const result = calculateGohezaPayment(numCreators, maxPayout, flatFee)
-            setPaymentBreakdown(result)
-            setPaymentError(null)
-
-            // 💰 BUDGET ALIGNMENT: Update formData with the calculated total and other payment details
-            setFormData((prev) => ({
-                ...prev,
-                totalBudget: result.brandTotalPay,
-                budget: `$${result.brandTotalPay.toLocaleString()}`,
-                maxPay: `$${result.maxPayout}`,
-                flatFee: `$${flatFee.toLocaleString()}`,
-                payout: `$${result.perCreatorTotal}`,
-                numCreators: numCreators,
-                max_submissions: numCreators,
-                estimatedViews: result.totalViews,
-            }))
-            setProgressState('idle') // Reset state
-            toast.success('Budget Calculated!', {
-                className: 'text-black',
-                description: `Total cost: $${result.brandTotalPay.toLocaleString()}`,
-            })
-        } catch (err: any) {
-            setPaymentBreakdown(null)
-            setPaymentError(err.message)
-            setProgressState('error') // Set error state
-            toast.error('Calculation Failed', { description: err.message })
-        }
-    }
-
-    const handleInputChange = (field: keyof CampaignFormData, value: any) => {
-        // keep budget display synced with totalBudget when appropriate
-        if (field === 'totalBudget') {
-            setFormData((prev) => ({ ...prev, totalBudget: value, budget: `$${Number(value).toLocaleString()}` }))
-            return
-        }
-
-        if (field === 'objectives') {
-            // single objective selection - keep objectivesArray for DB
-            setFormData((prev) => ({ ...prev, objectives: value, objectivesArray: [value] }))
-            return
-        }
-
+    // ─────────────────────────────────────────────
+    // INPUT HANDLER
+    // ─────────────────────────────────────────────
+    const handleInput = (field: keyof ViewsCampaignFormData, value: any) => {
         setFormData((prev) => ({ ...prev, [field]: value }))
+        // Reset summary if budget or creators change
+        if (['minCreators', 'totalBudget'].includes(field as string)) {
+            setSummaryCalculated(false)
+            setPaymentSummary(null)
+        }
     }
 
-    const formatNumber = (num: number) => {
-        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-        if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
-        return num.toString()
+    // ─────────────────────────────────────────────
+    // CALCULATE
+    // ─────────────────────────────────────────────
+    const handleCalculate = () => {
+        try {
+            setProgressState('calculating')
+            const { totalBudget, minCreators } = formData
+
+            if (totalBudget <= 0) throw new Error('Please enter a valid budget pool.')
+            if (minCreators <= 0) throw new Error('Minimum creators must be greater than 0.')
+
+            // Fixed formula: requiredViews = budget ÷ 10
+            const summary = derivePaymentSummary(totalBudget, minCreators)
+
+            setPaymentSummary(summary)
+            setFormData((prev) => ({ ...prev, requiredViews: summary.requiredViews }))
+            setSummaryCalculated(true)
+
+            toast.success('Budget Calculated', {
+                description: `${summary.requiredViews.toLocaleString()} views needed to exhaust the pool.`,
+            })
+            setProgressState('idle')
+        } catch (err: any) {
+            toast.error('Calculation Failed', { description: err.message })
+            setProgressState('error')
+        }
     }
 
+    // ─────────────────────────────────────────────
+    // FILE REMOVAL
+    // ─────────────────────────────────────────────
     const removeFile = (type: 'brandAssets' | 'referenceImages', index: number) => {
         if (type === 'brandAssets') {
             setBrandAssets((prev) => prev.filter((_, i) => i !== index))
@@ -338,120 +389,60 @@ const CampaignBriefForm: React.FC = () => {
         }
     }
 
+    // ─────────────────────────────────────────────
+    // SUBMIT
+    // ─────────────────────────────────────────────
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault()
-
-        if (!paymentBreakdown) {
-            toast.error('Missing Budget Calculation', { description: 'Please calculate the budget before submitting.' })
+        if (!summaryCalculated || !paymentSummary) {
+            toast.error('Calculate budget first')
             return
         }
 
         setLoading(true)
-        setProgressState('uploading-assets') // START: Initial progress state
+        setProgressState('uploading-assets')
         setError('')
 
         try {
-            const {
-                data: { user },
-                error: userError,
-            } = await supabaseClient.auth.getUser()
-
+            const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
             if (userError || !user) throw new Error('Brand not authenticated')
 
-            // Filter out empty requirements
-            let filteredRequirements = (formData.requirementsText || []).filter((req) => req.trim() !== '')
-
-            // Fallback: if no free-text requirements provided, use the checkbox content requirements
-            if (
-                filteredRequirements.length === 0 &&
-                formData.contentRequirements &&
-                formData.contentRequirements.length > 0
-            ) {
-                filteredRequirements = formData.contentRequirements
-            }
-
-            if (filteredRequirements.length === 0) {
-                throw new Error('At least one requirement is needed')
-            }
+            const filteredRequirements = (formData.requirementsText || []).filter((r) => r.trim() !== '')
+            if (filteredRequirements.length === 0) throw new Error('At least one requirement is needed.')
 
             let brandAssetsData: any[] = []
             let referenceImagesData: any[] = []
-            let brandGuidelinesData: any = null
-            // REQUESTED: Brand Cover Image upload setup
             let coverImageUrl: string | null = null
 
-            // --- ASSET UPLOADS ---
             if (brandAssets.length > 0) {
-                // uploadFilesToStorage handles video/image type detection now
                 brandAssetsData = await uploadFilesToStorage(brandAssets, 'brand-assets')
             }
-
             if (referenceImages.length > 0) {
                 referenceImagesData = await uploadFilesToStorage(referenceImages, 'reference-images')
             }
-
-            // REQUESTED: Brand Cover Image Upload
             if (brandCoverImage) {
                 const fileName = `${Date.now()}_${brandCoverImage.name}`
                 const filePath = `brand-covers/${fileName}`
-
-                const { error: coverImageError } = await supabaseClient.storage
+                const { error: coverError } = await supabaseClient.storage
                     .from('campaign-assets')
                     .upload(filePath, brandCoverImage)
-
-                if (coverImageError) throw coverImageError
-
-                const {
-                    data: { publicUrl },
-                } = supabaseClient.storage.from('campaign-assets').getPublicUrl(filePath)
-
-                coverImageUrl = publicUrl
-                setFormData((prev) => ({ ...prev, coverImageUrl: publicUrl })) // Store URL in local state
-            }
-
-            if (brandGuidelines) {
-                const fileName = `${Date.now()}_${brandGuidelines.name}`
-                const filePath = `brand-guidelines/${fileName}`
-
-                const { data: guidelinesUpload, error: guidelinesError } = await supabaseClient.storage
+                if (coverError) throw coverError
+                const { data: { publicUrl } } = supabaseClient.storage
                     .from('campaign-assets')
-                    .upload(filePath, brandGuidelines)
-
-                if (guidelinesError) throw guidelinesError
-
-                const {
-                    data: { publicUrl },
-                } = supabaseClient.storage.from('campaign-assets').getPublicUrl(filePath)
-
-                brandGuidelinesData = {
-                    name: brandGuidelines.name,
-                    url: publicUrl,
-                    type: brandGuidelines.type,
-                    size: brandGuidelines.size,
-                    media_type: 'document', // Guidelines are a document
-                }
+                    .getPublicUrl(filePath)
+                coverImageUrl = publicUrl
             }
 
             const assets = [
-                ...brandAssetsData.map((asset) => ({ ...asset, category: 'brand_asset' })),
-                ...referenceImagesData.map((asset) => ({ ...asset, category: 'reference_image' })),
-                ...(brandGuidelinesData ? [{ ...brandGuidelinesData, category: 'brand_guidelines' }] : []),
+                ...brandAssetsData.map((a) => ({ ...a, category: 'brand_asset' })),
+                ...referenceImagesData.map((a) => ({ ...a, category: 'reference_image' })),
             ]
 
-            // Update state before DB insertion
             setProgressState('inserting-data')
 
-            /**
-             *
-             * Expiry time for the campaign
-             *
-             * A campaign will expire and not allow submissions from creators after 7 days.
-             */
+            const expiresAt = new Date()
+            expiresAt.setDate(expiresAt.getDate() + 7)
 
-            const sevenDaysFromNow = new Date()
-            sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
-
-            // convert countries string to array
             const targetCountries = (formData.countries || '')
                 .split(',')
                 .map((c) => c.trim())
@@ -463,496 +454,430 @@ const CampaignBriefForm: React.FC = () => {
                     {
                         name: formData.title,
                         description: formData.description,
-                        // Using ALIGNED formData fields for budget/payout
-                        budget: formData.budget,
-                        payout: formData.payout || null,
                         timeline: formData.timeline || null,
                         requirements: filteredRequirements,
-                        objectives: formData.objectivesArray,
+                        objectives: ['views-based-payout'],
                         status: 'inreview',
                         created_by: user.id,
-                        assets: assets,
-                        // new fields saved to DB
+                        assets,
                         additional_information: formData.information || null,
                         dos: formData.dos || null,
                         donts: formData.donts || null,
                         target_countries: targetCountries,
-
-                        /**
-                         * Payment Details
-                         */
-
-                        num_creators: formData.numCreators ?? null,
-                        max_pay: formData.maxPay || null,
-                        flat_fee: formData.flatFee || null,
-
-                        /**
-                         * Cover Image
-                         */
                         cover_image_url: coverImageUrl,
-                        max_submissions: formData.max_submissions,
-
-                        /**
-                         * Expiring Manager
-                         */
-                        expires_at: sevenDaysFromNow.toISOString(),
+                        expires_at: expiresAt.toISOString(),
+                        // Views campaign fields — costPer1kViews always COST_PER_1K_VIEWS
+                        campaign_type: 'views_based',
+                        total_budget_pool: formData.totalBudget,
+                        remaining_budget_pool: formData.totalBudget,
+                        cost_per_1k_views: COST_PER_1K_VIEWS,
+                        required_views: paymentSummary.requiredViews,
+                        accumulated_views: 0,
+                        min_creators: formData.minCreators,
+                        max_submissions: formData.minCreators,
+                        budget: formData.totalBudget.toLocaleString(),
+                        payout_type: 'view_pool',
+                        payout: 'view_pool',
+                        pool_status: 'healthy',
                     },
                 ])
                 .select()
                 .single()
 
-            if (campaignError) {
-                throw new Error(campaignError.message)
-            }
+            if (campaignError) throw new Error(campaignError.message)
 
-            // --- ADMIN NOTIFICATION ---
             setProgressState('notifying-admin')
-
-            toast.success('Campaign Successfully Created', {
-                className: 'text-black',
-                description: 'An invoice will be sent to your email once the campaign has been reviewed.',
-            })
-
             addNotificationToTheAdmin({
                 id: user.id,
-                message: `(NEW-CAMPAIGN) ${formData.title} from Brand`,
+                message: `(NEW-VIEWS-CAMPAIGN) ${formData.title} from Brand`,
                 source: 'brand',
             })
 
-            setProgressState('complete') // FINAL State
+            toast.success('Campaign Created Successfully', {
+                description: 'Your views-based campaign has been submitted for review.',
+            })
+            setProgressState('complete')
 
-            // redirect
-            if (campaignData && campaignData.id) router.push(`/app/accounts/brand/campaigns`)
+            if (campaignData?.id) {
+                router.push('/app/accounts/brand/campaigns')
+            }
         } catch (err) {
-            console.error('Error creating campaign:', err)
-            setError(err instanceof Error ? err.message : 'Failed to create campaign')
-            setProgressState('error') // Set error state
+            console.error(err)
+            setError(err instanceof Error ? err.message : 'Failed to create campaign.')
+            setProgressState('error')
         } finally {
             setLoading(false)
         }
     }
 
-    // simple helpers for downloadable previews
-    const getPreviewUrlForFile = (type: 'brand' | 'ref' | 'guidelines', index: number, name?: string) => {
-        if (type === 'guidelines' && name) return assetUrls[`guidelines-${name}`] || ''
-        if (type === 'brand') return assetUrls[`brand-${index}-${brandAssets[index]?.name}`] || ''
-        return assetUrls[`ref-${index}-${referenceImages[index]?.name}`] || ''
+    const progressLabel: Record<ProgressState, string> = {
+        idle: 'Submit Campaign',
+        calculating: 'Calculating...',
+        'uploading-assets': 'Uploading Assets...',
+        'inserting-data': 'Saving Campaign...',
+        'notifying-admin': 'Notifying Admin...',
+        complete: 'Done! Redirecting...',
+        error: 'Retry Submission',
     }
 
+    const isSubmitDisabled =
+        loading || (progressState !== 'idle' && progressState !== 'error') || !summaryCalculated
+
     return (
-        <div className="max-w-4xl mx-auto p-6 bg-white mt-2">
-            <h1 className="text-3xl font-semibold text-gray-900 mb-8">New Campaign Brief</h1>
+        <div className="max-w-5xl mx-auto p-6 bg-white mt-2">
+            <div className="mb-8">
+                <h1 className="text-3xl font-semibold text-gray-900">New Views Campaign Brief</h1>
+                <p className="text-sm text-gray-500 mt-2 max-w-2xl leading-relaxed">
+                    Creators compete for views on a first-come-first-served basis. Budget reduces dynamically as
+                    verified views accumulate.
+                </p>
+            </div>
 
             <form onSubmit={handleSubmit}>
-                {/* Campaign Title */}
-                <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Campaign Title (Max 60 characters)
-                    </label>
-                    <input
-                        type="text"
-                        placeholder="Enter campaign title"
-                        maxLength={60}
-                        value={formData.title}
-                        onChange={(e) => handleInputChange('title', e.target.value)}
-                        className="w-full px-4 py-3 border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        required
-                    />
-                    <p className="text-sm text-gray-500 mt-1">
-                        SEO Suggestion: Include keywords related to your product or service.
-                    </p>
-                </div>
+                <div className="space-y-8">
 
-                {/* Campaign Details: add budget/payout/timeline from older file */}
-                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* TITLE */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Timeline</label>
-                        <select
-                            value={formData.timeline}
-                            onChange={(e) => handleInputChange('timeline', e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                        >
-                            <option value="1 week">1 Week</option>
-                            <option value="2 weeks">2 Weeks</option>
-                            <option value="1 month">1 Month</option>
-                            <option value="2 months">2 Months</option>
-                            <option value="3 months">3 Months</option>
-                            <option value="flexible">Flexible</option>
-                        </select>
-                    </div>
-                </div>
-
-                {/* Campaign Description */}
-                <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Campaign Description</label>
-                    <textarea
-                        rows={6}
-                        value={formData.description}
-                        onChange={(e) => handleInputChange('description', e.target.value)}
-                        className="w-full px-4 py-3 border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                        required
-                    />
-                </div>
-
-                {/* --- Media Uploads (Updated) --- */}
-                <div className="mb-8">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Media Uploads</h2>
-
-                    {/* REQUESTED: Brand Cover Image Upload */}
-                    <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Brand Cover Image (Optional)
-                        </label>
-                        <div
-                            {...getCoverImageRootProps()}
-                            className="border-2 border-dashed border-[#e6626227] rounded-lg p-8 text-center cursor-pointer"
-                        >
-                            <input {...getCoverImageInputProps()} />
-                            {brandCoverImage ? (
-                                <div className="flex items-center justify-center space-x-2">
-                                    <p className="text-gray-900 font-medium">✅ {brandCoverImage.name}</p>
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            setBrandCoverImage(null)
-                                        }}
-                                        className="text-[#e85c51] hover:text-red-800 text-sm"
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            ) : (
-                                <p className="text-gray-500">Drag and drop a single **cover image** (JPG/PNG)</p>
-                            )}
-                        </div>
-                        {brandCoverImage && (
-                            <p className="text-xs text-gray-500 mt-2">
-                                Tip: This image will be the primary visual for your campaign listing.
-                            </p>
-                        )}
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Campaign Title</label>
+                        <input
+                            type="text"
+                            maxLength={60}
+                            value={formData.title}
+                            onChange={(e) => handleInput('title', e.target.value)}
+                            placeholder="Enter campaign title"
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400"
+                            required
+                        />
                     </div>
 
-                    {/* Reference Images */}
-                    <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Reference Images</label>
-                        <div
-                            {...getReferenceImagesRootProps()}
-                            className="border-2 border-dashed border-[#e6626227] rounded-lg p-8 text-center cursor-pointer"
-                        >
-                            <input {...getReferenceImagesInputProps()} />
-                            <p className="text-gray-500">Drag and drop images here</p>
-                        </div>
-
-                        {referenceImages.length > 0 && (
-                            <div className="mt-3 space-y-2">
-                                {referenceImages.map((file, index) => (
-                                    <div
-                                        key={index}
-                                        className="flex items-center justify-between bg-gray-100 p-2 rounded"
-                                    >
-                                        <span className="text-sm text-gray-700">{file.name}</span>
-                                        <div className="flex items-center space-x-2">
-                                            <a
-                                                href={getPreviewUrlForFile('ref', index)}
-                                                download={file.name}
-                                                className="text-sm text-blue-600 hover:underline"
-                                            >
-                                                Download
-                                            </a>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeFile('referenceImages', index)}
-                                                className="text-[#e85c51] hover:text-red-800 text-xs"
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                    {/* DESCRIPTION */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Campaign Description</label>
+                        <textarea
+                            rows={5}
+                            value={formData.description}
+                            onChange={(e) => handleInput('description', e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                            required
+                        />
                     </div>
 
-                    {/* Brand Assets (Now includes Video support) */}
-                    <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Brand Assets (Images **and Videos**)
-                        </label>
-                        <div
-                            {...getBrandAssetsRootProps()}
-                            className="border-2 border-dashed border-[#e6626227] rounded-lg p-8 text-center cursor-pointer"
-                        >
-                            <input {...getBrandAssetsInputProps()} />
-                            <p className="text-gray-500">Drag and drop brand assets here</p>
-                        </div>
-
-                        {brandAssets.length > 0 && (
-                            <div className="mt-3 space-y-2">
-                                {brandAssets.map((file, index) => (
-                                    <div
-                                        key={index}
-                                        className="flex items-center justify-between bg-gray-100 p-2 rounded"
-                                    >
-                                        <span className="text-sm text-gray-700 flex items-center">
-                                            {file.type.startsWith('video/') ? (
-                                                <Video className="w-4 h-4 mr-1 text-blue-500" />
-                                            ) : (
-                                                <ImageIcon className="w-4 h-4 mr-1 text-green-500" />
-                                            )}
-                                            {file.name}
-                                        </span>
-                                        <div className="flex items-center space-x-2">
-                                            <a
-                                                href={getPreviewUrlForFile('brand', index)}
-                                                download={file.name}
-                                                className="text-sm text-blue-600 hover:underline"
-                                            >
-                                                Download
-                                            </a>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeFile('brandAssets', index)}
-                                                className="text-[#e85c51] hover:text-red-800 text-xs"
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Brand Guidelines
-                    <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Brand Guidelines (PDF/DOCX)
-                        </label>
-                        <div
-                            {...getBrandGuidelinesRootProps()}
-                            className="border-2 border-dashed border-[#e6626227] rounded-lg p-8 text-center cursor-pointer"
-                        >
-                            <input {...getBrandGuidelinesInputProps()} />
-                            {brandGuidelines ? (
-                                <div className="flex items-center justify-center space-x-2">
-                                    <p className="text-gray-900">{brandGuidelines.name}</p>
-                                    <a
-                                        href={getPreviewUrlForFile('guidelines', 0, brandGuidelines.name)}
-                                        download={brandGuidelines.name}
-                                        className="text-sm text-blue-600 hover:underline"
-                                    >
-                                        Download
-                                    </a>
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            setBrandGuidelines(null)
-                                        }}
-                                        className="text-[#e85c51] hover:text-red-800 text-sm"
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            ) : (
-                                <p className="text-gray-500">Drag and drop PDF or DOCX here</p>
-                            )}
-                        </div>
-                    </div> */}
-                </div>
-                {/* --- End Media Uploads --- */}
-
-                {/* Additional Information */}
-                <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Additional Information (Key instructions, contact, etc.)
-                    </label>
-                    <textarea
-                        rows={4}
-                        placeholder="Any other details the creators or admin should know."
-                        value={formData.information}
-                        onChange={(e) => handleInputChange('information', e.target.value)}
-                        className="w-full px-4 py-3 border border-[#e6626227] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                    />
-                </div>
-
-                {/* Dos and Don'ts */}
-                <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <DosDontsList
-                        title="Content Dos (What to include)"
-                        value={formData.dos || ''}
-                        onChange={(v) => handleInputChange('dos', v)}
-                        placeholder="1. Use our new logo in the corner.\n2. Mention the discount code 'GOHEZA20' clearly.\n3. Keep video under 60 seconds."
-                    />
-                    <DosDontsList
-                        title="Content Don'ts (What to avoid)"
-                        value={formData.donts || ''}
-                        onChange={(v) => handleInputChange('donts', v)}
-                        placeholder="1. Do not mention competitor brand X.\n2. Do not use background music with explicit lyrics.\n3. Do not show the product package."
-                    />
-                </div>
-
-                {/* --- Views and Budget Calculator (Implemented as requested) --- */}
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Views & Budget Calculator</h2>
-                <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        {/* Number of Creators Input */}
+                    {/* TIMELINE + COUNTRIES */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Number of Creators</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                <Clock3 className="w-4 h-4 text-[#e85c51]" />
+                                Timeline
+                            </label>
+                            <select
+                                value={formData.timeline}
+                                onChange={(e) => handleInput('timeline', e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400"
+                            >
+                                <option value="1 week">1 Week</option>
+                                <option value="2 weeks">2 Weeks</option>
+                                <option value="1 month">1 Month</option>
+                                <option value="2 months">2 Months</option>
+                                <option value="3 months">3 Months</option>
+                                <option value="flexible">Flexible</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                <Globe className="w-4 h-4 text-[#e85c51]" />
+                                Target Countries
+                            </label>
                             <input
-                                type="number"
-                                min="30"
-                                placeholder="e.g., 30"
-                                value={numCreators === 0 ? '' : numCreators}
-                                onChange={(e) => setNumCreators(e.target.value === '' ? 0 : parseInt(e.target.value))}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                                required
+                                type="text"
+                                value={formData.countries}
+                                onChange={(e) => handleInput('countries', e.target.value)}
+                                placeholder="Uganda, Kenya, Tanzania"
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400"
                             />
                         </div>
+                    </div>
 
-                        {/* Max Payout Input */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Max Payout per Creator ($)
-                            </label>
-                            <div className="relative">
-                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-                                    $
-                                </span>
+                    {/* REQUIREMENTS */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">Content Requirements</label>
+                        {(formData.requirementsText || ['']).map((req, idx) => (
+                            <div key={idx} className="flex items-center gap-2 mb-3">
                                 <input
-                                    type="number"
-                                    min="70"
-                                    placeholder="e.g., 70"
-                                    value={maxPayout === 0 ? '' : maxPayout}
-                                    onChange={(e) => setMaxPayout(e.target.value === '' ? 0 : parseInt(e.target.value))}
-                                    className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                                    required
+                                    type="text"
+                                    value={req}
+                                    placeholder={`Requirement ${idx + 1}`}
+                                    onChange={(e) => {
+                                        const updated = [...(formData.requirementsText || [''])]
+                                        updated[idx] = e.target.value
+                                        handleInput('requirementsText', updated)
+                                    }}
+                                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400"
                                 />
+                                {(formData.requirementsText || []).length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            handleInput(
+                                                'requirementsText',
+                                                (formData.requirementsText || []).filter((_, i) => i !== idx)
+                                            )
+                                        }
+                                        className="text-red-500 text-sm"
+                                    >
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={() =>
+                                handleInput('requirementsText', [...(formData.requirementsText || ['']), ''])
+                            }
+                            className="text-sm text-red-600 hover:underline"
+                        >
+                            + Add Requirement
+                        </button>
+                    </div>
+
+                    {/* MEDIA */}
+                    <div>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Media Uploads</h2>
+                        <div className="space-y-5">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Cover Image</label>
+                                <div
+                                    {...coverRoot()}
+                                    className="border-2 border-dashed border-red-200 rounded-2xl p-8 text-center cursor-pointer hover:bg-red-50 transition-colors"
+                                >
+                                    <input {...coverInput()} />
+                                    {brandCoverImage ? (
+                                        <div className="flex items-center justify-center gap-3">
+                                            <CheckCircle2 className="w-5 h-5 text-green-500" />
+                                            <p className="font-medium text-gray-900">{brandCoverImage.name}</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-gray-400 text-sm">Upload campaign cover image</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Brand Assets</label>
+                                <div
+                                    {...assetsRoot()}
+                                    className="border-2 border-dashed border-red-200 rounded-2xl p-8 text-center cursor-pointer hover:bg-red-50 transition-colors"
+                                >
+                                    <input {...assetsInput()} />
+                                    <p className="text-gray-400 text-sm">Upload videos and images</p>
+                                </div>
+                                {brandAssets.length > 0 && (
+                                    <div className="mt-4 space-y-2">
+                                        {brandAssets.map((file, i) => (
+                                            <div
+                                                key={i}
+                                                className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3"
+                                            >
+                                                <div className="flex items-center gap-2 text-sm text-gray-700">
+                                                    {file.type.startsWith('video/') ? (
+                                                        <Video className="w-4 h-4 text-blue-500" />
+                                                    ) : (
+                                                        <ImageIcon className="w-4 h-4 text-green-500" />
+                                                    )}
+                                                    {file.name}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeFile('brandAssets', i)}
+                                                    className="text-red-500 text-xs"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Reference Images</label>
+                                <div
+                                    {...referenceRoot()}
+                                    className="border-2 border-dashed border-red-200 rounded-2xl p-8 text-center cursor-pointer hover:bg-red-50 transition-colors"
+                                >
+                                    <input {...referenceInput()} />
+                                    <p className="text-gray-400 text-sm">Upload references for creators</p>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Flat Fee Input (Optional) */}
-                        <div className="md:col-span-3">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Additional Flat Fee for ALL Creators ($) (Optional)
-                            </label>
-                            <div className="relative">
-                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-                                    $
-                                </span>
+                    {/* DOS & DONTS */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Content Dos</label>
+                            <textarea
+                                rows={5}
+                                value={formData.dos}
+                                onChange={(e) => handleInput('dos', e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Content Don'ts</label>
+                            <textarea
+                                rows={5}
+                                value={formData.donts}
+                                onChange={(e) => handleInput('donts', e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                            />
+                        </div>
+                    </div>
+
+                    {/* BUDGET ENGINE — now only 2 inputs */}
+                    <div className="bg-red-50 border border-red-100 rounded-3xl p-6">
+                        <div className="mb-6">
+                            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Views Budget Engine</h2>
+                            <p className="text-sm text-gray-500 max-w-2xl leading-relaxed">
+                                Creators are paid based on accumulated views. The budget pool reduces dynamically until
+                                exhausted.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                            {/* Input 1: Minimum Creators */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Minimum Creators
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={formData.minCreators || ''}
+                                    onChange={(e) => handleInput('minCreators', parseInt(e.target.value) || 0)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-400"
+                                />
+                            </div>
+
+                            {/* Input 2: Total Budget */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Total Budget Pool (UGX)
+                                </label>
                                 <input
                                     type="number"
                                     min="0"
-                                    placeholder="e.g., 500 (for product cost, etc.)"
-                                    value={flatFee === 0 ? '' : flatFee}
-                                    onChange={(e) => setFlatFee(parseInt(e.target.value) || 0)}
-                                    className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    value={formData.totalBudget || ''}
+                                    onChange={(e) => handleInput('totalBudget', parseInt(e.target.value) || 0)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-400"
                                 />
                             </div>
                         </div>
-                    </div>
 
-                    <button
-                        type="button"
-                        onClick={handlePaymentCalculate}
-                        className="w-full py-3 bg-[#e85c51] text-white font-semibold rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
-                        disabled={loading || progressState === 'calculating'}
-                    >
-                        <Wallet className="w-5 h-5" />
-                        <span>Calculate Total Budget</span>
-                    </button>
-
-                    {paymentBreakdown && (
-                        <div className="mt-4 p-4 bg-white border border-green-200 rounded-lg">
-                            <h3 className="text-lg font-semibold text-green-700 mb-2">Budget Breakdown</h3>
-                            <div className="grid grid-cols-2 gap-2 text-sm text-gray-700">
-                                <p>Creator Payout Total:</p>
-                                <p className="font-semibold text-right">
-                                    ${paymentBreakdown.creatorPayoutTotal.toLocaleString()}
-                                </p>
-                                <p>
-                                    Goheza Platform Fee (
-                                    {Math.round(
-                                        (paymentBreakdown.platformFee / paymentBreakdown.creatorPayoutTotal) * 100
-                                    )}
-                                    %):
-                                </p>
-                                <p className="font-semibold text-right">
-                                    ${paymentBreakdown.platformFee.toLocaleString()}
-                                </p>
-                                <p className="pt-2 font-bold text-base border-t border-gray-300">
-                                    Max Payment Per Creator:
-                                </p>
-                                <p className="pt-2 font-bold text-base text-right border-t border-gray-300 text-[#e85c51]">
-                                    ${paymentBreakdown.perCreatorTotal.toLocaleString()}
-                                </p>
-                                <p className="pt-2 font-bold text-base border-t border-gray-300">Estimated Views:</p>
-                                <p className="pt-2 font-bold text-base text-right border-t border-gray-300 text-[#e85c51]">
-                                    {paymentBreakdown.totalViews.toLocaleString()}
-                                </p>
-                                <p className="pt-2 font-bold text-base border-t border-gray-300">
-                                    Total Brand Payment:
-                                </p>
-                                <p className="pt-2 font-bold text-base text-right border-t border-gray-300 text-[#e85c51]">
-                                    ${paymentBreakdown.brandTotalPay.toLocaleString()}
-                                </p>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-2">
-                                This total will be set as the **Campaign Budget** in your brief.
+                        {/* Read-only rate info */}
+                        <div className="flex items-center gap-2 mb-5 px-4 py-3 bg-white border border-red-100 rounded-xl">
+                            <DollarSign className="w-4 h-4 text-[#e85c51]" />
+                            <p className="text-sm text-gray-500">
+                                Platform rate:{' '}
+                                <span className="font-semibold text-gray-800">
+                                    UGX {fmt(COST_PER_1K_VIEWS)} per 1,000 views
+                                </span>{' '}
+                                — fixed
                             </p>
                         </div>
-                    )}
-                    {paymentError && <p className="mt-4 text-sm text-red-600">Error: {paymentError}</p>}
-                </div>
-                {/* --- End Views and Budget Calculator --- */}
 
-                {/* Form Progress and Submission */}
-                <div className="border-t border-gray-200 pt-6">
+                        <button
+                            type="button"
+                            onClick={handleCalculate}
+                            disabled={loading || progressState === 'calculating'}
+                            className="w-full py-4 bg-[#e85c51] hover:bg-red-600 disabled:opacity-50 text-white font-semibold rounded-2xl transition-colors"
+                        >
+                            Calculate Budget Mechanics
+                        </button>
+
+                        {paymentSummary && (
+                            <BudgetMeterPreview
+                                totalBudgetPool={paymentSummary.totalBudget}
+                                requiredViews={paymentSummary.requiredViews}
+                                minCreators={paymentSummary.minCreators}
+                            />
+                        )}
+                    </div>
+
+                    {/* PROGRESS */}
                     {progressState !== 'idle' && progressState !== 'calculating' && (
-                        <div className="mb-6 space-y-3">
-                            <ProgressStep
-                                label="Upload Assets"
-                                state={getProgressStatus('uploading-assets', progressState)}
-                                current={progressState}
-                            />
-                            <ProgressStep
-                                label="Save Campaign Data"
-                                state={getProgressStatus('inserting-data', progressState)}
-                                current={progressState}
-                            />
-                            <ProgressStep
-                                label="Notify Admin"
-                                state={getProgressStatus('notifying-admin', progressState)}
-                                current={progressState}
-                            />
+                        <div className="space-y-3">
+                            {[
+                                { label: 'Uploading Assets', step: 'uploading-assets' },
+                                { label: 'Saving Campaign', step: 'inserting-data' },
+                                { label: 'Notifying Admin', step: 'notifying-admin' },
+                            ].map((item, idx) => {
+                                const steps = ['uploading-assets', 'inserting-data', 'notifying-admin', 'complete']
+                                const currentIdx = steps.indexOf(progressState)
+                                const stepIdx = steps.indexOf(item.step)
+                                const done = currentIdx > stepIdx
+                                const active = currentIdx === stepIdx
+                                return (
+                                    <div key={idx} className="flex items-center gap-3">
+                                        <div
+                                            className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                                                done
+                                                    ? 'bg-green-500 text-white'
+                                                    : active
+                                                    ? 'bg-[#e85c51] text-white animate-pulse'
+                                                    : 'bg-gray-200 text-gray-400'
+                                            }`}
+                                        >
+                                            {done ? '✓' : idx + 1}
+                                        </div>
+                                        <span
+                                            className={`text-sm ${
+                                                done
+                                                    ? 'text-green-600 font-medium'
+                                                    : active
+                                                    ? 'text-red-600 font-medium'
+                                                    : 'text-gray-400'
+                                            }`}
+                                        >
+                                            {item.label}
+                                        </span>
+                                    </div>
+                                )
+                            })}
                         </div>
                     )}
 
+                    {/* ERROR */}
                     {error && (
-                        <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg mb-4">
-                            <p className="font-semibold">Submission Error:</p>
-                            <p className="text-sm">{error}</p>
+                        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
+                            <div>
+                                <p className="font-semibold text-red-700">Submission Error</p>
+                                <p className="text-sm text-red-600 mt-1">{error}</p>
+                            </div>
                         </div>
                     )}
 
-                    <button
-                        type="submit"
-                        className="w-full py-4 bg-[#e85c51] text-white font-bold text-lg rounded-lg shadow-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                        disabled={loading || progressState !== 'idle' || !paymentBreakdown}
-                    >
-                        {getButtonText(progressState)}
-                    </button>
+                    {/* SUBMIT */}
+                    <div className="border-t border-gray-100 pt-6">
+                        <button
+                            type="submit"
+                            disabled={isSubmitDisabled}
+                            className="w-full py-4 bg-[#e85c51] hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-lg rounded-2xl transition-colors"
+                        >
+                            {progressLabel[progressState]}
+                        </button>
+                        {!summaryCalculated && (
+                            <p className="text-center text-xs text-gray-400 mt-3">
+                                Calculate the budget engine before submitting.
+                            </p>
+                        )}
+                    </div>
 
-                    {progressState === 'complete' && (
-                        <div className="mt-3 text-center text-green-600 font-medium">
-                            Redirecting you to your new campaign in a moment...
-                        </div>
-                    )}
                 </div>
             </form>
         </div>
     )
 }
 
-export default CampaignBriefForm
+export default ViewsBasedCampaignForm
