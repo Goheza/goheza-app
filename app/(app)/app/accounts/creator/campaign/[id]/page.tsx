@@ -225,7 +225,7 @@ export default function CampaignOverview() {
                         file_name: file.name,
                         file_size: file.size,
                         submitted_at: new Date().toISOString(),
-                        status: 'pending',
+                        status: 'draft',
                     },
                 ])
                 .select()
