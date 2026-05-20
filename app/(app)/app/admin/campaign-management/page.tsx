@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { format } from 'date-fns'
+import Image from 'next/image'
 
 // Define the structure for an individual asset object in the JSONB array
 type Asset = {
@@ -46,6 +47,9 @@ type Campaign = {
     flat_fee: string | null
     status: 'inreview' | 'approved' | 'cancelled'
     created_at: string
+    cover_image_url: string | null
+    // brand_profiles already joined, add logo_url to it:
+    brand_logo_url?: string | null // we'll map this from brand_profiles.logo_url
     created_by: string // Auth user ID (the creator)
     brand_name: string // From joined brand_profiles
     // ⭐ INCLUDED: The assets column (JSONB in SQL)
@@ -377,6 +381,7 @@ export default function CampaignManagementPage() {
                     `
                     *,
                     brand_profiles(brand_name)
+                    brand_profiles(logo_url)   // 👈 add logo_url here
                     `
                 )
                 .eq('status', filter)
@@ -391,9 +396,8 @@ export default function CampaignManagementPage() {
             // CRITICAL: Ensure `brand_name` is correctly mapped from the nested object
             const formattedCampaigns = data.map((c: any) => ({
                 ...c,
-                // Check if brand_profiles exists AND has a brand_name property
                 brand_name: c.brand_profiles?.brand_name || 'N/A',
-                // Assets are included here automatically by the spread operator `...c`
+                brand_logo_url: c.brand_profiles?.logo_url || null, // 👈 map it
                 estimated_views: c.estimated_views ? Number(c.estimated_views) : null,
                 num_creators: c.num_creators ? Number(c.num_creators) : null,
             }))
@@ -478,6 +482,20 @@ export default function CampaignManagementPage() {
                 {campaigns.length > 0 ? (
                     campaigns.map((campaign) => (
                         <Card key={campaign.id} className="hover:shadow-lg transition-shadow">
+                            <div className="h-36 w-full relative bg-gray-100">
+                                <Image
+                                    src={
+                                        campaign.cover_image_url ||
+                                        campaign.brand_logo_url ||
+                                        `https://placehold.co/400x225/e85c51/ffffff?text=${
+                                            campaign.name?.charAt(0) ?? 'C'
+                                        }`
+                                    }
+                                    alt={campaign.name}
+                                    fill
+                                    className="object-cover"
+                                />
+                            </div>
                             <CardHeader>
                                 <CardTitle className="text-xl">{campaign.name}</CardTitle>
                                 <div className="text-sm text-neutral-500">
