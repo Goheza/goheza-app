@@ -121,22 +121,22 @@ export default function CampaignOverview() {
         }
     }, [])
 
-   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    multiple: false,
-    accept: {
-        'video/mp4': ['.mp4'],
-        'video/quicktime': ['.mov'],        // iPhone default format
-        'video/x-mov': ['.mov'],            // alternate MOV MIME
-        'video/webm': ['.webm'],
-        'video/ogg': ['.ogv'],
-        'video/avi': ['.avi'],
-        'video/x-msvideo': ['.avi'],        // alternate AVI MIME
-        'video/x-matroska': ['.mkv'],
-        'video/3gpp': ['.3gp'],             // older mobile format
-        'video/x-m4v': ['.m4v'],            // iTunes/Apple video
-    },
-})
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        multiple: false,
+        accept: {
+            'video/mp4': ['.mp4'],
+            'video/quicktime': ['.mov'], // iPhone default format
+            'video/x-mov': ['.mov'], // alternate MOV MIME
+            'video/webm': ['.webm'],
+            'video/ogg': ['.ogv'],
+            'video/avi': ['.avi'],
+            'video/x-msvideo': ['.avi'], // alternate AVI MIME
+            'video/x-matroska': ['.mkv'],
+            'video/3gpp': ['.3gp'], // older mobile format
+            'video/x-m4v': ['.m4v'], // iTunes/Apple video
+        },
+    })
 
     const handleCaptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setCaption(e.target.value)
@@ -300,10 +300,10 @@ export default function CampaignOverview() {
     const dontsList = splitAndFilterList(campaignDetails.campaignDonts)
 
     return (
-        <div className="font-sans p-5 space-y-12 max-w-4xl mx-auto mb-8">
-            {/* TikTok Account Banner — very top, above everything */}
+        <div className="font-sans px-4 sm:px-6 py-6 space-y-8 sm:space-y-12 max-w-4xl mx-auto mb-8">
+            {/* TikTok Banner — stacks on mobile */}
             {!socialsAvailable && (
-                <div className="flex items-center justify-between gap-4 bg-orange-50 border border-orange-300 rounded-xl px-5 py-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-orange-50 border border-orange-300 rounded-xl px-5 py-4">
                     <div className="flex items-center gap-3">
                         <span className="text-2xl">⚠️</span>
                         <div>
@@ -315,25 +315,32 @@ export default function CampaignOverview() {
                     </div>
                     <button
                         onClick={activateTiktokOAuth}
-                        className="shrink-0 bg-black text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-neutral-800 transition-colors"
+                        className="w-full sm:w-auto shrink-0 bg-black text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-neutral-800 transition-colors"
                     >
                         Connect TikTok
                     </button>
                 </div>
             )}
 
-            {/* Campaign Banner */}
-            <div className="bg-gray-200 h-[200px] mb-12 rounded-2xl overflow-hidden">
-                <img
+            {/* Campaign Banner — responsive height, Next.js Image */}
+            <div className="relative w-full h-[180px] sm:h-[240px] md:h-[300px] rounded-2xl overflow-hidden bg-gray-200">
+                <Image
                     src={defaultBannerUrl}
-                    className="w-full h-[200px] object-cover"
                     alt={`${campaignDetails.campaignName} Banner`}
+                    fill
+                    priority
+                    sizes="(max-width: 640px) 100vw, (max-width: 896px) 896px, 896px"
+                    className="object-cover"
                 />
             </div>
+
+            {/* Campaign Name */}
             <div>
-                <h2 className="text-2xl font-semibold mb-2 text-neutral-850">Campaign Name</h2>
+                <h2 className="text-xl sm:text-2xl font-semibold mb-2 text-neutral-850">Campaign Name</h2>
                 <span className="text-lg font-bold text-[#e93838]">{campaignDetails.campaignName}</span>
             </div>
+
+            {/* Closed campaign notice */}
             {!isCampaignOpen && (
                 <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4">
                     <p className="text-yellow-700 font-medium">
@@ -343,70 +350,71 @@ export default function CampaignOverview() {
                     </p>
                 </div>
             )}
+
+            {/* Brief tab */}
             <div className="bg-white">
                 <div className="border-b border-gray-200">
                     <nav className="flex space-x-8">
-                        <button className="py-3 px-1 border-b-2 border-red-500 text-[#e85c51] font-bold text-sm transition-colors">
+                        <button className="py-3 px-1 border-b-2 border-red-500 text-[#e85c51] font-bold text-sm">
                             Brief
                         </button>
                     </nav>
                 </div>
-                <div className="py-6">
-                    <div className="space-y-6">
-                        {campaignDetails.campaignObjective && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Objective</h3>
-                                <p className="text-gray-700 leading-relaxed">{campaignDetails.campaignObjective}</p>
-                            </div>
-                        )}
-                        {campaignDetails.targetAudience && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Target Audience</h3>
-                                <p className="text-gray-700 leading-relaxed">{campaignDetails.targetAudience}</p>
-                            </div>
-                        )}
+                <div className="py-6 space-y-6">
+                    {campaignDetails.campaignObjective && (
                         <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-                            <p className="text-gray-700 leading-relaxed">{campaignDetails.campaignDescription}</p>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Objective</h3>
+                            <p className="text-gray-700 leading-relaxed">{campaignDetails.campaignObjective}</p>
                         </div>
-                        {(dosList.length > 0 || dontsList.length > 0) && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-2">
-                                    Creative Guidelines: Do's and Don'ts
-                                </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {dosList.length > 0 && (
-                                        <div className="bg-green-50 p-4 rounded-lg">
-                                            <h4 className="font-semibold text-green-700 mb-2">Do's ✅</h4>
-                                            <ul className="space-y-2 text-green-800 list-disc pl-5">
-                                                {dosList.map((item, id) => (
-                                                    <li key={id}>{item}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-                                    {dontsList.length > 0 && (
-                                        <div className="bg-red-50 p-4 rounded-lg">
-                                            <h4 className="font-semibold text-red-700 mb-2">Don'ts 🚫</h4>
-                                            <ul className="space-y-2 text-red-800 list-disc pl-5">
-                                                {dontsList.map((item, id) => (
-                                                    <li key={id}>{item}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                    )}
+                    {campaignDetails.targetAudience && (
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Target Audience</h3>
+                            <p className="text-gray-700 leading-relaxed">{campaignDetails.targetAudience}</p>
+                        </div>
+                    )}
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+                        <p className="text-gray-700 leading-relaxed">{campaignDetails.campaignDescription}</p>
                     </div>
+                    {(dosList.length > 0 || dontsList.length > 0) && (
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-2">
+                                Creative Guidelines: Do's and Don'ts
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {dosList.length > 0 && (
+                                    <div className="bg-green-50 p-4 rounded-lg">
+                                        <h4 className="font-semibold text-green-700 mb-2">Do's ✅</h4>
+                                        <ul className="space-y-2 text-green-800 list-disc pl-5">
+                                            {dosList.map((item, id) => (
+                                                <li key={id}>{item}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                                {dontsList.length > 0 && (
+                                    <div className="bg-red-50 p-4 rounded-lg">
+                                        <h4 className="font-semibold text-red-700 mb-2">Don'ts 🚫</h4>
+                                        <ul className="space-y-2 text-red-800 list-disc pl-5">
+                                            {dontsList.map((item, id) => (
+                                                <li key={id}>{item}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {/* Prohibited Content */}
             {campaignDetails.prohibitedContent && campaignDetails.prohibitedContent.length > 0 && (
-                <div className="bg-white p-6 rounded-lg shadow-inner border border-gray-200">
-                    <h2 className="text-2xl font-semibold mb-4 text-[#e85c51]">Prohibited Content</h2>
+                <div className="bg-white p-5 sm:p-6 rounded-lg shadow-inner border border-gray-200">
+                    <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-[#e85c51]">Prohibited Content</h2>
                     <p className="text-gray-700 mb-4">
-                        The following types of content are strictly prohibited and will result in the immediate
-                        rejection of your submission:
+                        The following types of content are strictly prohibited and will result in immediate rejection:
                     </p>
                     <ul className="space-y-2 text-gray-800 list-disc pl-5">
                         {campaignDetails.prohibitedContent.map((item, id) => (
@@ -417,24 +425,23 @@ export default function CampaignOverview() {
                     </ul>
                 </div>
             )}
+
+            {/* Payout */}
             <div>
-                <h2 className="text-2xl font-semibold mb-2">Max Payout</h2>
+                <h2 className="text-xl sm:text-2xl font-semibold mb-2">Max Payout</h2>
                 <span className="text-lg font-bold text-[#e93838]">{campaignDetails.campaignPayout}</span>
             </div>
+
+            {/* Campaign Assets — responsive grid */}
             <div>
-                <h2 className="text-2xl font-semibold mb-7">Campaign Assets</h2>
-                <div className="flex flex-wrap gap-4">
+                <h2 className="text-xl sm:text-2xl font-semibold mb-7">Campaign Assets</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {campaignDetails.campaignAssets.map((v, index) => {
                         const assetNameLower = v.name.toLowerCase()
-                        const isVideo =
-                            assetNameLower.endsWith('.mp4') ||
-                            assetNameLower.endsWith('.mov') ||
-                            assetNameLower.endsWith('.avi')
-                        const isImage =
-                            assetNameLower.endsWith('.png') ||
-                            assetNameLower.endsWith('.jpg') ||
-                            assetNameLower.endsWith('.jpeg')
+                        const isVideo = ['.mp4', '.mov', '.avi'].some((ext) => assetNameLower.endsWith(ext))
+                        const isImage = ['.png', '.jpg', '.jpeg'].some((ext) => assetNameLower.endsWith(ext))
                         const placeholderSrc = '/placeholder.png'
+
                         return (
                             <div className="space-y-3" key={`asset-${index}`}>
                                 <a
@@ -442,15 +449,15 @@ export default function CampaignOverview() {
                                     download={v.name || `asset-${index}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="border rounded-2xl border-neutral-400 w-[300px] h-[300px] flex flex-col items-center justify-center text-center overflow-hidden group no-underline text-black"
+                                    className="border rounded-2xl border-neutral-400 w-full aspect-square flex flex-col items-center justify-center overflow-hidden group no-underline text-black block"
                                 >
                                     {isImage ? (
                                         <Image
                                             className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
                                             src={v.url}
                                             alt={v.name || 'Campaign Asset'}
-                                            width={300}
-                                            height={300}
+                                            width={400}
+                                            height={400}
                                         />
                                     ) : isVideo ? (
                                         <video
@@ -459,13 +466,7 @@ export default function CampaignOverview() {
                                             muted
                                             preload="metadata"
                                         >
-                                            <source
-                                                src={v.url}
-                                                type={`video/${assetNameLower.substring(
-                                                    assetNameLower.lastIndexOf('.') + 1
-                                                )}`}
-                                            />
-                                            Your browser does not support the video tag.
+                                            <source src={v.url} type={`video/${assetNameLower.split('.').pop()}`} />
                                         </video>
                                     ) : (
                                         <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-500">
@@ -477,7 +478,7 @@ export default function CampaignOverview() {
                                                 className="mb-2"
                                             />
                                             <p className="text-sm">
-                                                File: {v.name.split('.').pop()?.toUpperCase() || 'Unknown'}
+                                                {v.name.split('.').pop()?.toUpperCase() || 'Unknown'}
                                             </p>
                                         </div>
                                     )}
@@ -485,7 +486,7 @@ export default function CampaignOverview() {
                                 <a
                                     href={v.url}
                                     download={v.name || `asset-${index}`}
-                                    className="text-sm mt-3 text-[#e93838] hover:text-[#e85c51] block text-center truncate px-2"
+                                    className="text-sm text-[#e93838] hover:text-[#e85c51] block text-center truncate px-2"
                                     title={v.name}
                                 >
                                     {v.name}
@@ -496,10 +497,10 @@ export default function CampaignOverview() {
                 </div>
             </div>
 
-            {/* Submission Form — hidden if campaign is closed OR no TikTok connected */}
+            {/* Submission Form */}
             {isCampaignOpen && socialsAvailable && (
                 <form className="mb-5 space-y-7" onSubmit={handleSubmit}>
-                    <h2 className="text-2xl font-semibold mb-4">Your Submission</h2>
+                    <h2 className="text-xl sm:text-2xl font-semibold mb-4">Your Submission</h2>
                     <div>
                         <label htmlFor="caption" className="block text-sm font-medium text-gray-700 mb-1">
                             Caption
@@ -514,7 +515,7 @@ export default function CampaignOverview() {
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Video File (MP4 only)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Video File</label>
                         <div
                             {...getRootProps()}
                             className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-all duration-200 ease-in-out ${
@@ -525,22 +526,20 @@ export default function CampaignOverview() {
                             {file ? (
                                 <p className="text-gray-900">{file.name}</p>
                             ) : (
-                                <p className="text-[#e93838]">
-                                    Drag and drop your MP4 file here, or click to select a file
-                                </p>
+                                <p className="text-[#e93838]">Drag and drop your video here, or tap to select</p>
                             )}
                             {renderFileStatus()}
                         </div>
                     </div>
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-start sm:items-center gap-4">
                         <input
                             id="terms-agreement"
                             type="checkbox"
                             checked={isAgreedToTerms}
                             onChange={handleAgreementChange}
-                            className="h-4 w-4 text-[#e93838] border-gray-300 rounded focus:ring-[#e93838]"
+                            className="mt-0.5 sm:mt-0 h-4 w-4 text-[#e93838] border-gray-300 rounded focus:ring-[#e93838] shrink-0"
                         />
-                        <p className="text-xs text-black text-center leading-relaxed">
+                        <p className="text-xs text-black leading-relaxed">
                             I agree with the{' '}
                             <Link
                                 href="/terms"
@@ -563,20 +562,19 @@ export default function CampaignOverview() {
                         isPaymentDialogOpen={willShowPaymentDetails}
                         setPaymentDialogOpen={setShowPaymentDetails}
                     />
-                    <button
-                        type="submit"
-                        onClick={()=>{
-                            toast.success('uploading...')
-                        }}
-                        className={`w-[150px] mb-5 float-right font-bold py-3 px-4 text-white rounded-lg transition-colors duration-200 ${
-                            uploadStatus === 'uploading' || !file || !isAgreedToTerms
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-[#e93838] hover:bg-[#f17474]'
-                        }`}
-                        disabled={uploadStatus === 'uploading' || !file || !isAgreedToTerms}
-                    >
-                        {uploadStatus === 'uploading' ? 'Submitting...' : 'Submit'}
-                    </button>
+                    <div className="flex justify-end">
+                        <button
+                            type="submit"
+                            className={`w-full sm:w-[150px] mb-5 font-bold py-3 px-4 text-white rounded-lg transition-colors duration-200 ${
+                                uploadStatus === 'uploading' || !file || !isAgreedToTerms
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-[#e93838] hover:bg-[#f17474]'
+                            }`}
+                            disabled={uploadStatus === 'uploading' || !file || !isAgreedToTerms}
+                        >
+                            {uploadStatus === 'uploading' ? 'Submitting...' : 'Submit'}
+                        </button>
+                    </div>
                 </form>
             )}
         </div>
