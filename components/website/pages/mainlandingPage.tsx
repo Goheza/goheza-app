@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import BrandCreatorTabs from '@/components/website/pages/tabs'
 import ContactForm from '@/components/website/pages/contact-suppor' // fixed typo
+import PDPOCertificateCard from './pdoCertificate'
 
 export default function GohezaLanding() {
     const router = useRouter()
@@ -290,6 +291,21 @@ export default function GohezaLanding() {
                         </motion.div>
                     </motion.div>
                 </div>
+            </section>
+            {/*PDO certificate */}
+            <section className=" sm:py-20 bg-gray-50">
+                <div className="container mx-auto px-4">
+                    <div className="max-w-2xl mx-auto flex items-center flex-col text-center space-y-6">
+                        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Our Licences & Certificates</h2>
+
+                        <PDPOCertificateCard 
+                        
+                        logoSrc="/policies/pdoimage.jpeg"
+                        companyName="Goheza Technologies Company Limited" />
+
+                    </div>
+                </div>
+
             </section>
 
             {/* Ready to get started */}
