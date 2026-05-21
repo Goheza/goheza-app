@@ -173,6 +173,7 @@ export default function GohezaLanding() {
                     </motion.div>
                 </div>
             </section>
+            
 
             {/* Why Choose Goheza */}
             <section id="features" className="py-12 sm:py-20 bg-gray-50">
@@ -301,7 +302,7 @@ export default function GohezaLanding() {
                         <PDPOCertificateCard 
                         
                         logoSrc="/policies/pdoimage.jpeg"
-                        companyName="Goheza Technologies Company Limited" />
+                        companyName="Goheza " />
 
                     </div>
                 </div>
