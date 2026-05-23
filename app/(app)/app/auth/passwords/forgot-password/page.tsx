@@ -17,7 +17,7 @@ export default function ForgotPasswordComponent() {
 
         resetPassword({
             email: email,
-            redirectLink: `${baseURL}/app/auth/password/reset-password`,
+            redirectLink: `${baseURL}/app/auth/passwords/reset-password`,
         }).then(() => {
             toast.success('Authenticaton', {
                  className:'text-black',

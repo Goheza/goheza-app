@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -17,11 +18,11 @@ import {
 } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { format, parseISO } from 'date-fns'
+import { publishTikTokVideo } from '@/lib/appServiceData/social-media/tiktok/publish-video-tk'
+import { getTitktokURL } from '@/lib/appServiceData/social-media/tiktok/get-titkurl'
 
-// NEW: Updated status type to reflect the full workflow
 type SubmissionStatus = 'draft' | 'admin_reject' | 'pending' | 'approved' | 'rejected' | 'posted'
 
-// UPDATED: Added feedback field
 type Submission = {
     id: string
     video_url: string
@@ -31,10 +32,25 @@ type Submission = {
     creator_name: string
     campaign_name: string
     brand_name: string
-    feedback: string | null // Feedback field
+    feedback: string | null
+    user_id: string
+    campaign_id: string
+}
+
+const waitForTikTokURL = async (publishId: string, creatorId: string): Promise<string | null> => {
+    const maxAttempts = 10
+    const delay = 5000
+
+    for (let i = 0; i < maxAttempts; i++) {
+        const url = await getTitktokURL({ publishId, creatorId })
+        if (url) return url
+        await new Promise((res) => setTimeout(res, delay))
+    }
+    return null
 }
 
 export default function CampaignSubmissionsPage() {
+    const router = useRouter()
     const [filter, setFilter] = useState<SubmissionStatus>('draft')
     const [submissions, setSubmissions] = useState<Submission[]>([])
     const [loading, setLoading] = useState(true)
@@ -42,6 +58,7 @@ export default function CampaignSubmissionsPage() {
     const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null)
     const [adminFeedback, setAdminFeedback] = useState<string>('')
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+    const [postLoading, setPostLoading] = useState(false)
 
     useEffect(() => {
         fetchSubmissions()
@@ -52,10 +69,9 @@ export default function CampaignSubmissionsPage() {
         try {
             const { data, error } = await supabaseClient
                 .from('campaign_submissions')
-                // UPDATED: Select the 'feedback' column
                 .select(
                     `
-                    id, video_url, caption, status, submitted_at, campaign_name, feedback,
+                    id, video_url, caption, status, submitted_at, campaign_name, feedback, user_id, campaign_id,
                     creator_profiles(full_name),
                     campaigns(name, brand_profiles(brand_name))
                     `
@@ -86,7 +102,6 @@ export default function CampaignSubmissionsPage() {
     const handleUpdateStatus = async (newStatus: SubmissionStatus) => {
         if (!selectedSubmission) return
 
-        // 🔥 ENFORCEMENT: Check for feedback if rejecting
         if ((newStatus === 'admin_reject' || newStatus === 'rejected') && !adminFeedback.trim()) {
             toast.error('Feedback is required to reject a submission.')
             return
@@ -94,7 +109,6 @@ export default function CampaignSubmissionsPage() {
 
         setIsUpdatingStatus(true)
 
-        // Get Admin ID
         const { data: userData } = await supabaseClient.auth.getUser()
         const adminId = userData.user?.id
 
@@ -111,7 +125,6 @@ export default function CampaignSubmissionsPage() {
 
         toast.info(toastMessage)
 
-        // UPDATED: Prepare the update object
         const updateObject: {
             status: SubmissionStatus
             reviewed_by: string
@@ -123,15 +136,11 @@ export default function CampaignSubmissionsPage() {
             reviewed_at: new Date().toISOString(),
         }
 
-        // Logic for handling the feedback field
         if (newStatus === 'admin_reject' || newStatus === 'rejected') {
-            // If rejecting, use the admin's input feedback
             updateObject.feedback = adminFeedback.trim()
         } else if (selectedSubmission.feedback) {
-            // If moving to a non-rejected state (e.g., 'pending') and there was old feedback, clear it.
             updateObject.feedback = null
         }
-        // Note: If approved/posted, we don't need to send feedback unless we're explicitly clearing old feedback (handled above).
 
         const { error } = await supabaseClient
             .from('campaign_submissions')
@@ -145,7 +154,7 @@ export default function CampaignSubmissionsPage() {
             const successMessage =
                 newStatus === 'pending'
                     ? 'Submission approved and moved to Brand review (Pending).'
-                    : `Submission rejected. Feedback sent to Creator.`
+                    : 'Submission rejected. Feedback sent to Creator.'
             toast.success(successMessage)
             fetchSubmissions()
             setViewSubmissionModal(false)
@@ -153,36 +162,63 @@ export default function CampaignSubmissionsPage() {
         setIsUpdatingStatus(false)
     }
 
-    const handleFinalPost = async () => {
+    const handlePostToTikTok = async () => {
         if (!selectedSubmission || selectedSubmission.status !== 'approved') return
 
-        toast.info('Scheduling post...')
-        await new Promise((resolve) => setTimeout(resolve, 2000))
+        setPostLoading(true)
 
-        // PRODUCTION NOTE: Uncomment the real Supabase update here:
-        /*
-        // const { error } = await supabaseClient
-        //    .from('campaign_submissions')
-        //    .update({ status: 'posted' })
-        //    .eq('id', selectedSubmission.id)
+        try {
+            const returnArgs = await publishTikTokVideo({
+                campaignId: selectedSubmission.campaign_id,
+                caption: selectedSubmission.caption ?? '',
+                creatorUserId: selectedSubmission.user_id,
+                videoUrl: selectedSubmission.video_url,
+            })
 
-        // if (error) {
-        //    console.error('Error scheduling post:', error)
-        //    toast.error('Failed to schedule post.')
-        // } else {
-        //    toast.success('Post scheduled successfully!')
-        //    fetchSubmissions()
-        //    setViewSubmissionModal(false)
-        // }
-        */
-        toast.success('Post scheduled successfully! (Simulated)')
-        fetchSubmissions()
-        setViewSubmissionModal(false)
+            console.log('publishTikTokVideo result:', returnArgs)
+
+            if (returnArgs.success) {
+                const currentTiktokURL = await waitForTikTokURL(returnArgs.publishId, selectedSubmission.user_id)
+
+                if (!currentTiktokURL) {
+                    toast.error('Failed to retrieve TikTok URL after posting.')
+                    setPostLoading(false)
+                    return
+                }
+
+                const { error: updateError } = await supabaseClient
+                    .from('campaign_submissions')
+                    .update({ tiktok_url: currentTiktokURL, status: 'posted' })
+                    .eq('id', selectedSubmission.id)
+
+                if (updateError) {
+                    console.error('Error saving TikTok URL:', updateError)
+                    toast.error('Video posted but failed to save TikTok URL.')
+                    setPostLoading(false)
+                    return
+                }
+
+                toast.success('Video successfully posted to TikTok!')
+                setViewSubmissionModal(false)
+                fetchSubmissions()
+                router.push(
+                    `/app/accounts/brand/campaigns/post-success?videoUrl=${encodeURIComponent(
+                        currentTiktokURL
+                    )}&campaignId=${selectedSubmission.campaign_id}`
+                )
+            } else {
+                toast.error('Error posting video to TikTok.')
+            }
+        } catch (err) {
+            console.error('Unexpected error posting to TikTok:', err)
+            toast.error('An unexpected error occurred while posting to TikTok.')
+        } finally {
+            setPostLoading(false)
+        }
     }
 
     const handleViewSubmission = (submission: Submission) => {
         setSelectedSubmission(submission)
-        // Set the feedback input field to the existing feedback or empty string for editing
         setAdminFeedback(submission.feedback || '')
         setViewSubmissionModal(true)
     }
@@ -271,6 +307,7 @@ export default function CampaignSubmissionsPage() {
                     </TableBody>
                 </Table>
             </div>
+
             {/* Submission Review Modal */}
             {selectedSubmission && (
                 <Dialog open={viewSubmissionModal} onOpenChange={setViewSubmissionModal}>
@@ -308,7 +345,7 @@ export default function CampaignSubmissionsPage() {
                                 {getStatusBadge(selectedSubmission.status)}
                             </div>
 
-                            {/* Conditional Display of Existing Feedback */}
+                            {/* Existing Rejection Feedback */}
                             {(selectedSubmission.status === 'admin_reject' ||
                                 selectedSubmission.status === 'rejected') &&
                                 selectedSubmission.feedback && (
@@ -322,8 +359,8 @@ export default function CampaignSubmissionsPage() {
                                     </div>
                                 )}
 
-                            {/* Admin Feedback Input Area - visible for relevant statuses */}
-                            {selectedSubmission.status !== 'approved' && selectedSubmission.status !== 'posted' && (
+                            {/* Admin Feedback Input - visible for draft submissions only */}
+                            {selectedSubmission.status === 'draft' && (
                                 <div>
                                     <h3 className="text-lg font-bold mb-2">Reviewer Feedback</h3>
                                     <Textarea
@@ -334,9 +371,18 @@ export default function CampaignSubmissionsPage() {
                                     />
                                 </div>
                             )}
+
+                            {/* Approved - ready to post notice */}
+                            {selectedSubmission.status === 'approved' && (
+                                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <p className="text-sm text-green-800">
+                                        This submission has been approved by the brand and is ready to post to TikTok.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                         <DialogFooter className="flex justify-between sm:justify-between">
-                            {/* Admin Review Actions - visible only for 'draft' submissions */}
+                            {/* Admin Review Actions - only for draft submissions */}
                             {selectedSubmission.status === 'draft' && (
                                 <div className="flex gap-2">
                                     <Button
@@ -357,14 +403,22 @@ export default function CampaignSubmissionsPage() {
                                 </div>
                             )}
 
-                            {/* Existing action for Brand-approved submissions */}
+                            {/* Post to TikTok - only for brand-approved submissions */}
                             {selectedSubmission.status === 'approved' && (
                                 <Button
-                                    onClick={handleFinalPost}
-                                    className="bg-[#e85c51] hover:bg-[#f3867e] text-white"
-                                    disabled={isUpdatingStatus}
+                                    onClick={handlePostToTikTok}
+                                    className="bg-black hover:bg-gray-800 text-white flex items-center gap-2"
+                                    disabled={postLoading}
                                 >
-                                    Schedule Post
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="white"
+                                        className="w-4 h-4 flex-shrink-0"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.3 6.3 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.75a8.22 8.22 0 004.79 1.52V6.81a4.85 4.85 0 01-1.02-.12z" />
+                                    </svg>
+                                    {postLoading ? 'Posting...' : 'Post to TikTok'}
                                 </Button>
                             )}
 

@@ -10,20 +10,8 @@ import {
     RawSubmissionRow,
 } from '@/lib/appServiceData/brand/brandHelpers'
 import { getAuthUser } from '@/lib/supabase/auth/authHelpers'
-import { publishTikTokVideo } from '@/lib/appServiceData/social-media/tiktok/publish-video-tk'
-import { getTitktokURL } from '@/lib/appServiceData/social-media/tiktok/get-titkurl'
-import PostConfirmDialog from '@/components/workspace/pages/brand/PostConfiriming/PostConfirmingDialog'
-import TikTokReviewBanner from '@/components/workspace/pages/brand/banner/tiktokbanner'
 
 const supabase = supabaseClient
-
-interface IPublishableDataToPlatform {
-    videoURL: string
-    campaignId: string
-    caption: string
-    creatorId: string
-    isReel: boolean
-}
 
 interface SubmissionUpdateData {
     status: 'approved' | 'rejected'
@@ -31,20 +19,6 @@ interface SubmissionUpdateData {
     reviewed_at: string
     feedback: string | null
 }
-
-const waitForTikTokURL = async (publishId: string, creatorId: string): Promise<string | null> => {
-    const maxAttempts = 10
-    const delay = 5000 // 5 seconds between each attempt
-
-    for (let i = 0; i < maxAttempts; i++) {
-        const url = await getTitktokURL({ publishId, creatorId })
-        if (url) return url
-        await new Promise((res) => setTimeout(res, delay))
-    }
-    return null
-}
-
-// Then replace getTikTokURL call with:
 
 export default function ContentReviewWorkspace() {
     const params = useParams()
@@ -56,9 +30,6 @@ export default function ContentReviewWorkspace() {
     const [error, setError] = useState<string | null>(null)
     const [feedback, setFeedback] = useState('')
     const [actionLoading, setActionLoading] = useState(false)
-    const [showPostDialog, setShowPostDialog] = useState(false)
-    const [postLoading, setPostLoading] = useState(false)
-    const [tiktokUrl, setTiktokUrl] = useState<string | null>(null)
 
     const getStatusStyles = (status: string) => {
         switch (status) {
@@ -97,66 +68,6 @@ export default function ContentReviewWorkspace() {
         }
     }
 
-    const handlePostToTikTok = async () => {
-        if (!submissionId || !submission) return
-
-        // Close dialog immediately to prevent double-submit
-        setShowPostDialog(false)
-        setPostLoading(true)
-
-        try {
-            const dataToBeSubmitted: IPublishableDataToPlatform = {
-                videoURL: submission.video_url,
-                campaignId: submission.campaign_id,
-                caption: submission.caption ?? '',
-                creatorId: submission.user_id,
-                isReel: false,
-            }
-
-            const returnArgs = await publishTikTokVideo({
-                campaignId: dataToBeSubmitted.campaignId,
-                caption: dataToBeSubmitted.caption,
-                creatorUserId: dataToBeSubmitted.creatorId,
-                videoUrl: dataToBeSubmitted.videoURL,
-            })
-            console.log('publishTikTokVideo result:', returnArgs)
-
-            if (returnArgs.success) {
-                const currentTiktokURL = await waitForTikTokURL(returnArgs.publishId, dataToBeSubmitted.creatorId)
-                setPostLoading(false)
-                if (!currentTiktokURL) {
-                    toast.error('Failed to retrieve TikTok URL after posting')
-                    return
-                }
-
-                const { error: tiktokUrlError } = await supabase
-                    .from('campaign_submissions')
-                    .update({ tiktok_url: currentTiktokURL })
-                    .eq('id', submissionId)
-
-                if (tiktokUrlError) {
-                    console.error('Error saving TikTok URL:', tiktokUrlError)
-                    toast.error('Video posted but failed to save TikTok URL')
-                    return
-                }
-
-                setTiktokUrl(currentTiktokURL)
-                toast.success('Video successfully posted to TikTok!')
-                router.push(
-                    `/app/accounts/brand/campaigns/post-success?videoUrl=${encodeURIComponent(
-                        currentTiktokURL
-                    )}&campaignId=${dataToBeSubmitted.campaignId}`
-                )
-            } else {
-                toast.error('Error posting video to TikTok')
-            }
-        } catch (err) {
-            console.error('Unexpected error posting to TikTok:', err)
-            toast.error('An unexpected error occurred while posting to TikTok')
-        } finally {
-        }
-    }
-
     const handleDecisionConflict = async (decision: 'approved' | 'rejected') => {
         if (!submissionId || !submission) return
 
@@ -176,26 +87,21 @@ export default function ContentReviewWorkspace() {
                 feedback: feedback.trim() || null,
             }
 
+            const { error } = await supabase
+                .from('campaign_submissions')
+                .update(updateData)
+                .eq('id', submissionId)
+
+            if (error) {
+                toast.error(decision === 'approved' ? 'Failed to approve submission' : 'Failed to reject submission')
+                return
+            }
+
             if (decision === 'approved') {
-                const { error } = await supabase.from('campaign_submissions').update(updateData).eq('id', submissionId)
-
-                if (error) {
-                    toast.error('Failed to approve submission')
-                    return
-                }
-
                 setSubmission((prev) => (prev ? { ...prev, status: 'approved' } : prev))
-                toast.success('Submission approved!')
+                toast.success('Submission approved! The admin team will handle posting.')
             } else {
-                const { error } = await supabase.from('campaign_submissions').update(updateData).eq('id', submissionId)
-
-                if (error) {
-                    console.error('Error rejecting submission:', error)
-                    toast.error('Failed to reject submission')
-                    return
-                }
-
-                toast.success('Submission rejected and assets deleted. Creator notified.')
+                toast.success('Submission rejected. Creator has been notified.')
                 router.push(`/app/accounts/brand/campaigns/${submission.campaign_id}/submissions`)
             }
         } catch (err) {
@@ -231,10 +137,6 @@ export default function ContentReviewWorkspace() {
                     setFeedback(row.feedback)
                 }
 
-                if ((row as any).tiktok_url) {
-                    setTiktokUrl((row as any).tiktok_url)
-                }
-
                 setSubmission(mappedAndTransformedData)
             } catch (err) {
                 console.error('Unexpected error:', err)
@@ -253,15 +155,6 @@ export default function ContentReviewWorkspace() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto bg-gray-50">
-            <TikTokReviewBanner />
-            <PostConfirmDialog
-                isOpen={showPostDialog}
-                creatorName={submission.creator_name}
-                onConfirm={handlePostToTikTok}
-                onCancel={() => setShowPostDialog(false)}
-                isLoading={postLoading}
-            />
-
             <div className="mb-6">
                 <button onClick={() => router.back()} className="text-blue-600 hover:text-blue-800 mb-4">
                     ← Back to submissions
@@ -397,40 +290,10 @@ export default function ContentReviewWorkspace() {
                             <p className="text-gray-500 text-xs">
                                 This submission has already been reviewed and cannot be modified.
                             </p>
-
-                            {submission.status === 'approved' && !tiktokUrl && (
-                                <button
-                                    onClick={() => setShowPostDialog(true)}
-                                    disabled={postLoading}
-                                    className="flex items-center gap-2 bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors text-sm"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="white"
-                                        className="w-4 h-4 flex-shrink-0"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.3 6.3 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.75a8.22 8.22 0 004.79 1.52V6.81a4.85 4.85 0 01-1.02-.12z" />
-                                    </svg>
-                                    {postLoading ? 'Posting...' : 'Post to TikTok'}
-                                </button>
-                            )}
-
-                            {tiktokUrl && (
-                                <button
-                                    onClick={() => window.open(tiktokUrl, '_blank')}
-                                    className="flex items-center gap-2 bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-800 transition-colors text-sm"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="white"
-                                        className="w-4 h-4 flex-shrink-0"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.3 6.3 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.75a8.22 8.22 0 004.79 1.52V6.81a4.85 4.85 0 01-1.02-.12z" />
-                                    </svg>
-                                    View on TikTok
-                                </button>
+                            {submission.status === 'approved' && (
+                                <p className="text-gray-500 text-xs">
+                                    The admin team will post this content to TikTok.
+                                </p>
                             )}
                         </div>
                     )}
