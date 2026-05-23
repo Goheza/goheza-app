@@ -1,6 +1,6 @@
 'use client'
 import Image from 'next/image'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useParams, useRouter } from 'next/navigation'
 import { supabaseClient } from '@/lib/supabase/client'
@@ -33,6 +33,8 @@ export interface ICampaignDetails {
     expiresAt: string | null
 }
 
+const PENDING_SUBMISSION_KEY = 'pendingCampaignSubmission'
+
 const splitAndFilterList = (listString: string | null | undefined): string[] => {
     if (!listString) return []
     return listString
@@ -53,8 +55,97 @@ export default function CampaignOverview() {
     const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'failure'>('idle')
     const [uploadProgress, setUploadProgress] = useState<number>(0)
     const [isAgreedToTerms, setIsAgreedToTerms] = useState<boolean>(false)
-    const [socialsAvailable, setSocialsAvailable] = useState<boolean>(true) // default true to avoid flash
     const router = useRouter()
+
+    // Ref so uploadAndSubmit can read the latest file without
+    // needing to be a dependency of the auto-resume effect
+    const fileRef = useRef<File | null>(null)
+    useEffect(() => {
+        fileRef.current = file
+    }, [file])
+
+    // ── Core upload + DB insert, extracted so it can be called
+    //    both from handleSubmit and the auto-resume effect ─────
+    const uploadAndSubmit = useCallback(
+        async (captionValue: string, details: ICampaignDetails) => {
+            const currentFile = fileRef.current
+            if (!currentFile) {
+                toast.error('Video file is missing. Please re-select it and try again.')
+                setUploadStatus('failure')
+                return
+            }
+
+            if (details.maxSubmissions > 0) {
+                const { count, error: countError } = await supabaseClient
+                    .from('campaign_submissions')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('campaign_id', campaignId)
+                if (!countError && count !== null && count >= details.maxSubmissions) {
+                    toast.error('This campaign has reached its maximum number of submissions.')
+                    return
+                }
+            }
+
+            setUploadStatus('uploading')
+            toast.success('Uploading your submission…')
+            setUploadProgress(0)
+
+            const uploadInterval = setInterval(() => {
+                setUploadProgress((prev) => (prev >= 90 ? prev : prev + 10))
+            }, 500)
+
+            try {
+                const {
+                    data: { user },
+                    error: userError,
+                } = await supabaseClient.auth.getUser()
+                if (userError || !user) throw new Error('User not authenticated')
+
+                const fileName = `${Date.now()}_${currentFile.name}`
+                const { error: uploadError } = await supabaseClient.storage
+                    .from('campaign-videos')
+                    .upload(fileName, currentFile, { cacheControl: '3600', upsert: false })
+                if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
+
+                clearInterval(uploadInterval)
+                setUploadProgress(100)
+
+                const {
+                    data: { publicUrl },
+                } = supabaseClient.storage.from('campaign-videos').getPublicUrl(fileName)
+
+                const { error: dbError } = await supabaseClient
+                    .from('campaign_submissions')
+                    .insert([
+                        {
+                            user_id: user.id,
+                            campaign_id: campaignId,
+                            campaign_name: details.campaignName,
+                            video_url: publicUrl,
+                            caption: captionValue,
+                            file_name: currentFile.name,
+                            file_size: currentFile.size,
+                            submitted_at: new Date().toISOString(),
+                            status: 'draft',
+                        },
+                    ])
+                    .select()
+                if (dbError) throw new Error(`Database error: ${dbError.message}`)
+
+                sessionStorage.removeItem(PENDING_SUBMISSION_KEY)
+                setUploadStatus('success')
+                toast.success('Submission successful! It is now pending review.')
+                router.push('/app/accounts/creator/submissions')
+            } catch (err) {
+                clearInterval(uploadInterval)
+                setUploadStatus('failure')
+                console.error('Submission error:', err)
+                toast.error('Submission failed. Please try again.')
+                sessionStorage.removeItem(PENDING_SUBMISSION_KEY)
+            }
+        },
+        [campaignId, router]
+    )
 
     useEffect(() => {
         const fetchCampaignDetails = async () => {
@@ -66,21 +157,18 @@ export default function CampaignOverview() {
             try {
                 const { data, error: fetchError } = await supabaseClient
                     .from('campaigns')
-                    .select(
-                        `
-                        *,
-                        brand_profiles(logo_url)
-                        `
-                    )
+                    .select(`*, brand_profiles(logo_url)`)
                     .eq('id', campaignId)
                     .single()
                 if (fetchError) throw new Error(fetchError.message)
                 if (!data) throw new Error('Campaign not found')
+
                 const fallbackImage = `https://placehold.co/400x225/e85c51/ffffff?text=${
                     (data.name || data.campaign_name)?.charAt(0) ?? 'C'
                 }`
                 const imageSource = data.cover_image_url || data.brand_profiles?.logo_url || fallbackImage
-                setCampaignDetails({
+
+                const details: ICampaignDetails = {
                     campaignDescription: data.description || '',
                     id: data.id,
                     campaignName: data.name || data.campaign_name,
@@ -96,7 +184,27 @@ export default function CampaignOverview() {
                     maxSubmissions: data.max_submissions ?? 0,
                     status: data.status,
                     expiresAt: data.expires_at || null,
-                })
+                }
+                setCampaignDetails(details)
+
+                // ── Auto-resume after TikTok OAuth redirect ──────────────
+                const pending = sessionStorage.getItem(PENDING_SUBMISSION_KEY)
+                if (pending) {
+                    const { campaignId: savedId, caption: savedCaption } = JSON.parse(pending)
+                    if (savedId === campaignId) {
+                        const hasTikTok = await areSocialsAvailable()
+                        if (hasTikTok) {
+                            setCaption(savedCaption)
+                            toast.info('TikTok connected! Resuming your submission…')
+                            // Give React a tick to apply state before uploading
+                            setTimeout(() => uploadAndSubmit(savedCaption, details), 100)
+                        } else {
+                            // OAuth failed or was cancelled — clean up and let them retry
+                            sessionStorage.removeItem(PENDING_SUBMISSION_KEY)
+                            toast.error('TikTok connection failed. Please try again.')
+                        }
+                    }
+                }
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch campaign details')
             } finally {
@@ -104,14 +212,8 @@ export default function CampaignOverview() {
             }
         }
 
-        const socialsCheck = async () => {
-            const result = await areSocialsAvailable()
-            setSocialsAvailable(result)
-        }
-
-        socialsCheck()
         fetchCampaignDetails()
-    }, [campaignId])
+    }, [campaignId, uploadAndSubmit])
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
@@ -126,25 +228,17 @@ export default function CampaignOverview() {
         multiple: false,
         accept: {
             'video/mp4': ['.mp4'],
-            'video/quicktime': ['.mov'], // iPhone default format
-            'video/x-mov': ['.mov'], // alternate MOV MIME
+            'video/quicktime': ['.mov'],
+            'video/x-mov': ['.mov'],
             'video/webm': ['.webm'],
             'video/ogg': ['.ogv'],
             'video/avi': ['.avi'],
-            'video/x-msvideo': ['.avi'], // alternate AVI MIME
+            'video/x-msvideo': ['.avi'],
             'video/x-matroska': ['.mkv'],
-            'video/3gpp': ['.3gp'], // older mobile format
-            'video/x-m4v': ['.m4v'], // iTunes/Apple video
+            'video/3gpp': ['.3gp'],
+            'video/x-m4v': ['.m4v'],
         },
     })
-
-    const handleCaptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setCaption(e.target.value)
-    }
-
-    const handleAgreementChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setIsAgreedToTerms(e.target.checked)
-    }
 
     const isCampaignOpen =
         campaignDetails?.status === 'approved' &&
@@ -152,12 +246,9 @@ export default function CampaignOverview() {
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
+
         if (!isCampaignOpen) {
             toast.error('This campaign is no longer accepting submissions.')
-            return
-        }
-        if (!socialsAvailable) {
-            toast.error('Please connect your TikTok account before submitting.')
             return
         }
         if (!file) {
@@ -168,77 +259,28 @@ export default function CampaignOverview() {
             toast.error('You must agree to the Campaign Terms and Guidelines before submitting.')
             return
         }
-        toast.success('Checking for payment method...')
+
+        // ── Step 1: Payment check ──────────────────────────────────────────
         const hasPaymentMethod = await hasPresentPaymentMethod()
         if (!hasPaymentMethod) {
-            toast.error('Please add a payment method first.')
+            toast.info('Please add a payment method to continue.')
             setShowPaymentDetails(true)
             return
         }
-        toast.success('Checking For Existing Social Account...')
-        if (campaignDetails && campaignDetails.maxSubmissions > 0) {
-            const { count, error: countError } = await supabaseClient
-                .from('campaign_submissions')
-                .select('*', { count: 'exact', head: true })
-                .eq('campaign_id', campaignId)
-            if (!countError && count !== null && count >= campaignDetails.maxSubmissions) {
-                toast.error('This campaign has reached its maximum number of submissions.')
-                return
-            }
+
+        // ── Step 2: TikTok check ───────────────────────────────────────────
+        const hasTikTok = await areSocialsAvailable()
+        if (!hasTikTok) {
+            // Persist caption + campaignId so we can resume after OAuth
+            sessionStorage.setItem(PENDING_SUBMISSION_KEY, JSON.stringify({ campaignId, caption }))
+            toast.info("Please link your TikTok account to continue. You'll be redirected back here.")
+            await new Promise((r) => setTimeout(r, 800))
+            await activateTiktokOAuth()
+            return
         }
-        setUploadStatus('uploading')
-        toast.success('Uploading submission...')
-        setUploadProgress(0)
-        const uploadInterval = setInterval(() => {
-            setUploadProgress((prev) => {
-                if (prev >= 90) return prev
-                return prev + 10
-            })
-        }, 500)
-        try {
-            const {
-                data: { user },
-                error: userError,
-            } = await supabaseClient.auth.getUser()
-            if (userError || !user) throw new Error('User not authenticated')
-            const fileName = `${Date.now()}_${file.name}`
-            const { error: uploadError } = await supabaseClient.storage.from('campaign-videos').upload(fileName, file, {
-                cacheControl: '3600',
-                upsert: false,
-            })
-            if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
-            clearInterval(uploadInterval)
-            setUploadProgress(100)
-            const {
-                data: { publicUrl },
-            } = supabaseClient.storage.from('campaign-videos').getPublicUrl(fileName)
-            toast.success('Please wait...')
-            const { error: dbError } = await supabaseClient
-                .from('campaign_submissions')
-                .insert([
-                    {
-                        user_id: user.id,
-                        campaign_id: campaignId,
-                        campaign_name: campaignDetails?.campaignName,
-                        video_url: publicUrl,
-                        caption: caption,
-                        file_name: file.name,
-                        file_size: file.size,
-                        submitted_at: new Date().toISOString(),
-                        status: 'draft',
-                    },
-                ])
-                .select()
-            if (dbError) throw new Error(`Database error: ${dbError.message}`)
-            setUploadStatus('success')
-            toast.success('Submission successful! It is now pending review.')
-            router.push('/app/accounts/creator/submissions')
-        } catch (error) {
-            clearInterval(uploadInterval)
-            setUploadStatus('failure')
-            console.error('Submission error:', error)
-            toast.error('Submission failed. Please try again.')
-        }
+
+        // ── Step 3: Upload & submit ────────────────────────────────────────
+        await uploadAndSubmit(caption, campaignDetails!)
     }
 
     const renderFileStatus = () => {
@@ -301,28 +343,7 @@ export default function CampaignOverview() {
 
     return (
         <div className="font-sans px-4 sm:px-6 py-6 space-y-8 sm:space-y-12 max-w-4xl mx-auto mb-8">
-            {/* TikTok Banner — stacks on mobile */}
-            {!socialsAvailable && (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-orange-50 border border-orange-300 rounded-xl px-5 py-4">
-                    <div className="flex items-center gap-3">
-                        <span className="text-2xl">⚠️</span>
-                        <div>
-                            <p className="font-semibold text-orange-800 text-sm">No TikTok account connected</p>
-                            <p className="text-orange-700 text-xs mt-0.5">
-                                You need to connect a TikTok account before you can submit to campaigns.
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={activateTiktokOAuth}
-                        className="w-full sm:w-auto shrink-0 bg-black text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-neutral-800 transition-colors"
-                    >
-                        Connect TikTok
-                    </button>
-                </div>
-            )}
-
-            {/* Campaign Banner — responsive height, Next.js Image */}
+            {/* Campaign Banner */}
             <div className="relative w-full h-[180px] sm:h-[240px] md:h-[300px] rounded-2xl overflow-hidden bg-gray-200">
                 <Image
                     src={defaultBannerUrl}
@@ -351,7 +372,7 @@ export default function CampaignOverview() {
                 </div>
             )}
 
-            {/* Brief tab */}
+            {/* Brief */}
             <div className="bg-white">
                 <div className="border-b border-gray-200">
                     <nav className="flex space-x-8">
@@ -432,7 +453,7 @@ export default function CampaignOverview() {
                 <span className="text-lg font-bold text-[#e93838]">{campaignDetails.campaignPayout}</span>
             </div>
 
-            {/* Campaign Assets — responsive grid */}
+            {/* Campaign Assets */}
             <div>
                 <h2 className="text-xl sm:text-2xl font-semibold mb-7">Campaign Assets</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -440,8 +461,6 @@ export default function CampaignOverview() {
                         const assetNameLower = v.name.toLowerCase()
                         const isVideo = ['.mp4', '.mov', '.avi'].some((ext) => assetNameLower.endsWith(ext))
                         const isImage = ['.png', '.jpg', '.jpeg'].some((ext) => assetNameLower.endsWith(ext))
-                        const placeholderSrc = '/placeholder.png'
-
                         return (
                             <div className="space-y-3" key={`asset-${index}`}>
                                 <a
@@ -471,7 +490,7 @@ export default function CampaignOverview() {
                                     ) : (
                                         <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-500">
                                             <Image
-                                                src={placeholderSrc}
+                                                src="/placeholder.png"
                                                 alt="Placeholder"
                                                 width={64}
                                                 height={64}
@@ -498,7 +517,7 @@ export default function CampaignOverview() {
             </div>
 
             {/* Submission Form */}
-            {isCampaignOpen && socialsAvailable && (
+            {isCampaignOpen && (
                 <form className="mb-5 space-y-7" onSubmit={handleSubmit}>
                     <h2 className="text-xl sm:text-2xl font-semibold mb-4">Your Submission</h2>
                     <div>
@@ -508,7 +527,7 @@ export default function CampaignOverview() {
                         <textarea
                             id="caption"
                             value={caption}
-                            onChange={handleCaptionChange}
+                            onChange={(e) => setCaption(e.target.value)}
                             placeholder="Write a caption for your video, aligning with the brief's key message."
                             className="w-full h-28 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#e93838]"
                             required
@@ -530,13 +549,19 @@ export default function CampaignOverview() {
                             )}
                             {renderFileStatus()}
                         </div>
+                        {/* Remind returning users that file must be re-selected */}
+                        {!file && sessionStorage.getItem(PENDING_SUBMISSION_KEY) && (
+                            <p className="text-xs text-amber-600 mt-2">
+                                ⚠️ Please re-select your video file — files can't be saved across redirects.
+                            </p>
+                        )}
                     </div>
                     <div className="flex items-start sm:items-center gap-4">
                         <input
                             id="terms-agreement"
                             type="checkbox"
                             checked={isAgreedToTerms}
-                            onChange={handleAgreementChange}
+                            onChange={(e) => setIsAgreedToTerms(e.target.checked)}
                             className="mt-0.5 sm:mt-0 h-4 w-4 text-[#e93838] border-gray-300 rounded focus:ring-[#e93838] shrink-0"
                         />
                         <p className="text-xs text-black leading-relaxed">
@@ -558,10 +583,12 @@ export default function CampaignOverview() {
                             </Link>
                         </p>
                     </div>
+
                     <PaymentDialog
                         isPaymentDialogOpen={willShowPaymentDetails}
                         setPaymentDialogOpen={setShowPaymentDetails}
                     />
+
                     <div className="flex justify-end">
                         <button
                             type="submit"

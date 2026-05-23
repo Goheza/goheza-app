@@ -15,7 +15,7 @@ const SUPPORTED_VIDEO_TYPES = new Set([
 
 export async function GET(req: NextRequest, { params }: { params: { filename: string } }) {
     const { filename } = params
-    const supabaseUrl = `https://hlqxrlkjocyqhjcycnky.supabase.co/storage/v1/object/public/campaign-videos/${filename}`
+    const supabaseUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/campaign-videos/${filename}`
 
     const videoRes = await fetch(supabaseUrl)
 
