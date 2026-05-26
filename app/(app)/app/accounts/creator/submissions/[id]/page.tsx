@@ -52,7 +52,30 @@ const StatusBanner: React.FC<{ status: CommonStatusType }> = ({ status }) => {
 export default function SubmissionViewPage() {
     const router = useRouter()
     const params = useParams()
+
     const submissionId = params.id as string
+    const [tiktokInput, setTiktokInput] = useState('')
+    const [isSavingUrl, setIsSavingUrl] = useState(false)
+
+    const handleSaveTikTokUrl = async () => {
+        if (!tiktokInput.trim()) {
+            toast.error('Please paste your TikTok video URL.')
+            return
+        }
+        setIsSavingUrl(true)
+        const { error } = await supabaseClient
+            .from('campaign_submissions')
+            .update({ tiktok_url: tiktokInput.trim() })
+            .eq('id', submissionId)
+
+        if (error) {
+            toast.error('Failed to save TikTok URL. Please try again.')
+        } else {
+            toast.success('TikTok URL saved successfully!')
+            setSubmission((prev) => (prev ? { ...prev, tiktok_url: tiktokInput.trim() } : prev))
+        }
+        setIsSavingUrl(false)
+    }
 
     type SubmissionType = {
         status: CommonStatusType
@@ -112,6 +135,7 @@ export default function SubmissionViewPage() {
 
     // ← NEW
     const isApprovedWithTikTok = submission.status === 'approved' && !!submission.tiktok_url
+    const isApprovedAwaitingPost = submission.status === 'approved' && !submission.tiktok_url
 
     return (
         <div className="p-8 max-w-6xl mx-auto">
@@ -136,20 +160,18 @@ export default function SubmissionViewPage() {
                     </div>
 
                     {/* ← NEW: TikTok live banner for approved submissions */}
+                    {/* TikTok URL submitted and live */}
                     {isApprovedWithTikTok && (
                         <div className="bg-green-50 rounded-xl p-5 border border-green-300 shadow-sm flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="currentColor"
-                                    className="w-6 h-6 text-green-700 flex-shrink-0"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.3 6.3 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.75a8.22 8.22 0 004.79 1.52V6.81a4.85 4.85 0 01-1.02-.12z" />
-                                </svg>
+                                <CheckCircle2 className="w-6 h-6 text-green-700 flex-shrink-0" />
                                 <div>
-                                    <h3 className="text-base font-bold text-green-800">Your video is live on TikTok!</h3>
-                                    <p className="text-sm text-green-700">Your submission was approved and posted.</p>
+                                    <h3 className="text-base font-bold text-green-800">
+                                        Your video is live on TikTok!
+                                    </h3>
+                                    <p className="text-sm text-green-700">
+                                        Your submission was approved and you've posted it.
+                                    </p>
                                 </div>
                             </div>
                             <button
@@ -159,6 +181,40 @@ export default function SubmissionViewPage() {
                                 <ExternalLink className="w-4 h-4" />
                                 View on TikTok
                             </button>
+                        </div>
+                    )}
+
+                    {/* Brand approved — creator needs to post manually */}
+                    {isApprovedAwaitingPost && (
+                        <div className="bg-blue-50 rounded-xl p-5 border border-blue-300 shadow-sm space-y-4">
+                            <div className="flex items-start space-x-3">
+                                <AlertCircle className="w-6 h-6 text-blue-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                    <h3 className="text-base font-bold text-blue-800">
+                                        Action required: Post your video to TikTok
+                                    </h3>
+                                    <p className="text-sm text-blue-700 mt-1">
+                                        The brand has approved your submission. Please post the video to your TikTok
+                                        account and paste the link below so we can track it.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <input
+                                    type="url"
+                                    value={tiktokInput}
+                                    onChange={(e) => setTiktokInput(e.target.value)}
+                                    placeholder="https://www.tiktok.com/@yourhandle/video/..."
+                                    className="flex-1 px-4 py-2 border border-blue-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                                />
+                                <button
+                                    onClick={handleSaveTikTokUrl}
+                                    disabled={isSavingUrl}
+                                    className="bg-black text-white px-5 py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                >
+                                    {isSavingUrl ? 'Saving...' : 'Submit Link'}
+                                </button>
+                            </div>
                         </div>
                     )}
 

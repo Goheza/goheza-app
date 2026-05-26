@@ -35,6 +35,7 @@ type Submission = {
     feedback: string | null
     user_id: string
     campaign_id: string
+    tiktok_url: string | null
 }
 
 const waitForTikTokURL = async (publishId: string, creatorId: string): Promise<string | null> => {
@@ -71,7 +72,7 @@ export default function CampaignSubmissionsPage() {
                 .from('campaign_submissions')
                 .select(
                     `
-                    id, video_url, caption, status, submitted_at, campaign_name, feedback, user_id, campaign_id,
+                    id, video_url, caption, status, submitted_at, campaign_name, feedback, user_id, campaign_id,tiktok_url,
                     creator_profiles(full_name),
                     campaigns(name, brand_profiles(brand_name))
                     `
@@ -372,39 +373,54 @@ export default function CampaignSubmissionsPage() {
                                 </div>
                             )}
 
-                            {/* Approved - ready to post notice */}
-                            {selectedSubmission.status === 'approved' && (
-                                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                                    <p className="text-sm text-green-800">
-                                        This submission has been approved by the brand and is ready to post to TikTok.
-                                    </p>
-                                </div>
-                            )}
+                          
                         </div>
                         <DialogFooter className="flex justify-between sm:justify-between">
                             {/* Admin Review Actions - only for draft submissions */}
-                            {selectedSubmission.status === 'draft' && (
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={() => handleUpdateStatus('admin_reject')}
-                                        variant="destructive"
-                                        className="bg-red-600 hover:bg-red-700"
-                                        disabled={isUpdatingStatus}
-                                    >
-                                        Reject (Admin)
-                                    </Button>
-                                    <Button
-                                        onClick={() => handleUpdateStatus('pending')}
-                                        className="bg-green-600 hover:bg-green-700 text-white"
-                                        disabled={isUpdatingStatus}
-                                    >
-                                        Approve (Move to Brand)
-                                    </Button>
+                            {selectedSubmission.status === 'approved' && (
+                                <div className="space-y-3">
+                                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <p className="text-sm text-green-800 font-medium">
+                                            This submission has been approved by the brand. The creator has been asked
+                                            to post it manually.
+                                        </p>
+                                    </div>
+                                    {selectedSubmission.tiktok_url ? (
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs text-gray-500 mb-0.5">
+                                                    TikTok URL submitted by creator
+                                                </p>
+
+                                                <a
+                                                    href={selectedSubmission.tiktok_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-sm text-blue-600 hover:underline break-all"
+                                                >
+                                                    {selectedSubmission.tiktok_url}
+                                                </a>
+                                            </div>
+                                            <a
+                                                href={selectedSubmission.tiktok_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="shrink-0 bg-black text-white text-xs px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                                            >
+                                                Open ↗
+                                            </a>
+                                        </div>
+                                    ) : (
+                                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                            <p className="text-sm text-yellow-700">
+                                                The creator hasn't submitted their TikTok URL yet.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
-
                             {/* Post to TikTok - only for brand-approved submissions */}
-                            {selectedSubmission.status === 'approved' && (
+                            {/* {selectedSubmission.status === 'approved' && (
                                 <Button
                                     onClick={handlePostToTikTok}
                                     className="bg-black hover:bg-gray-800 text-white flex items-center gap-2"
@@ -420,7 +436,7 @@ export default function CampaignSubmissionsPage() {
                                     </svg>
                                     {postLoading ? 'Posting...' : 'Post to TikTok'}
                                 </Button>
-                            )}
+                            )} */}
 
                             {/* Close Button */}
                             <Button onClick={() => setViewSubmissionModal(false)} variant="secondary">
