@@ -5,6 +5,7 @@ import { supabaseClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { XCircle, CheckCircle2, AlertCircle, MessageSquare, ExternalLink } from 'lucide-react'
+import { extractTikTokVideoId } from '@/lib/appServiceData/social-media/tiktok/extract-video-id'
 
 type CommonStatusType = 'draft' | 'admin_reject' | 'pending' | 'approved' | 'rejected'
 
@@ -62,21 +63,68 @@ export default function SubmissionViewPage() {
             toast.error('Please paste your TikTok video URL.')
             return
         }
-        setIsSavingUrl(true)
-        const { error } = await supabaseClient
-            .from('campaign_submissions')
-            .update({ tiktok_url: tiktokInput.trim() })
-            .eq('id', submissionId)
 
-        if (error) {
-            toast.error('Failed to save TikTok URL. Please try again.')
-        } else {
-            toast.success('TikTok URL saved successfully!')
-            setSubmission((prev) => (prev ? { ...prev, tiktok_url: tiktokInput.trim() } : prev))
+        const videoId = extractTikTokVideoId(tiktokInput.trim())
+        if (!videoId) {
+            toast.error(
+                'Invalid TikTok URL. Please paste a full video link, e.g. https://www.tiktok.com/@handle/video/...'
+            )
+            return
         }
-        setIsSavingUrl(false)
-    }
 
+        setIsSavingUrl(true)
+
+        try {
+            // 1. Save tiktok_url to campaign_submissions
+            const { error: submissionError } = await supabaseClient
+                .from('campaign_submissions')
+                .update({ tiktok_url: tiktokInput.trim() })
+                .eq('id', submissionId)
+
+            if (submissionError) throw new Error('Failed to save TikTok URL.')
+
+            // 2. Upsert a campaign_posts row so the analytics pipeline can see it
+            const { data: userData, error: userError } = await supabaseClient.auth.getUser()
+            if (userError || !userData.user) throw new Error('Authentication error.')
+
+            const { error: postError } = await supabaseClient.from('campaign_posts').upsert(
+                {
+                    campaign_id: submission!.campaign_id,
+                    user_id: userData.user.id,
+                    platform: 'tiktok',
+                    media_id: videoId,
+                    permalink: tiktokInput.trim(),
+                    media_type: 'VIDEO',
+                    status: 'PUBLISHED',
+                    posted_at: new Date().toISOString(),
+                },
+                { onConflict: 'campaign_id, media_id' }
+            )
+
+            if (postError) throw new Error('Failed to register post for analytics.')
+
+            // 3. Trigger initial insights fetch via dedicated endpoint
+            const { data: sessionData } = await supabaseClient.auth.getSession()
+            if (sessionData.session) {
+                await fetch('/api/tiktok/submission-insights', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${sessionData.session.access_token}`,
+                    },
+                    body: JSON.stringify({ submissionId }),
+                })
+            }
+
+            toast.success('TikTok URL saved! Your insights will appear shortly.')
+            setSubmission((prev) => (prev ? { ...prev, tiktok_url: tiktokInput.trim() } : prev))
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Something went wrong.'
+            toast.error(message)
+        } finally {
+            setIsSavingUrl(false)
+        }
+    }
     type SubmissionType = {
         status: CommonStatusType
         campaign_name: string
@@ -84,7 +132,9 @@ export default function SubmissionViewPage() {
         submitted_at: string
         caption: string | null
         feedback: string | null
-        tiktok_url: string | null // ← NEW
+        tiktok_url: string | null
+        campaign_id: string // ← add
+        user_id: string // ← add
     } | null
 
     const [submission, setSubmission] = useState<SubmissionType>(null)

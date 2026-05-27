@@ -21,14 +21,17 @@ interface Campaign {
 interface Post {
     id: string
     campaign_id: string
+    user_id: string | null
+    creator_name: string | null // ← new
     platform: 'tiktok' | 'instagram'
     media_id: string
     permalink: string | null
     video_url: string | null
     thumbnail_url: string | null
     media_type: string | null
-    status: string
+    status: 'PUBLISHED' | 'PROCESSING' | 'FAILED'
     posted_at: string
+    created_at: string
 }
 
 interface Insight {
@@ -323,6 +326,8 @@ export default function AnalyticsPage() {
     const [sortKey, setSortKey] = useState<MetricKey>('views')
     const [sortDir, setSortDir] = useState<SortDir>('desc')
     const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
+    const [selectedCreator, setSelectedCreator] = useState<PostWithInsight | null>(null)
+    const [drillLoading, setDrillLoading] = useState(false)
 
     // Load campaign list on mount
     useEffect(() => {
@@ -371,6 +376,14 @@ export default function AnalyticsPage() {
         if (selectedId) loadData(selectedId)
     }, [selectedId, loadData])
 
+    useEffect(() => {
+        if (!selectedCreator) return
+        const updated = posts.find(
+            (p) => p.media_id === selectedCreator.media_id && p.campaign_id === selectedCreator.campaign_id
+        )
+        if (updated) setSelectedCreator(updated)
+    }, [posts])
+
     // Pull fresh stats from TikTok then reload
     async function handleRefresh() {
         if (!selectedId || refreshing) return
@@ -384,6 +397,34 @@ export default function AnalyticsPage() {
             setError(e instanceof Error ? e.message : 'Failed to refresh TikTok insights')
         } finally {
             setRefreshing(false)
+        }
+    }
+    async function handleSelectCreator(post: PostWithInsight) {
+        setDrillLoading(true)
+        setSelectedCreator(post)
+        try {
+            const {
+                data: { session },
+            } = await supabaseClient.auth.getSession()
+            if (session) {
+                await fetch('/api/tiktok/submission-insights', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                        mediaId: post.media_id,
+                        campaignId: post.campaign_id,
+                    }),
+                })
+                // Reload so fresh metrics are reflected
+                await loadData(selectedId)
+            }
+        } catch (e) {
+            console.error('Failed to refresh creator insights:', e)
+        } finally {
+            setDrillLoading(false)
         }
     }
 
@@ -483,13 +524,10 @@ export default function AnalyticsPage() {
                     {selectedCampaign && <CampaignStatusPill status={selectedCampaign.status} />}
                 </div>
 
-                {loading ? (
-                    <div style={s.loadingState} role="status" aria-live="polite">
-                        Loading analytics…
-                    </div>
-                ) : (
+                {/* ── Campaign overview: per-creator table ── */}
+                {!selectedCreator && (
                     <>
-                        {/* Metric cards */}
+                        {/* Metric cards — keep existing */}
                         <div style={s.metricsGrid}>
                             {(
                                 [
@@ -540,7 +578,6 @@ export default function AnalyticsPage() {
                             ))}
                         </div>
 
-                        {/* Charts row */}
                         <div style={s.chartsRow}>
                             <div style={s.chartCard}>
                                 <div style={s.chartTitle}>Views per post</div>
@@ -580,16 +617,12 @@ export default function AnalyticsPage() {
                                 <EngagementDonut posts={tiktokPosts} />
                             </div>
                         </div>
-
-                        {/* Per-post table */}
+                        {/* Per-creator table — replaces per-post table */}
                         <div style={s.tableCard}>
                             <div style={{ marginBottom: '1rem' }}>
-                                <div style={s.chartTitle}>Per-post breakdown</div>
-                                <div style={s.chartSubtitle}>
-                                    Click a metric column to sort · {publishedCount} published
-                                </div>
+                                <div style={s.chartTitle}>Creators</div>
+                                <div style={s.chartSubtitle}>Click a creator to view their full video analytics</div>
                             </div>
-
                             {sorted.length === 0 ? (
                                 <div style={s.emptyTable}>No TikTok posts found for this campaign.</div>
                             ) : (
@@ -597,8 +630,8 @@ export default function AnalyticsPage() {
                                     <table style={s.table}>
                                         <thead>
                                             <tr>
-                                                <Th>Post</Th>
-                                                <Th>Status</Th>
+                                                <Th>Creator</Th>
+                                                <Th>Video</Th>
                                                 <SortTh
                                                     label="Views"
                                                     k="views"
@@ -627,30 +660,26 @@ export default function AnalyticsPage() {
                                                     dir={sortDir}
                                                     onSort={toggleSort}
                                                 />
-                                                <SortTh
-                                                    label="Reach"
-                                                    k="reach"
-                                                    cur={sortKey}
-                                                    dir={sortDir}
-                                                    onSort={toggleSort}
-                                                />
                                                 <Th>Eng. rate</Th>
                                                 <Th>Posted</Th>
-                                                <Th>Updated</Th>
                                                 <Th></Th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {sorted.map((p, i) => (
                                                 <tr key={p.id} style={i % 2 === 0 ? s.trEven : s.trOdd}>
+                                                    <td style={s.td}>
+                                                        <span style={{ fontWeight: 500, fontSize: 13 }}>
+                                                            {p.creator_name ?? 'Unknown'}
+                                                        </span>
+                                                    </td>
                                                     <td style={s.tdPost}>
                                                         <div style={s.postCell}>
                                                             <div style={s.postThumb}>
                                                                 {p.thumbnail_url ? (
-                                                                    // eslint-disable-next-line @next/next/no-img-element
                                                                     <img
                                                                         src={p.thumbnail_url}
-                                                                        alt={`Thumbnail for post ${p.media_id}`}
+                                                                        alt="thumbnail"
                                                                         style={{
                                                                             width: '100%',
                                                                             height: '100%',
@@ -662,27 +691,21 @@ export default function AnalyticsPage() {
                                                                     <span style={{ fontSize: 18 }}>🎵</span>
                                                                 )}
                                                             </div>
-                                                            <div>
-                                                                <div style={s.postMediaId}>{p.media_id}</div>
-                                                                <div style={s.postType}>{p.media_type ?? 'VIDEO'}</div>
-                                                            </div>
+                                                            <span
+                                                                style={{
+                                                                    fontSize: 12,
+                                                                    fontFamily: 'monospace',
+                                                                    color: '#888',
+                                                                }}
+                                                            >
+                                                                {p.media_id.slice(-8)}
+                                                            </span>
                                                         </div>
                                                     </td>
-                                                    <td style={s.td}>
-                                                        <StatusPill status={p.status} />
-                                                    </td>
-                                                    <td style={s.tdNum}>
-                                                        <div>{fmt(p.insight?.views ?? 0)}</div>
-                                                        <Bar
-                                                            value={p.insight?.views ?? 0}
-                                                            max={maxViews}
-                                                            color="#D85A30"
-                                                        />
-                                                    </td>
+                                                    <td style={s.tdNum}>{fmt(p.insight?.views ?? 0)}</td>
                                                     <td style={s.tdNum}>{fmt(p.insight?.likes ?? 0)}</td>
                                                     <td style={s.tdNum}>{fmt(p.insight?.comments ?? 0)}</td>
                                                     <td style={s.tdNum}>{fmt(p.insight?.shares ?? 0)}</td>
-                                                    <td style={s.tdNum}>{fmt(p.insight?.reach ?? 0)}</td>
                                                     <td style={s.tdNum}>{engRate(p)}</td>
                                                     <td style={s.tdMuted}>
                                                         {new Date(p.posted_at).toLocaleDateString('en-GB', {
@@ -691,30 +714,13 @@ export default function AnalyticsPage() {
                                                             year: '2-digit',
                                                         })}
                                                     </td>
-                                                    <td style={s.tdMuted}>
-                                                        {p.insight?.last_updated
-                                                            ? new Date(p.insight.last_updated).toLocaleDateString(
-                                                                  'en-GB',
-                                                                  {
-                                                                      day: 'numeric',
-                                                                      month: 'short',
-                                                                  }
-                                                              )
-                                                            : '—'}
-                                                    </td>
                                                     <td style={s.td}>
-                                                        {p.permalink && p.status === 'PUBLISHED' ? (
-                                                            <a
-                                                                href={p.permalink}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                style={s.viewLink}
-                                                            >
-                                                                View ↗
-                                                            </a>
-                                                        ) : (
-                                                            '—'
-                                                        )}
+                                                        <button
+                                                            onClick={() => handleSelectCreator(p)}
+                                                            style={s.viewLink as any}
+                                                        >
+                                                            View Analytics ↗
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -724,6 +730,148 @@ export default function AnalyticsPage() {
                             )}
                         </div>
                     </>
+                )}
+
+                {/* ── Creator drill-down view ── */}
+                {selectedCreator && (
+                    <div>
+                        {/* Back button */}
+                        <button
+                            onClick={() => setSelectedCreator(null)}
+                            style={{ ...s.btnSecondary, marginBottom: '1.5rem' }}
+                        >
+                            ← Back to campaign overview
+                        </button>
+
+                        {drillLoading && (
+                            <div style={{ ...s.loadingState, padding: '1rem 0', marginBottom: '1rem' }}>
+                                Refreshing metrics from TikTok…
+                            </div>
+                        )}
+
+                        {/* Creator header */}
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111', margin: 0 }}>
+                                {selectedCreator.creator_name ?? 'Unknown Creator'}
+                            </h2>
+                            <p style={{ fontSize: 13, color: '#888', marginTop: 4 }}>
+                                Posted{' '}
+                                {new Date(selectedCreator.posted_at).toLocaleDateString('en-GB', {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                })}
+                            </p>
+                        </div>
+
+                        {/* Video + TikTok link */}
+                        <div style={{ ...s.chartCard, marginBottom: '1.5rem' }}>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    marginBottom: '1rem',
+                                }}
+                            >
+                                <div style={s.chartTitle}>Submitted Video</div>
+                                {selectedCreator.permalink && (
+                                    <a
+                                        href={selectedCreator.permalink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ ...s.viewLink, fontSize: 13 }}
+                                    >
+                                        View on TikTok ↗
+                                    </a>
+                                )}
+                            </div>
+                            <div
+                                style={{ aspectRatio: '16/9', background: '#000', borderRadius: 8, overflow: 'hidden' }}
+                            >
+                                {selectedCreator.video_url ? (
+                                    <video
+                                        src={selectedCreator.video_url}
+                                        controls
+                                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                    />
+                                ) : selectedCreator.permalink ? (
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            height: '100%',
+                                        }}
+                                    >
+                                        <a
+                                            href={selectedCreator.permalink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{ color: '#fff', fontSize: 14 }}
+                                        >
+                                            Open on TikTok ↗
+                                        </a>
+                                    </div>
+                                ) : (
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            height: '100%',
+                                            color: '#666',
+                                            fontSize: 14,
+                                        }}
+                                    >
+                                        No video available
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Scoped metric cards */}
+                        <div style={s.metricsGrid}>
+                            {(
+                                [
+                                    { label: 'Views', value: selectedCreator.insight?.views ?? 0, accent: '#D85A30' },
+                                    { label: 'Likes', value: selectedCreator.insight?.likes ?? 0, accent: '#534AB7' },
+                                    {
+                                        label: 'Comments',
+                                        value: selectedCreator.insight?.comments ?? 0,
+                                        accent: '#1D9E75',
+                                    },
+                                    { label: 'Shares', value: selectedCreator.insight?.shares ?? 0, accent: '#BA7517' },
+                                    { label: 'Reach', value: selectedCreator.insight?.reach ?? 0, accent: '#D4537E' },
+                                    {
+                                        label: 'Impressions',
+                                        value: selectedCreator.insight?.impressions ?? 0,
+                                        accent: '#378ADD',
+                                    },
+                                ] as const
+                            ).map((m) => (
+                                <div key={m.label} style={s.metricCard}>
+                                    <div style={{ ...s.metricAccent, background: m.accent }} />
+                                    <div style={s.metricLabel}>{m.label}</div>
+                                    <div style={s.metricValue}>{fmt(m.value)}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Engagement donut scoped to this creator */}
+                        <div style={{ ...s.chartCard, marginTop: '1.5rem' }}>
+                            <div style={s.chartTitle}>Engagement breakdown</div>
+                            <div style={s.chartSubtitle}>Distribution across interaction types</div>
+                            <EngagementDonut posts={[selectedCreator]} />
+                        </div>
+
+                        {/* Last updated */}
+                        {selectedCreator.insight?.last_updated && (
+                            <p style={{ fontSize: 12, color: '#aaa', marginTop: '1rem', textAlign: 'right' }}>
+                                Last updated: {new Date(selectedCreator.insight.last_updated).toLocaleString()}
+                            </p>
+                        )}
+                    </div>
                 )}
             </div>
         </>
