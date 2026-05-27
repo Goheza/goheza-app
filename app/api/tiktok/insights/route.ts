@@ -20,6 +20,11 @@ export async function POST(req: Request) {
         if (authError || !user) {
             return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
         }
+                const body = await req.json()
+        console.log('submission-insights body:', body)
+
+        const { submissionId, mediaId, campaignId: campaignIdFromBody } = body
+        console.log('Path:', submissionId ? 'A (submissionId)' : mediaId ? 'B (mediaId+campaignId)' : 'UNKNOWN')
 
         const { campaignId } = await req.json()
         if (!campaignId) {
@@ -37,6 +42,10 @@ export async function POST(req: Request) {
         if (accountError || !account) {
             return NextResponse.json({ error: 'TikTok account not connected' }, { status: 400 })
         }
+
+        console.log(`Fetched Account Data: ${account}`)
+        console.log(`Fetched Account Data: ${account}`)
+
 
         let accessToken = account.access_token
 
@@ -99,6 +108,8 @@ export async function POST(req: Request) {
 
             const json = await res.json()
             const videoData = json.data?.videos?.[0]
+
+            console.log('tiktok-data-fetched',json.data)
 
             if (!videoData) continue
 

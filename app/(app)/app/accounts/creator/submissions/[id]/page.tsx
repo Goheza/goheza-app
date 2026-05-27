@@ -116,7 +116,7 @@ export default function SubmissionViewPage() {
                 })
             }
 
-            toast.success('TikTok URL saved! Your insights will appear shortly.')
+            // toast.success('TikTok URL saved! Your insights will appear shortly.')
             setSubmission((prev) => (prev ? { ...prev, tiktok_url: tiktokInput.trim() } : prev))
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Something went wrong.'

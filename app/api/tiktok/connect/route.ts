@@ -45,7 +45,7 @@ export async function POST(req: Request) {
         const authUrl =
             `https://www.tiktok.com/v2/auth/authorize/?` +
             `client_key=${clientKey}&` +
-            `scope=user.info.basic,video.upload,video.publish&` +
+            `scope=user.info.basic,video.upload,video.publish,video.list&` +
             `response_type=code&` +
             `redirect_uri=${encodeURIComponent(redirectUri)}&` +
             `state=${user.id}&` +

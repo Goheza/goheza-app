@@ -14,7 +14,7 @@ export async function UpdateInsightsForCampaignTk(campaignId: string) {
         throw new Error('User not logged in')
     }
 
-    await fetch('/api/tiktok/insights', {
+    await fetch('/api/tiktok/submission-insights', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

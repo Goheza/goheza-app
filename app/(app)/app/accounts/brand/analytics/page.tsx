@@ -329,6 +329,8 @@ export default function AnalyticsPage() {
     const [selectedCreator, setSelectedCreator] = useState<PostWithInsight | null>(null)
     const [drillLoading, setDrillLoading] = useState(false)
 
+    const [mediaId,setMediaId] = useState("");
+
     // Load campaign list on mount
     useEffect(() => {
         async function loadCampaigns() {
@@ -407,6 +409,7 @@ export default function AnalyticsPage() {
                 data: { session },
             } = await supabaseClient.auth.getSession()
             if (session) {
+                console.log("Sessionsis present")
                 await fetch('/api/tiktok/submission-insights', {
                     method: 'POST',
                     headers: {

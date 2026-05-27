@@ -11,7 +11,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'No token provided' }, { status: 401 })
         }
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+        console.log("Fuck NextJS")
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser(token)
         if (authError || !user) {
             return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
         }
@@ -23,6 +28,10 @@ export async function POST(req: Request) {
         let user_id: string
         let videoId: string
 
+        console.log("body-data",{
+            mediaId,
+            campaignIdFromBody
+        })
         if (submissionId) {
             // ── Path A: called with submissionId (creator just submitted URL) ──
             const { data: submission, error: submissionError } = await supabase
@@ -47,7 +56,6 @@ export async function POST(req: Request) {
             campaign_id = submission.campaign_id
             user_id = submission.user_id
             videoId = match[1]
-
         } else if (mediaId && campaignIdFromBody) {
             // ── Path B: called with mediaId + campaignId (brand opens drill-down) ──
             // Look up the submission to get user_id via campaign_id + tiktok_url containing mediaId
@@ -65,7 +73,6 @@ export async function POST(req: Request) {
             campaign_id = campaignIdFromBody
             user_id = submission.user_id
             videoId = mediaId
-
         } else {
             return NextResponse.json(
                 { error: 'Provide either submissionId or both mediaId and campaignId' },
@@ -117,7 +124,6 @@ export async function POST(req: Request) {
                 .eq('user_id', user_id)
                 .eq('platform', 'tiktok')
         }
-
         // ── Query TikTok for metrics ──────────────────────────────────────
         const tiktokRes = await fetch('https://open.tiktokapis.com/v2/video/query/', {
             method: 'POST',
@@ -132,7 +138,14 @@ export async function POST(req: Request) {
         })
 
         const tiktokJson = await tiktokRes.json()
+
+        // ── LOGS MUST BE HERE — before the early return ──────────────────
+        console.log('videoId being queried:', videoId)
+        console.log('TikTok response status:', tiktokRes.status)
+        console.log('TikTok full response:', JSON.stringify(tiktokJson, null, 2))
+
         const videoData = tiktokJson.data?.videos?.[0]
+        console.log('videoData found:', !!videoData)
 
         if (!videoData) {
             return NextResponse.json(
@@ -140,6 +153,9 @@ export async function POST(req: Request) {
                 { status: 200 }
             )
         }
+        console.log('TikTok response status:', tiktokRes.status)
+        console.log('TikTok full response:', JSON.stringify(tiktokJson, null, 2))
+        console.log('videoData found:', !!videoData)
 
         // ── Update thumbnail in campaign_posts ────────────────────────────
         if (videoData.cover_image_url) {
@@ -151,28 +167,25 @@ export async function POST(req: Request) {
         }
 
         // ── Upsert into campaign_insights ─────────────────────────────────
-        const { error: upsertError } = await supabase
-            .from('campaign_insights')
-            .upsert(
-                {
-                    campaign_id,
-                    platform: 'tiktok',
-                    media_id: videoId,
-                    likes: videoData.like_count ?? 0,
-                    comments: videoData.comment_count ?? 0,
-                    views: videoData.view_count ?? 0,
-                    shares: videoData.share_count ?? 0,
-                    last_updated: new Date().toISOString(),
-                },
-                { onConflict: 'campaign_id, media_id' }
-            )
+        const { error: upsertError } = await supabase.from('campaign_insights').upsert(
+            {
+                campaign_id,
+                platform: 'tiktok',
+                media_id: videoId,
+                likes: videoData.like_count ?? 0,
+                comments: videoData.comment_count ?? 0,
+                views: videoData.view_count ?? 0,
+                shares: videoData.share_count ?? 0,
+                last_updated: new Date().toISOString(),
+            },
+            { onConflict: 'campaign_id, media_id' }
+        )
 
         if (upsertError) {
             return NextResponse.json({ error: 'Failed to save insights' }, { status: 500 })
         }
 
         return NextResponse.json({ success: true, media_id: videoId })
-
     } catch (err) {
         console.error('submission-insights error:', err)
         return NextResponse.json({ error: 'Server error' }, { status: 500 })
