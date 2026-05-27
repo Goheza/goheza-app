@@ -22,7 +22,7 @@ interface Post {
     id: string
     campaign_id: string
     user_id: string | null
-    creator_name: string | null // ← new
+    creator_profiles:  {full_name : string}
     platform: 'tiktok' | 'instagram'
     media_id: string
     permalink: string | null
@@ -365,7 +365,8 @@ export default function AnalyticsPage() {
             const merged: PostWithInsight[] = (rawPosts as Post[]).map((p) => ({
                 ...p,
                 insight: insightMap.get(p.media_id) ?? null,
-            }))
+            }));
+            console.log("POSTS",merged)
             setPosts(merged)
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Failed to load data')
@@ -673,7 +674,7 @@ export default function AnalyticsPage() {
                                                 <tr key={p.id} style={i % 2 === 0 ? s.trEven : s.trOdd}>
                                                     <td style={s.td}>
                                                         <span style={{ fontWeight: 500, fontSize: 13 }}>
-                                                            {p.creator_name ?? 'Unknown'}
+                                                            {p.creator_profiles.full_name ?? 'Unknown'}
                                                         </span>
                                                     </td>
                                                     <td style={s.tdPost}>
@@ -755,7 +756,7 @@ export default function AnalyticsPage() {
                         {/* Creator header */}
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111', margin: 0 }}>
-                                {selectedCreator.creator_name ?? 'Unknown Creator'}
+                                {selectedCreator.creator_profiles.full_name ?? 'Unknown Creator'}
                             </h2>
                             <p style={{ fontSize: 13, color: '#888', marginTop: 4 }}>
                                 Posted{' '}

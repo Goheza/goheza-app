@@ -12,7 +12,10 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'No token provided' }, { status: 401 })
         }
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser(token)
         if (authError || !user) {
             return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
         }
@@ -26,7 +29,7 @@ export async function GET(req: Request) {
 
         const { data: posts, error } = await supabase
             .from('campaign_posts')
-            .select('*')
+            .select('*, creator_profiles(full_name)')
             .eq('campaign_id', campaignId)
             .order('posted_at', { ascending: false })
 
@@ -35,7 +38,6 @@ export async function GET(req: Request) {
         }
 
         return NextResponse.json({ posts })
-
     } catch (err) {
         console.error('get-posts error:', err)
         return NextResponse.json({ error: 'Failed to get posts' }, { status: 500 })
