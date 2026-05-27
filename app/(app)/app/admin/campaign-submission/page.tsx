@@ -163,61 +163,6 @@ export default function CampaignSubmissionsPage() {
         setIsUpdatingStatus(false)
     }
 
-    const handlePostToTikTok = async () => {
-        if (!selectedSubmission || selectedSubmission.status !== 'approved') return
-
-        setPostLoading(true)
-
-        try {
-            const returnArgs = await publishTikTokVideo({
-                campaignId: selectedSubmission.campaign_id,
-                caption: selectedSubmission.caption ?? '',
-                creatorUserId: selectedSubmission.user_id,
-                videoUrl: selectedSubmission.video_url,
-            })
-
-            console.log('publishTikTokVideo result:', returnArgs)
-
-            if (returnArgs.success) {
-                const currentTiktokURL = await waitForTikTokURL(returnArgs.publishId, selectedSubmission.user_id)
-
-                if (!currentTiktokURL) {
-                    toast.error('Failed to retrieve TikTok URL after posting.')
-                    setPostLoading(false)
-                    return
-                }
-
-                const { error: updateError } = await supabaseClient
-                    .from('campaign_submissions')
-                    .update({ tiktok_url: currentTiktokURL, status: 'posted' })
-                    .eq('id', selectedSubmission.id)
-
-                if (updateError) {
-                    console.error('Error saving TikTok URL:', updateError)
-                    toast.error('Video posted but failed to save TikTok URL.')
-                    setPostLoading(false)
-                    return
-                }
-
-                toast.success('Video successfully posted to TikTok!')
-                setViewSubmissionModal(false)
-                fetchSubmissions()
-                router.push(
-                    `/app/accounts/brand/campaigns/post-success?videoUrl=${encodeURIComponent(
-                        currentTiktokURL
-                    )}&campaignId=${selectedSubmission.campaign_id}`
-                )
-            } else {
-                toast.error('Error posting video to TikTok.')
-            }
-        } catch (err) {
-            console.error('Unexpected error posting to TikTok:', err)
-            toast.error('An unexpected error occurred while posting to TikTok.')
-        } finally {
-            setPostLoading(false)
-        }
-    }
-
     const handleViewSubmission = (submission: Submission) => {
         setSelectedSubmission(submission)
         setAdminFeedback(submission.feedback || '')
@@ -372,11 +317,28 @@ export default function CampaignSubmissionsPage() {
                                     />
                                 </div>
                             )}
-
-                          
                         </div>
                         <DialogFooter className="flex justify-between sm:justify-between">
                             {/* Admin Review Actions - only for draft submissions */}
+                            {selectedSubmission.status === 'draft' && (
+                                <div className="flex gap-2">
+                                    <Button
+                                        onClick={() => handleUpdateStatus('admin_reject')}
+                                        variant="destructive"
+                                        className="bg-red-600 hover:bg-red-700"
+                                        disabled={isUpdatingStatus}
+                                    >
+                                        Reject (Admin)
+                                    </Button>
+                                    <Button
+                                        onClick={() => handleUpdateStatus('pending')}
+                                        className="bg-green-600 hover:bg-green-700 text-white"
+                                        disabled={isUpdatingStatus}
+                                    >
+                                        Approve (Move to Brand)
+                                    </Button>
+                                </div>
+                            )}
                             {selectedSubmission.status === 'approved' && (
                                 <div className="space-y-3">
                                     <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
