@@ -11,8 +11,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'No token provided' }, { status: 401 })
         }
 
-
-        console.log("Fuck NextJS")
+        console.log('Fuck NextJS')
         const {
             data: { user },
             error: authError,
@@ -28,9 +27,9 @@ export async function POST(req: Request) {
         let user_id: string
         let videoId: string
 
-        console.log("body-data",{
+        console.log('body-data', {
             mediaId,
-            campaignIdFromBody
+            campaignIdFromBody,
         })
         if (submissionId) {
             // ── Path A: called with submissionId (creator just submitted URL) ──
@@ -125,18 +124,21 @@ export async function POST(req: Request) {
                 .eq('platform', 'tiktok')
         }
         // ── Query TikTok for metrics ──────────────────────────────────────
-        const tiktokRes = await fetch('https://open.tiktokapis.com/v2/video/query/', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                filters: { video_ids: [videoId] },
-                fields: ['like_count', 'comment_count', 'view_count', 'share_count', 'cover_image_url'],
-            }),
-        })
+        const fields = 'like_count,comment_count,view_count,share_count,cover_image_url'
 
+        const tiktokRes = await fetch(
+            `https://open.tiktokapis.com/v2/video/query/?fields=${fields}`, // ← fields in URL
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filters: { video_ids: [videoId] }, // ← only filters in body
+                }),
+            }
+        )
         const tiktokJson = await tiktokRes.json()
 
         // ── LOGS MUST BE HERE — before the early return ──────────────────
@@ -170,7 +172,6 @@ export async function POST(req: Request) {
         const { error: upsertError } = await supabase.from('campaign_insights').upsert(
             {
                 campaign_id,
-                platform: 'tiktok',
                 media_id: videoId,
                 likes: videoData.like_count ?? 0,
                 comments: videoData.comment_count ?? 0,
@@ -182,6 +183,7 @@ export async function POST(req: Request) {
         )
 
         if (upsertError) {
+            console.log("UPSERT-ERROR",upsertError)
             return NextResponse.json({ error: 'Failed to save insights' }, { status: 500 })
         }
 
