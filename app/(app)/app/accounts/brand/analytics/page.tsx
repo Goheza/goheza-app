@@ -1,15 +1,24 @@
 'use client'
-
 import { useEffect, useState, useCallback } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
-
+import type { ReactNode } from 'react'
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    Legend,
+} from 'recharts'
 import { FetchPostsForCampaign, FetchInsightsForCampaign } from '@/lib/appServiceData/social-media/fetch/fetchInsights'
 import { UpdateInsightsForCampaignTk } from '@/lib/appServiceData/social-media/tiktok/update-insights-tk'
 import { supabaseClient } from '@/lib/supabase/client'
-// ────────────────────────────────────────────────────────────────────────────
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface Campaign {
     id: string
     name: string
@@ -17,12 +26,11 @@ interface Campaign {
     budget: number
     created_at: string
 }
-
 interface Post {
     id: string
     campaign_id: string
     user_id: string | null
-    creator_profiles:  {full_name : string}
+    creator_profiles: { full_name: string }
     platform: 'tiktok' | 'instagram'
     media_id: string
     permalink: string | null
@@ -33,7 +41,6 @@ interface Post {
     posted_at: string
     created_at: string
 }
-
 interface Insight {
     id: string
     campaign_id: string
@@ -49,32 +56,26 @@ interface Insight {
     extra_metrics: Record<string, unknown> | null
     last_updated: string
 }
-
 interface PostWithInsight extends Post {
     insight: Insight | null
 }
-
 type MetricKey = 'views' | 'likes' | 'comments' | 'shares' | 'reach' | 'impressions' | 'saves'
 type SortDir = 'asc' | 'desc'
 
-// ─── Pure helpers (no JSX) ────────────────────────────────────────────────────
-
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n: number): string {
     if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
     if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'
     return n.toLocaleString()
 }
-
 function engRate(p: PostWithInsight): string {
     if (!p.insight || !p.insight.views) return '—'
     const rate = ((p.insight.likes + p.insight.comments + p.insight.shares) / p.insight.views) * 100
     return rate.toFixed(2) + '%'
 }
-
 function sumMetric(posts: PostWithInsight[], key: MetricKey): number {
     return posts.reduce((acc, p) => acc + (p.insight?.[key] ?? 0), 0)
 }
-
 function avgEngRate(posts: PostWithInsight[]): string {
     const published = posts.filter((p) => p.status === 'PUBLISHED' && p.insight && p.insight.views > 0)
     if (!published.length) return '—'
@@ -85,7 +86,6 @@ function avgEngRate(posts: PostWithInsight[]): string {
         }, 0) / published.length
     return avg.toFixed(2) + '%'
 }
-
 function downloadCSV(posts: PostWithInsight[], campaignName: string): void {
     const headers = [
         'Media ID',
@@ -122,17 +122,123 @@ function downloadCSV(posts: PostWithInsight[], campaignName: string): void {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${campaignName.replace(/\s+/g, '_')}_tiktok_analytics.csv`
+    a.download = `${campaignName.replace(/\s+/g, '_')}_analytics.csv`
     a.click()
     URL.revokeObjectURL(url)
 }
 
-// ─── Small presentational components ─────────────────────────────────────────
-
-function Th({ children }: { children?: ReactNode }) {
-    return <th style={s.th}>{children}</th>
+// ── Recharts custom tooltip ───────────────────────────────────────────────────
+const CustomBarTooltip = ({ active, payload, label }: any) => {
+    if (active && payload?.length) {
+        return (
+            <div className="bg-white border border-gray-100 rounded-xl shadow-lg px-4 py-3 text-sm">
+                <p className="font-semibold text-black mb-1">{label}</p>
+                {payload.map((entry: any) => (
+                    <p key={entry.name} style={{ color: entry.color }} className="font-medium">
+                        {entry.name}: {fmt(entry.value)}
+                    </p>
+                ))}
+            </div>
+        )
+    }
+    return null
 }
 
+const CustomPieTooltip = ({ active, payload }: any) => {
+    if (active && payload?.length) {
+        return (
+            <div className="bg-white border border-gray-100 rounded-xl shadow-lg px-4 py-3 text-sm">
+                <p className="font-semibold" style={{ color: payload[0].payload.color }}>
+                    {payload[0].name}
+                </p>
+                <p className="text-black">
+                    {fmt(payload[0].value)} ({payload[0].payload.pct}%)
+                </p>
+            </div>
+        )
+    }
+    return null
+}
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+function StatCard({
+    label,
+    value,
+    sub,
+    accent,
+    icon,
+}: {
+    label: string
+    value: number
+    sub?: string
+    accent: string
+    icon: string
+}) {
+    return (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow duration-200 relative overflow-hidden group">
+            <div
+                className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-5 -translate-y-8 translate-x-8 transition-all duration-300 group-hover:opacity-10 group-hover:scale-110"
+                style={{ background: accent }}
+            />
+            <div className="flex items-start justify-between mb-3">
+                <span className="text-xs font-semibold tracking-widest uppercase text-gray-400">{label}</span>
+                <span className="text-lg">{icon}</span>
+            </div>
+            <div
+                className="text-3xl font-bold text-gray-900 tracking-tight mb-1"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+            >
+                {fmt(value)}
+            </div>
+            {sub && <div className="text-xs text-gray-400 font-medium">{sub}</div>}
+            <div
+                className="absolute bottom-0 left-0 w-full h-0.5 opacity-60"
+                style={{ background: `linear-gradient(to right, ${accent}, transparent)` }}
+            />
+        </div>
+    )
+}
+
+// ── Status Pill ───────────────────────────────────────────────────────────────
+function StatusPill({ status }: { status: string }) {
+    const map: Record<string, string> = {
+        PUBLISHED: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+        PROCESSING: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',
+        FAILED: 'bg-red-50 text-red-700 ring-1 ring-red-200',
+    }
+    return (
+        <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                map[status] ?? 'bg-gray-100 text-gray-600'
+            }`}
+        >
+            <span
+                className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                    status === 'PUBLISHED' ? 'bg-emerald-500' : status === 'PROCESSING' ? 'bg-amber-500' : 'bg-red-500'
+                }`}
+            />
+            {status}
+        </span>
+    )
+}
+
+function CampaignStatusPill({ status }: { status: string }) {
+    const map: Record<string, string> = {
+        approved: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+        inreview: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',
+    }
+    return (
+        <span
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                map[status] ?? 'bg-gray-100 text-gray-500 ring-1 ring-gray-200'
+            }`}
+        >
+            {status}
+        </span>
+    )
+}
+
+// ── Sort Header ───────────────────────────────────────────────────────────────
 function SortTh({
     label,
     k,
@@ -149,173 +255,48 @@ function SortTh({
     const active = cur === k
     return (
         <th
-            style={{ ...s.th, cursor: 'pointer', userSelect: 'none', color: active ? '#D85A30' : '#999' }}
             onClick={() => onSort(k)}
+            className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider cursor-pointer select-none whitespace-nowrap transition-colors ${
+                active ? 'text-red-500' : 'text-gray-400 hover:text-gray-600'
+            }`}
         >
-            {label} {active ? (dir === 'desc' ? '↓' : '↑') : '↕'}
+            <span className="flex items-center gap-1">
+                {label}
+                <span className="text-xs">{active ? (dir === 'desc' ? '↓' : '↑') : '↕'}</span>
+            </span>
         </th>
     )
 }
 
-function Bar({ value, max, color = '#D85A30' }: { value: number; max: number; color?: string }) {
-    const pct = max > 0 ? Math.round((value / max) * 100) : 0
-    return (
-        <div style={{ background: '#F1EFE8', borderRadius: 4, height: 5, width: 80, marginTop: 4 }}>
-            <div style={{ background: color, borderRadius: 4, height: 5, width: `${pct}%` }} />
-        </div>
-    )
-}
-
-function StatusPill({ status }: { status: string }) {
-    const bg = status === 'PUBLISHED' ? '#EAF3DE' : status === 'PROCESSING' ? '#FAEEDA' : '#FCEBEB'
-    const color = status === 'PUBLISHED' ? '#3B6D11' : status === 'PROCESSING' ? '#854F0B' : '#A32D2D'
-    return (
-        <span
-            style={{
-                display: 'inline-block',
-                fontSize: 11,
-                fontWeight: 600,
-                padding: '3px 8px',
-                borderRadius: 99,
-                background: bg,
-                color,
-            }}
-        >
-            {status}
-        </span>
-    )
-}
-
-function CampaignStatusPill({ status }: { status: string }) {
-    const bg = status === 'approved' ? '#EAF3DE' : status === 'inreview' ? '#FAEEDA' : '#F1EFE8'
-    const color = status === 'approved' ? '#3B6D11' : status === 'inreview' ? '#854F0B' : '#5F5E5A'
-    return (
-        <span style={{ fontSize: 12, fontWeight: 500, padding: '3px 8px', borderRadius: 99, background: bg, color }}>
-            {status}
-        </span>
-    )
-}
-
-function EngagementDonut({ posts }: { posts: PostWithInsight[] }) {
-    const likes = sumMetric(posts, 'likes')
-    const comments = sumMetric(posts, 'comments')
-    const shares = sumMetric(posts, 'shares')
-    const saves = sumMetric(posts, 'saves')
-    const total = likes + comments + shares + saves
-
-    const segments = [
-        { label: 'Likes', value: likes, color: '#D85A30' },
-        { label: 'Comments', value: comments, color: '#534AB7' },
-        { label: 'Shares', value: shares, color: '#1D9E75' },
-        { label: 'Saves', value: saves, color: '#BA7517' },
-    ]
-
-    if (!total) {
-        return (
-            <p style={{ fontSize: 13, color: '#bbb', textAlign: 'center', padding: '2rem 0', margin: 0 }}>
-                No engagement data yet
-            </p>
-        )
-    }
-
-    const cx = 70,
-        cy = 70,
-        outerR = 50,
-        innerR = 32
-    let angle = -Math.PI / 2
-
-    const arcs = segments.map((seg) => {
-        const slice = (seg.value / total) * Math.PI * 2
-        const x1 = cx + outerR * Math.cos(angle)
-        const y1 = cy + outerR * Math.sin(angle)
-        angle += slice
-        const x2 = cx + outerR * Math.cos(angle)
-        const y2 = cy + outerR * Math.sin(angle)
-        const ix1 = cx + innerR * Math.cos(angle)
-        const iy1 = cy + innerR * Math.sin(angle)
-        const ix2 = cx + innerR * Math.cos(angle - slice)
-        const iy2 = cy + innerR * Math.sin(angle - slice)
-        const large = slice > Math.PI ? 1 : 0
-        const d = [
-            `M ${x1.toFixed(2)} ${y1.toFixed(2)}`,
-            `A ${outerR} ${outerR} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`,
-            `L ${ix1.toFixed(2)} ${iy1.toFixed(2)}`,
-            `A ${innerR} ${innerR} 0 ${large} 0 ${ix2.toFixed(2)} ${iy2.toFixed(2)}`,
-            'Z',
-        ].join(' ')
-        return { ...seg, d, pct: Math.round((seg.value / total) * 100) }
-    })
-
-    return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginTop: 20 }}>
-            <svg width={140} height={140} viewBox="0 0 140 140" aria-hidden="true">
-                {arcs.map((a) => (
-                    <path key={a.label} d={a.d} fill={a.color} />
-                ))}
-                <text x={70} y={66} textAnchor="middle" fontSize={11} fill="#999">
-                    Total
-                </text>
-                <text x={70} y={81} textAnchor="middle" fontSize={14} fontWeight={500} fill="#111">
-                    {fmt(total)}
-                </text>
-            </svg>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
-                {arcs.map((a) => (
-                    <div key={a.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 10, height: 10, borderRadius: 2, background: a.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, color: '#666' }}>{a.label}</span>
-                        <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 'auto' }}>{a.pct}%</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
-}
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
+// ── Icons ─────────────────────────────────────────────────────────────────────
 function TikTokIcon() {
     return (
-        <svg width={13} height={13} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-                d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.96a8.17 8.17 0 004.78 1.52V7.01a4.85 4.85 0 01-1.01-.32z"
-                fill="currentColor"
-            />
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.96a8.17 8.17 0 004.78 1.52V7.01a4.85 4.85 0 01-1.01-.32z" />
         </svg>
     )
 }
 
-/**
- * Spinning refresh icon.
- * The @keyframes rule is injected once in the page root via a <style> tag —
- * NOT inside the SVG, which would cause React hydration warnings in Next.js.
- */
 function RefreshIcon({ spinning }: { spinning: boolean }) {
     return (
-        <span style={{ display: 'inline-flex', animation: spinning ? 'goheza-spin 1s linear infinite' : 'none' }}>
-            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                    d="M4 12a8 8 0 018-8V2l4 4-4 4V8a6 6 0 100 6"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
+        <span style={{ display: 'inline-flex', animation: spinning ? 'spin 1s linear infinite' : 'none' }}>
+            <svg
+                width={14}
+                height={14}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            >
+                <path d="M4 12a8 8 0 018-8V2l4 4-4 4V8a6 6 0 100 6" />
             </svg>
         </span>
     )
 }
 
-function DownloadIcon() {
-    return (
-        <svg width={13} height={13} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 16l-4-4h3V4h2v8h3l-4 4zm-7 4v-2h14v2H5z" fill="currentColor" />
-        </svg>
-    )
-}
-
-// ─── Main Page Component ──────────────────────────────────────────────────────
-
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AnalyticsPage() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([])
     const [selectedId, setSelectedId] = useState<string>('')
@@ -329,16 +310,12 @@ export default function AnalyticsPage() {
     const [selectedCreator, setSelectedCreator] = useState<PostWithInsight | null>(null)
     const [drillLoading, setDrillLoading] = useState(false)
 
-    const [mediaId,setMediaId] = useState("");
-
-    // Load campaign list on mount
     useEffect(() => {
         async function loadCampaigns() {
             const { data, error: dbError } = await supabaseClient
                 .from('campaigns')
                 .select('id, name, status, budget, created_at')
                 .order('created_at', { ascending: false })
-
             if (dbError) {
                 setError('Failed to load campaigns')
                 return
@@ -350,7 +327,6 @@ export default function AnalyticsPage() {
         loadCampaigns()
     }, [])
 
-    // Load posts + insights whenever the selected campaign changes
     const loadData = useCallback(async (campaignId: string) => {
         if (!campaignId) return
         setLoading(true)
@@ -365,8 +341,7 @@ export default function AnalyticsPage() {
             const merged: PostWithInsight[] = (rawPosts as Post[]).map((p) => ({
                 ...p,
                 insight: insightMap.get(p.media_id) ?? null,
-            }));
-            console.log("POSTS",merged)
+            }))
             setPosts(merged)
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Failed to load data')
@@ -378,7 +353,6 @@ export default function AnalyticsPage() {
     useEffect(() => {
         if (selectedId) loadData(selectedId)
     }, [selectedId, loadData])
-
     useEffect(() => {
         if (!selectedCreator) return
         const updated = posts.find(
@@ -387,7 +361,6 @@ export default function AnalyticsPage() {
         if (updated) setSelectedCreator(updated)
     }, [posts])
 
-    // Pull fresh stats from TikTok then reload
     async function handleRefresh() {
         if (!selectedId || refreshing) return
         setRefreshing(true)
@@ -402,6 +375,7 @@ export default function AnalyticsPage() {
             setRefreshing(false)
         }
     }
+
     async function handleSelectCreator(post: PostWithInsight) {
         setDrillLoading(true)
         setSelectedCreator(post)
@@ -410,37 +384,26 @@ export default function AnalyticsPage() {
                 data: { session },
             } = await supabaseClient.auth.getSession()
             if (session) {
-                console.log("Sessionsis present")
                 await fetch('/api/tiktok/submission-insights', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({
-                        mediaId: post.media_id,
-                        campaignId: post.campaign_id,
-                    }),
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                    body: JSON.stringify({ mediaId: post.media_id, campaignId: post.campaign_id }),
                 })
-                // Reload so fresh metrics are reflected
                 await loadData(selectedId)
             }
         } catch (e) {
-            console.error('Failed to refresh creator insights:', e)
+            console.error(e)
         } finally {
             setDrillLoading(false)
         }
     }
 
-    // Derived state
     const tiktokPosts = posts.filter((p) => p.platform === 'tiktok')
-
     const sorted = [...tiktokPosts].sort((a, b) => {
-        const av = a.insight?.[sortKey] ?? 0
-        const bv = b.insight?.[sortKey] ?? 0
+        const av = a.insight?.[sortKey] ?? 0,
+            bv = b.insight?.[sortKey] ?? 0
         return sortDir === 'desc' ? bv - av : av - bv
     })
-
     function toggleSort(key: MetricKey) {
         if (key === sortKey) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))
         else {
@@ -449,10 +412,7 @@ export default function AnalyticsPage() {
         }
     }
 
-    const maxViews = Math.max(...tiktokPosts.map((p) => p.insight?.views ?? 0), 1)
     const selectedCampaign = campaigns.find((c) => c.id === selectedId)
-    const publishedCount = tiktokPosts.filter((p) => p.status === 'PUBLISHED').length
-
     const totals = {
         views: sumMetric(tiktokPosts, 'views'),
         likes: sumMetric(tiktokPosts, 'likes'),
@@ -462,597 +422,722 @@ export default function AnalyticsPage() {
         impressions: sumMetric(tiktokPosts, 'impressions'),
     }
 
+    // Chart data
+    const barData = [...tiktokPosts]
+        .filter((p) => (p.insight?.views ?? 0) > 0)
+        .sort((a, b) => (b.insight?.views ?? 0) - (a.insight?.views ?? 0))
+        .slice(0, 8)
+        .map((p) => ({
+            name: p.creator_profiles?.full_name?.split(' ')[0] ?? p.media_id.slice(-6),
+            Views: p.insight?.views ?? 0,
+            Likes: p.insight?.likes ?? 0,
+            Comments: p.insight?.comments ?? 0,
+        }))
+
+    const likes = sumMetric(tiktokPosts, 'likes')
+    const comments = sumMetric(tiktokPosts, 'comments')
+    const shares = sumMetric(tiktokPosts, 'shares')
+    const saves = sumMetric(tiktokPosts, 'saves')
+    const engTotal = likes + comments + shares + saves
+    const pieData = [
+        { name: 'Likes', value: likes, color: '#f97316', pct: engTotal ? Math.round((likes / engTotal) * 100) : 0 },
+        {
+            name: 'Comments',
+            value: comments,
+            color: '#6366f1',
+            pct: engTotal ? Math.round((comments / engTotal) * 100) : 0,
+        },
+        { name: 'Shares', value: shares, color: '#10b981', pct: engTotal ? Math.round((shares / engTotal) * 100) : 0 },
+        { name: 'Saves', value: saves, color: '#f59e0b', pct: engTotal ? Math.round((saves / engTotal) * 100) : 0 },
+    ].filter((d) => d.value > 0)
+
+    const creatorPieData = selectedCreator
+        ? [
+              { name: 'Likes', value: selectedCreator.insight?.likes ?? 0, color: '#f97316', pct: 0 },
+              { name: 'Comments', value: selectedCreator.insight?.comments ?? 0, color: '#6366f1', pct: 0 },
+              { name: 'Shares', value: selectedCreator.insight?.shares ?? 0, color: '#10b981', pct: 0 },
+              { name: 'Saves', value: selectedCreator.insight?.saves ?? 0, color: '#f59e0b', pct: 0 },
+          ]
+              .filter((d) => d.value > 0)
+              .map((d) => {
+                  const t =
+                      (selectedCreator.insight?.likes ?? 0) +
+                      (selectedCreator.insight?.comments ?? 0) +
+                      (selectedCreator.insight?.shares ?? 0) +
+                      (selectedCreator.insight?.saves ?? 0)
+                  return { ...d, pct: t ? Math.round((d.value / t) * 100) : 0 }
+              })
+        : []
+
+    const RADIAN = Math.PI / 180
+    const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, pct }: any) => {
+        if (pct < 8) return null
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+        const x = cx + radius * Math.cos(-midAngle * RADIAN)
+        const y = cy + radius * Math.sin(-midAngle * RADIAN)
+        return (
+            <text
+                x={x}
+                y={y}
+                fill="white"
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={12}
+                fontWeight={600}
+            >
+                {pct}%
+            </text>
+        )
+    }
+
     return (
         <>
-            {/* Spinner keyframe — placed here so it's injected once at the page root, not inside an SVG */}
-            <style>{`@keyframes goheza-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .anim-card { animation: fadeInUp 0.4s ease both; }
+      `}</style>
 
-            <div style={s.page}>
-                {/* Top bar */}
-                <div style={s.topbar}>
-                    <div>
-                        <h1 style={s.pageTitle}>Analytics</h1>
-                        <p style={s.pageSub}>TikTok campaign performance overview</p>
-                    </div>
-                    <div style={s.topbarRight}>
-                        {lastRefreshed && (
-                            <span style={s.refreshedAt}>Updated {lastRefreshed.toLocaleTimeString()}</span>
-                        )}
-                        <select
-                            style={s.select}
-                            value={selectedId}
-                            onChange={(e) => setSelectedId(e.target.value)}
-                            aria-label="Select campaign"
-                        >
-                            {campaigns.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}
-                                </option>
-                            ))}
-                        </select>
-                        <button
-                            style={{ ...s.btnSecondary, opacity: refreshing ? 0.6 : 1 }}
-                            onClick={handleRefresh}
-                            disabled={refreshing}
-                        >
-                            <RefreshIcon spinning={refreshing} />
-                            {refreshing ? 'Refreshing…' : 'Refresh'}
-                        </button>
-                        <button
-                            style={{ ...s.btnPrimary, opacity: !tiktokPosts.length ? 0.5 : 1 }}
-                            onClick={() => selectedCampaign && downloadCSV(tiktokPosts, selectedCampaign.name)}
-                            disabled={!tiktokPosts.length}
-                        >
-                            <DownloadIcon />
-                            Export CSV
-                        </button>
-                    </div>
-                </div>
-
-                {/* Error banner */}
-                {error && (
-                    <div role="alert" style={s.errorBanner}>
-                        <span>{error}</span>
-                        <button style={s.errorDismiss} onClick={() => setError(null)}>
-                            ✕
-                        </button>
-                    </div>
-                )}
-
-                {/* Platform + campaign status */}
-                <div style={s.platformRow}>
-                    <span style={s.platformBadge}>
-                        <TikTokIcon />
-                        TikTok · {tiktokPosts.length} post{tiktokPosts.length !== 1 ? 's' : ''}
-                    </span>
-                    {selectedCampaign && <CampaignStatusPill status={selectedCampaign.status} />}
-                </div>
-
-                {/* ── Campaign overview: per-creator table ── */}
-                {!selectedCreator && (
-                    <>
-                        {/* Metric cards — keep existing */}
-                        <div style={s.metricsGrid}>
-                            {(
-                                [
-                                    {
-                                        label: 'Total views',
-                                        value: totals.views,
-                                        sub: 'All TikTok posts',
-                                        accent: '#D85A30',
-                                    },
-                                    {
-                                        label: 'Total likes',
-                                        value: totals.likes,
-                                        sub: `${avgEngRate(tiktokPosts)} avg eng.`,
-                                        accent: '#534AB7',
-                                    },
-                                    {
-                                        label: 'Comments',
-                                        value: totals.comments,
-                                        sub: 'Direct responses',
-                                        accent: '#1D9E75',
-                                    },
-                                    {
-                                        label: 'Shares',
-                                        value: totals.shares,
-                                        sub: 'Viral amplification',
-                                        accent: '#BA7517',
-                                    },
-                                    {
-                                        label: 'Total reach',
-                                        value: totals.reach,
-                                        sub: 'Unique accounts',
-                                        accent: '#D4537E',
-                                    },
-                                    {
-                                        label: 'Impressions',
-                                        value: totals.impressions,
-                                        sub: 'Total exposures',
-                                        accent: '#378ADD',
-                                    },
-                                ] as const
-                            ).map((m) => (
-                                <div key={m.label} style={s.metricCard}>
-                                    <div style={{ ...s.metricAccent, background: m.accent }} />
-                                    <div style={s.metricLabel}>{m.label}</div>
-                                    <div style={s.metricValue}>{fmt(m.value)}</div>
-                                    <div style={s.metricSub}>{m.sub}</div>
-                                </div>
-                            ))}
+            <div className="min-h-screen bg-gray-50/50">
+                <div className="max-w-7xl mx-auto px-6 py-8">
+                    {/* ── Header ── */}
+                    <div className="flex items-start justify-between flex-wrap gap-4 mb-8">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Campaign Analytics</h1>
+                            <p className="text-sm text-gray-400 mt-1 flex items-center gap-2">
+                                <span className="flex items-center gap-1.5 text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded-full text-xs">
+                                    <TikTokIcon /> TikTok
+                                </span>
+                                Performance overview &amp; creator insights
+                            </p>
                         </div>
+                        <div className="flex items-center gap-3 flex-wrap">
+                            {lastRefreshed && (
+                                <span className="text-xs text-gray-400 bg-white border border-gray-100 rounded-lg px-3 py-2 shadow-sm">
+                                    Updated {lastRefreshed.toLocaleTimeString()}
+                                </span>
+                            )}
+                            <select
+                                className="text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 min-w-[180px] cursor-pointer"
+                                value={selectedId}
+                                onChange={(e) => setSelectedId(e.target.value)}
+                            >
+                                {campaigns.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                onClick={handleRefresh}
+                                disabled={refreshing}
+                                className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 shadow-sm transition-all disabled:opacity-50"
+                            >
+                                <RefreshIcon spinning={refreshing} />
+                                {refreshing ? 'Refreshing…' : 'Refresh'}
+                            </button>
+                            <button
+                                onClick={() => selectedCampaign && downloadCSV(tiktokPosts, selectedCampaign.name)}
+                                disabled={!tiktokPosts.length}
+                                className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 shadow-sm transition-all disabled:opacity-40"
+                            >
+                                <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 16l-4-4h3V4h2v8h3l-4 4zm-7 4v-2h14v2H5z" />
+                                </svg>
+                                Export CSV
+                            </button>
+                        </div>
+                    </div>
 
-                        <div style={s.chartsRow}>
-                            <div style={s.chartCard}>
-                                <div style={s.chartTitle}>Views per post</div>
-                                <div style={s.chartSubtitle}>Relative performance across published posts</div>
-                                <div style={{ marginTop: 16 }}>
-                                    {tiktokPosts.filter((p) => (p.insight?.views ?? 0) > 0).length === 0 ? (
-                                        <p style={s.emptyChart}>No published data yet</p>
+                    {/* ── Error ── */}
+                    {error && (
+                        <div className="flex items-center justify-between bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mb-6">
+                            <span>{error}</span>
+                            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 ml-4">
+                                ✕
+                            </button>
+                        </div>
+                    )}
+
+                    {/* ── Campaign badge ── */}
+                    <div className="flex items-center gap-3 mb-6">
+                        <span className="flex items-center gap-2 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-full">
+                            <TikTokIcon />
+                            TikTok · {tiktokPosts.length} post{tiktokPosts.length !== 1 ? 's' : ''}
+                        </span>
+                        {selectedCampaign && <CampaignStatusPill status={selectedCampaign.status} />}
+                        {loading && <span className="text-xs text-gray-400 italic">Loading…</span>}
+                    </div>
+
+                    {/* ══════════════════════════════════════════════════════════════════
+              CAMPAIGN OVERVIEW
+          ═══════════════════════════════════════════════════════════════════ */}
+                    {!selectedCreator && (
+                        <>
+                            {/* Stat cards */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                                {(
+                                    [
+                                        {
+                                            label: 'Total Views',
+                                            value: totals.views,
+                                            sub: 'All TikTok posts',
+                                            accent: '#f97316',
+                                            icon: '👁',
+                                        },
+                                        {
+                                            label: 'Total Likes',
+                                            value: totals.likes,
+                                            sub: `${avgEngRate(tiktokPosts)} avg eng.`,
+                                            accent: '#6366f1',
+                                            icon: '❤️',
+                                        },
+                                        {
+                                            label: 'Comments',
+                                            value: totals.comments,
+                                            sub: 'Direct responses',
+                                            accent: '#10b981',
+                                            icon: '💬',
+                                        },
+                                        {
+                                            label: 'Shares',
+                                            value: totals.shares,
+                                            sub: 'Viral spread',
+                                            accent: '#f59e0b',
+                                            icon: '🔁',
+                                        },
+                                        {
+                                            label: 'Total Reach',
+                                            value: totals.reach,
+                                            sub: 'Unique accounts',
+                                            accent: '#ec4899',
+                                            icon: '📡',
+                                        },
+                                        {
+                                            label: 'Impressions',
+                                            value: totals.impressions,
+                                            sub: 'Total exposures',
+                                            accent: '#3b82f6',
+                                            icon: '📊',
+                                        },
+                                    ] as const
+                                ).map((m, i) => (
+                                    <div key={m.label} className="anim-card" style={{ animationDelay: `${i * 60}ms` }}>
+                                        <StatCard {...m} />
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Charts row */}
+                            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+                                {/* Bar chart – views per creator */}
+                                <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                    <div className="mb-5">
+                                        <h3 className="text-sm font-semibold text-gray-800">Views per Creator</h3>
+                                        <p className="text-xs text-gray-400 mt-0.5">
+                                            Top performing posts by view count
+                                        </p>
+                                    </div>
+                                    {barData.length === 0 ? (
+                                        <div className="flex items-center justify-center h-48 text-sm text-gray-300">
+                                            No data yet
+                                        </div>
                                     ) : (
-                                        [...tiktokPosts]
-                                            .filter((p) => (p.insight?.views ?? 0) > 0)
-                                            .sort((a, b) => (b.insight?.views ?? 0) - (a.insight?.views ?? 0))
-                                            .map((p) => (
-                                                <div key={p.id} style={s.chartBarRow}>
-                                                    <span style={s.chartBarLabel} title={p.media_id}>
-                                                        {p.media_id.slice(-8)}
-                                                    </span>
-                                                    <div style={s.chartBarTrack}>
-                                                        <div
-                                                            style={{
-                                                                ...s.chartBarFill,
-                                                                width: `${Math.round(
-                                                                    ((p.insight?.views ?? 0) / maxViews) * 100
-                                                                )}%`,
-                                                            }}
+                                        <ResponsiveContainer width="100%" height={220}>
+                                            <BarChart
+                                                data={barData}
+                                                margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                                                barCategoryGap="30%"
+                                            >
+                                                <CartesianGrid
+                                                    strokeDasharray="3 3"
+                                                    stroke="#f3f4f6"
+                                                    vertical={false}
+                                                />
+                                                <XAxis
+                                                    dataKey="name"
+                                                    tick={{ fontSize: 11, fill: '#9ca3af' }}
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                />
+                                                <YAxis
+                                                    tick={{ fontSize: 11, fill: '#9ca3af' }}
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                    tickFormatter={(v) => fmt(v)}
+                                                />
+                                                <Tooltip content={<CustomBarTooltip />} cursor={{ fill: '#f9fafb' }} />
+                                                <Bar dataKey="Views" fill="#f97316" radius={[6, 6, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    )}
+                                </div>
+
+                                {/* Pie chart – engagement breakdown */}
+                                <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                    <div className="mb-5">
+                                        <h3 className="text-sm font-semibold text-gray-800">Engagement Breakdown</h3>
+                                        <p className="text-xs text-gray-400 mt-0.5">Distribution by interaction type</p>
+                                    </div>
+                                    {pieData.length === 0 ? (
+                                        <div className="flex items-center justify-center h-48 text-sm text-gray-300">
+                                            No engagement data yet
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <ResponsiveContainer width="100%" height={160}>
+                                                <PieChart>
+                                                    <Pie
+                                                        data={pieData}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={42}
+                                                        outerRadius={72}
+                                                        dataKey="value"
+                                                        labelLine={false}
+                                                        label={renderCustomLabel}
+                                                        strokeWidth={2}
+                                                        stroke="#fff"
+                                                    >
+                                                        {pieData.map((entry, i) => (
+                                                            <Cell key={i} fill={entry.color} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip content={<CustomPieTooltip />} />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                                {pieData.map((d) => (
+                                                    <div key={d.name} className="flex items-center gap-2">
+                                                        <span
+                                                            className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                                                            style={{ background: d.color }}
                                                         />
+                                                        <span className="text-xs text-gray-500">{d.name}</span>
+                                                        <span className="text-xs font-semibold text-gray-700 ml-auto">
+                                                            {d.pct}%
+                                                        </span>
                                                     </div>
-                                                    <span style={s.chartBarVal}>{fmt(p.insight?.views ?? 0)}</span>
-                                                </div>
-                                            ))
+                                                ))}
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             </div>
 
-                            <div style={s.chartCard}>
-                                <div style={s.chartTitle}>Engagement breakdown</div>
-                                <div style={s.chartSubtitle}>Distribution across interaction types</div>
-                                <EngagementDonut posts={tiktokPosts} />
-                            </div>
-                        </div>
-                        {/* Per-creator table — replaces per-post table */}
-                        <div style={s.tableCard}>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <div style={s.chartTitle}>Creators</div>
-                                <div style={s.chartSubtitle}>Click a creator to view their full video analytics</div>
-                            </div>
-                            {sorted.length === 0 ? (
-                                <div style={s.emptyTable}>No TikTok posts found for this campaign.</div>
-                            ) : (
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table style={s.table}>
-                                        <thead>
-                                            <tr>
-                                                <Th>Creator</Th>
-                                                <Th>Video</Th>
-                                                <SortTh
-                                                    label="Views"
-                                                    k="views"
-                                                    cur={sortKey}
-                                                    dir={sortDir}
-                                                    onSort={toggleSort}
-                                                />
-                                                <SortTh
-                                                    label="Likes"
-                                                    k="likes"
-                                                    cur={sortKey}
-                                                    dir={sortDir}
-                                                    onSort={toggleSort}
-                                                />
-                                                <SortTh
-                                                    label="Comments"
-                                                    k="comments"
-                                                    cur={sortKey}
-                                                    dir={sortDir}
-                                                    onSort={toggleSort}
-                                                />
-                                                <SortTh
-                                                    label="Shares"
-                                                    k="shares"
-                                                    cur={sortKey}
-                                                    dir={sortDir}
-                                                    onSort={toggleSort}
-                                                />
-                                                <Th>Eng. rate</Th>
-                                                <Th>Posted</Th>
-                                                <Th></Th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {sorted.map((p, i) => (
-                                                <tr key={p.id} style={i % 2 === 0 ? s.trEven : s.trOdd}>
-                                                    <td style={s.td}>
-                                                        <span style={{ fontWeight: 500, fontSize: 13 }}>
-                                                            {p.creator_profiles.full_name ?? 'Unknown'}
-                                                        </span>
-                                                    </td>
-                                                    <td style={s.tdPost}>
-                                                        <div style={s.postCell}>
-                                                            <div style={s.postThumb}>
-                                                                {p.thumbnail_url ? (
-                                                                    <img
-                                                                        src={p.thumbnail_url}
-                                                                        alt="thumbnail"
-                                                                        style={{
-                                                                            width: '100%',
-                                                                            height: '100%',
-                                                                            objectFit: 'cover',
-                                                                            borderRadius: 6,
-                                                                        }}
-                                                                    />
-                                                                ) : (
-                                                                    <span style={{ fontSize: 18 }}>🎵</span>
-                                                                )}
-                                                            </div>
-                                                            <span
-                                                                style={{
-                                                                    fontSize: 12,
-                                                                    fontFamily: 'monospace',
-                                                                    color: '#888',
-                                                                }}
-                                                            >
-                                                                {p.media_id.slice(-8)}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td style={s.tdNum}>{fmt(p.insight?.views ?? 0)}</td>
-                                                    <td style={s.tdNum}>{fmt(p.insight?.likes ?? 0)}</td>
-                                                    <td style={s.tdNum}>{fmt(p.insight?.comments ?? 0)}</td>
-                                                    <td style={s.tdNum}>{fmt(p.insight?.shares ?? 0)}</td>
-                                                    <td style={s.tdNum}>{engRate(p)}</td>
-                                                    <td style={s.tdMuted}>
-                                                        {new Date(p.posted_at).toLocaleDateString('en-GB', {
-                                                            day: 'numeric',
-                                                            month: 'short',
-                                                            year: '2-digit',
-                                                        })}
-                                                    </td>
-                                                    <td style={s.td}>
-                                                        <button
-                                                            onClick={() => handleSelectCreator(p)}
-                                                            style={s.viewLink as any}
-                                                        >
-                                                            View Analytics ↗
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                            {/* Engagement metrics bar chart */}
+                            {tiktokPosts.some((p) => p.insight) && (
+                                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
+                                    <div className="mb-5">
+                                        <h3 className="text-sm font-semibold text-gray-800">
+                                            Likes vs Comments vs Shares
+                                        </h3>
+                                        <p className="text-xs text-gray-400 mt-0.5">Engagement breakdown per creator</p>
+                                    </div>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                        <BarChart
+                                            data={barData}
+                                            margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                                            barCategoryGap="25%"
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                                            <XAxis
+                                                dataKey="name"
+                                                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                                                axisLine={false}
+                                                tickLine={false}
+                                            />
+                                            <YAxis
+                                                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tickFormatter={(v) => fmt(v)}
+                                            />
+                                            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: '#f9fafb' }} />
+                                            <Bar dataKey="Likes" fill="#f97316" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="Comments" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="Shares" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                            <Legend
+                                                formatter={(v) => <span className="text-xs text-gray-500">{v}</span>}
+                                            />
+                                        </BarChart>
+                                    </ResponsiveContainer>
                                 </div>
                             )}
-                        </div>
-                    </>
-                )}
 
-                {/* ── Creator drill-down view ── */}
-                {selectedCreator && (
-                    <div>
-                        {/* Back button */}
-                        <button
-                            onClick={() => setSelectedCreator(null)}
-                            style={{ ...s.btnSecondary, marginBottom: '1.5rem' }}
-                        >
-                            ← Back to campaign overview
-                        </button>
+                            {/* Creators table */}
+                            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-10">
+                                <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-gray-800">Creator Performance</h3>
+                                        <p className="text-xs text-gray-400 mt-0.5">
+                                            Click &quot;View Analytics&quot; to see a creator&apos;s full breakdown
+                                        </p>
+                                    </div>
+                                    <span className="text-xs font-medium bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">
+                                        {sorted.length} creator{sorted.length !== 1 ? 's' : ''}
+                                    </span>
+                                </div>
 
-                        {drillLoading && (
-                            <div style={{ ...s.loadingState, padding: '1rem 0', marginBottom: '1rem' }}>
-                                Refreshing metrics from TikTok…
-                            </div>
-                        )}
-
-                        {/* Creator header */}
-                        <div style={{ marginBottom: '1.5rem' }}>
-                            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111', margin: 0 }}>
-                                {selectedCreator.creator_profiles.full_name ?? 'Unknown Creator'}
-                            </h2>
-                            <p style={{ fontSize: 13, color: '#888', marginTop: 4 }}>
-                                Posted{' '}
-                                {new Date(selectedCreator.posted_at).toLocaleDateString('en-GB', {
-                                    day: 'numeric',
-                                    month: 'long',
-                                    year: 'numeric',
-                                })}
-                            </p>
-                        </div>
-
-                        {/* Video + TikTok link */}
-                        <div style={{ ...s.chartCard, marginBottom: '1.5rem' }}>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    marginBottom: '1rem',
-                                }}
-                            >
-                                <div style={s.chartTitle}>Submitted Video</div>
-                                {selectedCreator.permalink && (
-                                    <a
-                                        href={selectedCreator.permalink}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={{ ...s.viewLink, fontSize: 13 }}
-                                    >
-                                        View on TikTok ↗
-                                    </a>
-                                )}
-                            </div>
-                            <div
-                                style={{ aspectRatio: '16/9', background: '#000', borderRadius: 8, overflow: 'hidden' }}
-                            >
-                                {selectedCreator.video_url ? (
-                                    <video
-                                        src={selectedCreator.video_url}
-                                        controls
-                                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                    />
-                                ) : selectedCreator.permalink ? (
-                                    <div
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            height: '100%',
-                                        }}
-                                    >
-                                        <a
-                                            href={selectedCreator.permalink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            style={{ color: '#fff', fontSize: 14 }}
-                                        >
-                                            Open on TikTok ↗
-                                        </a>
+                                {sorted.length === 0 ? (
+                                    <div className="py-16 text-center text-sm text-gray-300">
+                                        No TikTok posts found for this campaign.
                                     </div>
                                 ) : (
-                                    <div
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            height: '100%',
-                                            color: '#666',
-                                            fontSize: 14,
-                                        }}
-                                    >
-                                        No video available
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="bg-gray-50/70">
+                                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                                        Creator
+                                                    </th>
+                                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                                        Video
+                                                    </th>
+                                                    <SortTh
+                                                        label="Views"
+                                                        k="views"
+                                                        cur={sortKey}
+                                                        dir={sortDir}
+                                                        onSort={toggleSort}
+                                                    />
+                                                    <SortTh
+                                                        label="Likes"
+                                                        k="likes"
+                                                        cur={sortKey}
+                                                        dir={sortDir}
+                                                        onSort={toggleSort}
+                                                    />
+                                                    <SortTh
+                                                        label="Comments"
+                                                        k="comments"
+                                                        cur={sortKey}
+                                                        dir={sortDir}
+                                                        onSort={toggleSort}
+                                                    />
+                                                    <SortTh
+                                                        label="Shares"
+                                                        k="shares"
+                                                        cur={sortKey}
+                                                        dir={sortDir}
+                                                        onSort={toggleSort}
+                                                    />
+                                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                                        Eng. Rate
+                                                    </th>
+                                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                                        Posted
+                                                    </th>
+                                                    <th className="px-4 py-3" />
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50">
+                                                {sorted.map((p, i) => (
+                                                    <tr
+                                                        key={p.id}
+                                                        className="hover:bg-red-50/30 transition-colors group"
+                                                    >
+                                                        <td className="px-4 py-3.5">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                                                    {(p.creator_profiles?.full_name ??
+                                                                        '?')[0].toUpperCase()}
+                                                                </div>
+                                                                <span className="font-medium text-gray-800 text-sm">
+                                                                    {p.creator_profiles?.full_name ?? 'Unknown'}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3.5">
+                                                            <div className="flex items-center gap-2.5">
+                                                                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                                    {p.thumbnail_url ? (
+                                                                        <img
+                                                                            src={p.thumbnail_url}
+                                                                            alt="thumb"
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="text-base">🎵</span>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-xs font-mono text-gray-400">
+                                                                    {p.media_id.slice(-8)}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3.5 tabular-nums font-semibold text-gray-800">
+                                                            {fmt(p.insight?.views ?? 0)}
+                                                        </td>
+                                                        <td className="px-4 py-3.5 tabular-nums text-gray-600">
+                                                            {fmt(p.insight?.likes ?? 0)}
+                                                        </td>
+                                                        <td className="px-4 py-3.5 tabular-nums text-gray-600">
+                                                            {fmt(p.insight?.comments ?? 0)}
+                                                        </td>
+                                                        <td className="px-4 py-3.5 tabular-nums text-gray-600">
+                                                            {fmt(p.insight?.shares ?? 0)}
+                                                        </td>
+                                                        <td className="px-4 py-3.5">
+                                                            <span
+                                                                className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                                                    engRate(p) === '—'
+                                                                        ? 'text-gray-300'
+                                                                        : 'bg-red-50 text-red-600'
+                                                                }`}
+                                                            >
+                                                                {engRate(p)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3.5 text-xs text-gray-400">
+                                                            {new Date(p.posted_at).toLocaleDateString('en-GB', {
+                                                                day: 'numeric',
+                                                                month: 'short',
+                                                                year: '2-digit',
+                                                            })}
+                                                        </td>
+                                                        <td className="px-4 py-3.5">
+                                                            <button
+                                                                onClick={() => handleSelectCreator(p)}
+                                                                className="text-xs font-semibold text-red-500 hover:text-red-700  transition-all whitespace-nowrap"
+                                                            >
+                                                                View Analytics ↗
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 )}
                             </div>
-                        </div>
+                        </>
+                    )}
 
-                        {/* Scoped metric cards */}
-                        <div style={s.metricsGrid}>
-                            {(
-                                [
-                                    { label: 'Views', value: selectedCreator.insight?.views ?? 0, accent: '#D85A30' },
-                                    { label: 'Likes', value: selectedCreator.insight?.likes ?? 0, accent: '#534AB7' },
-                                    {
-                                        label: 'Comments',
-                                        value: selectedCreator.insight?.comments ?? 0,
-                                        accent: '#1D9E75',
-                                    },
-                                    { label: 'Shares', value: selectedCreator.insight?.shares ?? 0, accent: '#BA7517' },
-                                    { label: 'Reach', value: selectedCreator.insight?.reach ?? 0, accent: '#D4537E' },
-                                    {
-                                        label: 'Impressions',
-                                        value: selectedCreator.insight?.impressions ?? 0,
-                                        accent: '#378ADD',
-                                    },
-                                ] as const
-                            ).map((m) => (
-                                <div key={m.label} style={s.metricCard}>
-                                    <div style={{ ...s.metricAccent, background: m.accent }} />
-                                    <div style={s.metricLabel}>{m.label}</div>
-                                    <div style={s.metricValue}>{fmt(m.value)}</div>
+                    {/* ══════════════════════════════════════════════════════════════════
+              CREATOR DRILL-DOWN
+          ═══════════════════════════════════════════════════════════════════ */}
+                    {selectedCreator && (
+                        <div className="anim-card">
+                            <button
+                                onClick={() => setSelectedCreator(null)}
+                                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
+                            >
+                                <svg
+                                    width={14}
+                                    height={14}
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={2.5}
+                                >
+                                    <path d="M19 12H5M12 5l-7 7 7 7" />
+                                </svg>
+                                Back to campaign overview
+                            </button>
+
+                            {drillLoading && (
+                                <div className="bg-blue-50 border border-blue-200 text-blue-600 rounded-xl px-4 py-3 text-sm mb-6 flex items-center gap-2">
+                                    <RefreshIcon spinning /> Refreshing metrics from TikTok…
                                 </div>
-                            ))}
-                        </div>
+                            )}
 
-                        {/* Engagement donut scoped to this creator */}
-                        <div style={{ ...s.chartCard, marginTop: '1.5rem' }}>
-                            <div style={s.chartTitle}>Engagement breakdown</div>
-                            <div style={s.chartSubtitle}>Distribution across interaction types</div>
-                            <EngagementDonut posts={[selectedCreator]} />
-                        </div>
+                            {/* Creator header */}
+                            <div className="flex items-center gap-4 mb-7">
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center text-white text-xl font-bold shadow-md">
+                                    {(selectedCreator.creator_profiles?.full_name ?? '?')[0].toUpperCase()}
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-gray-900">
+                                        {selectedCreator.creator_profiles?.full_name ?? 'Unknown Creator'}
+                                    </h2>
+                                    <p className="text-sm text-gray-400 mt-0.5">
+                                        Posted{' '}
+                                        {new Date(selectedCreator.posted_at).toLocaleDateString('en-GB', {
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric',
+                                        })}
+                                    </p>
+                                </div>
+                                <div className="ml-auto">
+                                    <StatusPill status={selectedCreator.status} />
+                                </div>
+                            </div>
 
-                        {/* Last updated */}
-                        {selectedCreator.insight?.last_updated && (
-                            <p style={{ fontSize: 12, color: '#aaa', marginTop: '1rem', textAlign: 'right' }}>
-                                Last updated: {new Date(selectedCreator.insight.last_updated).toLocaleString()}
-                            </p>
-                        )}
-                    </div>
-                )}
+                            {/* Stat cards */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                                {(
+                                    [
+                                        {
+                                            label: 'Views',
+                                            value: selectedCreator.insight?.views ?? 0,
+                                            accent: '#f97316',
+                                            icon: '👁',
+                                        },
+                                        {
+                                            label: 'Likes',
+                                            value: selectedCreator.insight?.likes ?? 0,
+                                            accent: '#6366f1',
+                                            icon: '❤️',
+                                        },
+                                        {
+                                            label: 'Comments',
+                                            value: selectedCreator.insight?.comments ?? 0,
+                                            accent: '#10b981',
+                                            icon: '💬',
+                                        },
+                                        {
+                                            label: 'Shares',
+                                            value: selectedCreator.insight?.shares ?? 0,
+                                            accent: '#f59e0b',
+                                            icon: '🔁',
+                                        },
+                                        {
+                                            label: 'Reach',
+                                            value: selectedCreator.insight?.reach ?? 0,
+                                            accent: '#ec4899',
+                                            icon: '📡',
+                                        },
+                                        {
+                                            label: 'Impressions',
+                                            value: selectedCreator.insight?.impressions ?? 0,
+                                            accent: '#3b82f6',
+                                            icon: '📊',
+                                        },
+                                    ] as const
+                                ).map((m, i) => (
+                                    <div key={m.label} className="anim-card" style={{ animationDelay: `${i * 50}ms` }}>
+                                        <StatCard {...m} />
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Video + Engagement row */}
+                            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+                                {/* Video */}
+                                <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-gray-800">Submitted Video</h3>
+                                            <p className="text-xs text-gray-400 mt-0.5">
+                                                Media ID: {selectedCreator.media_id}
+                                            </p>
+                                        </div>
+                                        {selectedCreator.permalink && (
+                                            <a
+                                                href={selectedCreator.permalink}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                                            >
+                                                <TikTokIcon /> View on TikTok ↗
+                                            </a>
+                                        )}
+                                    </div>
+                                    <div className="aspect-video bg-gray-900 rounded-xl overflow-hidden">
+                                        {selectedCreator.video_url ? (
+                                            <video
+                                                src={selectedCreator.video_url}
+                                                controls
+                                                className="w-full h-full object-contain"
+                                            />
+                                        ) : selectedCreator.permalink ? (
+                                            <div className="flex items-center justify-center h-full">
+                                                <a
+                                                    href={selectedCreator.permalink}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-white text-sm hover:underline"
+                                                >
+                                                    Open on TikTok ↗
+                                                </a>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                                                No video available
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Engagement donut */}
+                                <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                    <h3 className="text-sm font-semibold text-gray-800 mb-1">Engagement Breakdown</h3>
+                                    <p className="text-xs text-gray-400 mb-4">Interaction type distribution</p>
+                                    {creatorPieData.length === 0 ? (
+                                        <div className="flex items-center justify-center h-48 text-sm text-gray-300">
+                                            No engagement data yet
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <ResponsiveContainer width="100%" height={160}>
+                                                <PieChart>
+                                                    <Pie
+                                                        data={creatorPieData}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={40}
+                                                        outerRadius={70}
+                                                        dataKey="value"
+                                                        labelLine={false}
+                                                        label={renderCustomLabel}
+                                                        strokeWidth={2}
+                                                        stroke="#000"
+                                                    >
+                                                        {creatorPieData.map((entry, i) => (
+                                                            <Cell key={i} fill={entry.color} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip content={<CustomPieTooltip />} />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                                {creatorPieData.map((d) => (
+                                                    <div key={d.name} className="flex items-center gap-2">
+                                                        <span
+                                                            className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                                                            style={{ background: d.color }}
+                                                        />
+                                                        <span className="text-xs text-gray-500">{d.name}</span>
+                                                        <span className="text-xs font-semibold text-gray-700 ml-auto">
+                                                            {d.pct}%
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Engagement rate + last updated */}
+                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                <div className="bg-white border border-gray-100 rounded-2xl shadow-sm px-6 py-4 flex items-center gap-6">
+                                    <div>
+                                        <p className="text-xs text-gray-400 font-medium">Engagement Rate</p>
+                                        <p className="text-2xl font-bold text-red-500 tabular-nums">
+                                            {engRate(selectedCreator)}
+                                        </p>
+                                    </div>
+                                    <div className="w-px h-10 bg-gray-100" />
+                                    <div>
+                                        <p className="text-xs text-gray-400 font-medium">Post Status</p>
+                                        <div className="mt-1">
+                                            <StatusPill status={selectedCreator.status} />
+                                        </div>
+                                    </div>
+                                </div>
+                                {selectedCreator.insight?.last_updated && (
+                                    <p className="text-xs text-gray-400">
+                                        Last synced: {new Date(selectedCreator.insight.last_updated).toLocaleString()}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </>
     )
-}
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-//
-// Typed as Record<string, CSSProperties> — plain objects only.
-// Dynamic styles (those depending on runtime values like accent colour or
-// status strings) are composed inline in JSX so we never need function-values
-// in this map, which would break the TypeScript type.
-
-const s: Record<string, CSSProperties> = {
-    page: { padding: '2rem 1.5rem', maxWidth: 1140, margin: '0 auto', fontFamily: 'inherit' },
-    topbar: {
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16,
-        marginBottom: '1.75rem',
-    },
-    pageTitle: { fontSize: 24, fontWeight: 600, color: '#111', margin: 0 },
-    pageSub: { fontSize: 14, color: '#666', marginTop: 4 },
-    topbarRight: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-    refreshedAt: { fontSize: 12, color: '#999' },
-    select: {
-        fontSize: 13,
-        padding: '7px 12px',
-        borderRadius: 8,
-        border: '1px solid #e0e0e0',
-        background: '#fff',
-        color: '#111',
-        cursor: 'pointer',
-        minWidth: 180,
-    },
-    btnPrimary: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: 13,
-        fontWeight: 500,
-        padding: '7px 16px',
-        borderRadius: 8,
-        border: 'none',
-        background: '#D85A30',
-        color: '#fff',
-        cursor: 'pointer',
-    },
-    btnSecondary: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: 13,
-        padding: '7px 14px',
-        borderRadius: 8,
-        border: '1px solid #e0e0e0',
-        background: '#fff',
-        color: '#333',
-        cursor: 'pointer',
-    },
-    errorBanner: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        background: '#FCEBEB',
-        border: '1px solid #F09595',
-        color: '#A32D2D',
-        borderRadius: 8,
-        padding: '10px 16px',
-        fontSize: 13,
-        marginBottom: 16,
-    },
-    errorDismiss: { background: 'none', border: 'none', color: '#A32D2D', cursor: 'pointer', fontSize: 14, padding: 0 },
-    platformRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.25rem' },
-    platformBadge: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: 12,
-        fontWeight: 500,
-        padding: '4px 10px',
-        borderRadius: 6,
-        background: '#EEEDFE',
-        color: '#3C3489',
-        border: '1px solid #AFA9EC',
-    },
-    loadingState: { textAlign: 'center', padding: '4rem', color: '#888', fontSize: 14 },
-    metricsGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: 12,
-        marginBottom: '1.5rem',
-    },
-    metricCard: {
-        background: '#F8F7F5',
-        borderRadius: 10,
-        padding: '1rem 1.1rem',
-        position: 'relative',
-        overflow: 'hidden',
-    },
-    metricAccent: { position: 'absolute', top: 0, left: 0, width: 3, height: '100%', borderRadius: '10px 0 0 10px' },
-    metricLabel: { fontSize: 12, color: '#888', marginBottom: 6, paddingLeft: 6 },
-    metricValue: { fontSize: 26, fontWeight: 600, color: '#111', paddingLeft: 6 },
-    metricSub: { fontSize: 11, color: '#aaa', marginTop: 4, paddingLeft: 6 },
-    chartsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: '1.5rem' },
-    chartCard: { background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: '1.25rem' },
-    chartTitle: { fontSize: 15, fontWeight: 500, color: '#111' },
-    chartSubtitle: { fontSize: 12, color: '#999', marginTop: 2 },
-    chartBarRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 },
-    chartBarLabel: {
-        fontSize: 12,
-        color: '#888',
-        width: 72,
-        flexShrink: 0,
-        fontFamily: 'monospace',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-    },
-    chartBarTrack: { flex: 1, background: '#F1EFE8', borderRadius: 4, height: 8, overflow: 'hidden' },
-    chartBarFill: { height: 8, background: '#D85A30', borderRadius: 4, transition: 'width 0.5s ease' },
-    chartBarVal: { fontSize: 12, color: '#555', fontWeight: 500, width: 44, textAlign: 'right' },
-    emptyChart: { fontSize: 13, color: '#bbb', textAlign: 'center', padding: '2rem 0', margin: 0 },
-    tableCard: {
-        background: '#fff',
-        border: '1px solid #eee',
-        borderRadius: 12,
-        padding: '1.25rem',
-        marginBottom: '2rem',
-    },
-    emptyTable: { textAlign: 'center', padding: '3rem', fontSize: 14, color: '#bbb' },
-    table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-    th: {
-        textAlign: 'left',
-        padding: '8px 12px',
-        fontSize: 11,
-        fontWeight: 600,
-        color: '#999',
-        textTransform: 'uppercase',
-        letterSpacing: '0.04em',
-        borderBottom: '1px solid #f0f0f0',
-        whiteSpace: 'nowrap',
-    },
-    td: { padding: '12px 12px', color: '#111', borderBottom: '1px solid #f8f8f8', verticalAlign: 'middle' },
-    tdNum: {
-        padding: '12px 12px',
-        color: '#111',
-        borderBottom: '1px solid #f8f8f8',
-        verticalAlign: 'middle',
-        fontVariantNumeric: 'tabular-nums',
-        fontSize: 13,
-    },
-    tdMuted: {
-        padding: '12px 12px',
-        color: '#aaa',
-        borderBottom: '1px solid #f8f8f8',
-        verticalAlign: 'middle',
-        fontSize: 12,
-    },
-    tdPost: { padding: '12px 12px', borderBottom: '1px solid #f8f8f8', verticalAlign: 'middle' },
-    trEven: { background: '#fff' },
-    trOdd: { background: '#FAFAF9' },
-    postCell: { display: 'flex', alignItems: 'center', gap: 10 },
-    postThumb: {
-        width: 40,
-        height: 40,
-        borderRadius: 6,
-        background: '#F1EFE8',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        overflow: 'hidden',
-    },
-    postMediaId: { fontSize: 13, fontWeight: 500, fontFamily: 'monospace', color: '#111' },
-    postType: { fontSize: 11, color: '#aaa', marginTop: 2 },
-    viewLink: { fontSize: 12, color: '#D85A30', textDecoration: 'none', fontWeight: 500 },
 }
