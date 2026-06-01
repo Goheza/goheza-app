@@ -4,18 +4,18 @@ import { createClient } from '@/lib/supabase/serverSideClient'
 export async function POST(req: Request) {
     try {
         const supabase = await createClient()
-
         const authHeader = req.headers.get('Authorization')
         const token = authHeader?.replace('Bearer ', '')
+
         if (!token) {
             return NextResponse.json({ error: 'No token provided' }, { status: 401 })
         }
 
-        console.log('Fuck NextJS')
         const {
             data: { user },
             error: authError,
         } = await supabase.auth.getUser(token)
+
         if (authError || !user) {
             return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
         }
@@ -27,10 +27,8 @@ export async function POST(req: Request) {
         let user_id: string
         let videoId: string
 
-        console.log('body-data', {
-            mediaId,
-            campaignIdFromBody,
-        })
+        console.log('body-data', { mediaId, campaignIdFromBody })
+
         if (submissionId) {
             // ── Path A: called with submissionId (creator just submitted URL) ──
             const { data: submission, error: submissionError } = await supabase
@@ -57,7 +55,6 @@ export async function POST(req: Request) {
             videoId = match[1]
         } else if (mediaId && campaignIdFromBody) {
             // ── Path B: called with mediaId + campaignId (brand opens drill-down) ──
-            // Look up the submission to get user_id via campaign_id + tiktok_url containing mediaId
             const { data: submission, error: submissionError } = await supabase
                 .from('campaign_submissions')
                 .select('user_id')
@@ -91,10 +88,23 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Creator TikTok account not connected' }, { status: 400 })
         }
 
+        // ── Normalize expires_at to UTC if it lacks a timezone suffix ─────
+        const rawExpiry = account.expires_at as string
+        const normalizedExpiry = rawExpiry.endsWith('Z') || rawExpiry.includes('+') ? rawExpiry : rawExpiry + 'Z' // treat bare timestamps as UTC
+
         let accessToken = account.access_token
 
-        // ── Refresh token if expired ──────────────────────────────────────
-        if (new Date(account.expires_at) <= new Date()) {
+        // ── Refresh token if expired (with 5-min buffer) ──────────────────
+        const BUFFER_MS = 5 * 60 * 1000
+        const isExpired = new Date(normalizedExpiry).getTime() <= Date.now() + BUFFER_MS
+
+        console.log('expires_at from DB :', account.expires_at)
+        console.log('current UTC time   :', new Date().toISOString())
+        console.log('is expired?        :', isExpired)
+
+        if (isExpired) {
+            console.log('Refreshing token — expires_at:', normalizedExpiry, '| now:', new Date().toISOString())
+
             const refreshRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -107,12 +117,18 @@ export async function POST(req: Request) {
             })
 
             const refreshData = await refreshRes.json()
+
             if (!refreshRes.ok) {
+                console.error('Token refresh failed:', refreshData)
                 return NextResponse.json({ error: 'Token refresh failed' }, { status: 400 })
             }
 
+            console.log('Refresh status:', refreshRes.status)
+            console.log('Refresh body:', JSON.stringify(refreshData, null, 2))
+
             accessToken = refreshData.access_token
 
+            // ✅ Always store as UTC ISO string with Z
             await supabase
                 .from('social_accounts')
                 .update({
@@ -123,31 +139,27 @@ export async function POST(req: Request) {
                 .eq('user_id', user_id)
                 .eq('platform', 'tiktok')
         }
+
         // ── Query TikTok for metrics ──────────────────────────────────────
         const fields = 'like_count,comment_count,view_count,share_count,cover_image_url'
+        const tiktokRes = await fetch(`https://open.tiktokapis.com/v2/video/query/?fields=${fields}`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                filters: { video_ids: [videoId] },
+            }),
+        })
 
-        const tiktokRes = await fetch(
-            `https://open.tiktokapis.com/v2/video/query/?fields=${fields}`, // ← fields in URL
-            {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    filters: { video_ids: [videoId] }, // ← only filters in body
-                }),
-            }
-        )
         const tiktokJson = await tiktokRes.json()
 
-        // ── LOGS MUST BE HERE — before the early return ──────────────────
         console.log('videoId being queried:', videoId)
         console.log('TikTok response status:', tiktokRes.status)
         console.log('TikTok full response:', JSON.stringify(tiktokJson, null, 2))
 
         const videoData = tiktokJson.data?.videos?.[0]
-        console.log('videoData found:', !!videoData)
 
         if (!videoData) {
             return NextResponse.json(
@@ -155,9 +167,6 @@ export async function POST(req: Request) {
                 { status: 200 }
             )
         }
-        console.log('TikTok response status:', tiktokRes.status)
-        console.log('TikTok full response:', JSON.stringify(tiktokJson, null, 2))
-        console.log('videoData found:', !!videoData)
 
         // ── Update thumbnail in campaign_posts ────────────────────────────
         if (videoData.cover_image_url) {
@@ -183,7 +192,7 @@ export async function POST(req: Request) {
         )
 
         if (upsertError) {
-            console.log("UPSERT-ERROR",upsertError)
+            console.error('UPSERT-ERROR', upsertError)
             return NextResponse.json({ error: 'Failed to save insights' }, { status: 500 })
         }
 

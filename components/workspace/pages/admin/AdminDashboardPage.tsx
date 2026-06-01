@@ -172,6 +172,12 @@ export default function AdminDashboardPage() {
                     </Button>
                 </Link>
 
+                   <Link href="/app/admin/analytics">
+                    <Button className="w-full h-auto py-4 bg-gray-100 text-[#e85c51] border border-[#e85c51] hover:bg-[#f3867e] hover:text-white">
+                        Analytics
+                    </Button>
+                </Link>
+
                 <Link href="/app/admin/user-management">
                     <Button className="w-full h-auto py-4 bg-gray-100 text-neutral-800 border hover:bg-gray-200">
                         Manage Users

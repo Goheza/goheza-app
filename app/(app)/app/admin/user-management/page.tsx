@@ -1,6 +1,4 @@
-// @/app/app/admin/users/UserManagementPage.tsx
 'use client'
-
 import { useState, useEffect } from 'react'
 import { supabaseClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -8,17 +6,22 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button' // Adjusted Button import to include buttonVariants just in case
+import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { MoreHorizontal, CheckCircle, Clock } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { Loader2 } from 'lucide-react'
-// import { deleteProfile, deleteUserPermanently } from '@/lib/supabase/app/auth/delete-profile'
 
-// --- 1. TYPE DEFINITIONS (UNCHANGED from your provided file) ---
+// --- 1. TYPE DEFINITIONS ---
 
-// Define the precise types returned from the CREATOR database table
+type SocialAccount = {
+    user_id: string
+    platform: string
+    username: string | null
+    connected_at: string | null
+}
+
 type CreatorProfileDB = {
     user_id: string
     id: string
@@ -27,7 +30,6 @@ type CreatorProfileDB = {
     created_at: string
     phone: string | null
     country: string | null
-    // PAYMENT FIELDS:
     payment_method: string | null
     payment_account_name: string | null
     payment_account_number: string | null
@@ -36,7 +38,6 @@ type CreatorProfileDB = {
     has_payment_details: boolean
 }
 
-// Define the precise types returned from the BRAND database table
 type BrandProfileDB = {
     user_id: string
     id: string
@@ -47,7 +48,12 @@ type BrandProfileDB = {
     is_verified: boolean
 }
 
-// Define the UNIFIED UserProfile type used throughout the component
+type TikTokInfo = {
+    connected: boolean
+    username: string | null
+    connected_at: string | null
+}
+
 type UserProfile = {
     id: string
     user_id: string
@@ -55,13 +61,9 @@ type UserProfile = {
     role: 'creator' | 'brand'
     name: string
     created_at: string
-    is_active: boolean // Placeholder
-
-    // Brand specific fields
+    is_active: boolean
     contact?: string | null
     is_verified?: boolean
-
-    // Creator specific fields
     phone?: string | null
     country?: string | null
     payment_method?: string | null
@@ -70,27 +72,38 @@ type UserProfile = {
     payment_frequency?: string | null
     payment_mobilemoney_number?: string | null
     has_payment_details?: boolean
+    tiktok?: TikTokInfo
 }
 
-// --- 2. MAPPER FUNCTIONS (UNCHANGED) ---
+// --- 2. MAPPER FUNCTIONS ---
 
-const mapCreatorToUserProfile = (creator: CreatorProfileDB): UserProfile => ({
-    id: creator.id,
-    user_id: creator.user_id,
-    email: creator.email,
-    role: 'creator',
-    name: creator.full_name,
-    created_at: creator.created_at,
-    is_active: true, // Placeholder until schema update
-    phone: creator.phone,
-    country: creator.country,
-    payment_method: creator.payment_method,
-    payment_account_name: creator.payment_account_name,
-    payment_account_number: creator.payment_account_number,
-    payment_frequency: creator.payment_frequency,
-    payment_mobilemoney_number: creator.payment_mobilemoney_number,
-    has_payment_details: creator.has_payment_details,
-})
+const mapCreatorToUserProfile = (creator: CreatorProfileDB, tiktokMap: Record<string, SocialAccount>): UserProfile => {
+    const tiktokAccount = tiktokMap[creator.user_id]
+    return {
+        id: creator.id,
+        user_id: creator.user_id,
+        email: creator.email,
+        role: 'creator',
+        name: creator.full_name,
+        created_at: creator.created_at,
+        is_active: true,
+        phone: creator.phone,
+        country: creator.country,
+        payment_method: creator.payment_method,
+        payment_account_name: creator.payment_account_name,
+        payment_account_number: creator.payment_account_number,
+        payment_frequency: creator.payment_frequency,
+        payment_mobilemoney_number: creator.payment_mobilemoney_number,
+        has_payment_details: creator.has_payment_details,
+        tiktok: tiktokAccount
+            ? {
+                  connected: true,
+                  username: tiktokAccount.username,
+                  connected_at: tiktokAccount.connected_at,
+              }
+            : { connected: false, username: null, connected_at: null },
+    }
+}
 
 const mapBrandToUserProfile = (brand: BrandProfileDB): UserProfile => ({
     id: brand.id,
@@ -99,7 +112,7 @@ const mapBrandToUserProfile = (brand: BrandProfileDB): UserProfile => ({
     role: 'brand',
     name: brand.brand_name,
     created_at: brand.created_at,
-    is_active: true, // Placeholder until schema update
+    is_active: true,
     contact: brand.phone,
     is_verified: brand.is_verified,
 })
@@ -120,36 +133,37 @@ export default function UserManagementPage() {
     const fetchUsers = async () => {
         setLoading(true)
         try {
-            // Fields to fetch for Creators
             const creatorSelectFields =
                 'id, email, full_name, user_id, created_at, phone, country, payment_method, payment_account_name, payment_account_number, payment_frequency, payment_mobilemoney_number, has_payment_details'
+            const brandSelectFields = 'id, user_id, brand_email, brand_name, created_at, contact, is_verified, phone'
 
-            // Fields to fetch for Brands
-            const brandSelectFields = 'id, user_id, brand_email, brand_name, created_at, contact, is_verified,phone'
+            const [
+                { data: creators, error: creatorError },
+                { data: brands, error: brandError },
+                { data: tiktokAccounts, error: tiktokError },
+            ] = await Promise.all([
+                supabaseClient.from('creator_profiles').select(creatorSelectFields).returns<CreatorProfileDB[]>(),
+                supabaseClient.from('brand_profiles').select(brandSelectFields).returns<BrandProfileDB[]>(),
+                supabaseClient
+                    .from('social_accounts')
+                    .select('user_id, platform, username, connected_at')
+                    .eq('platform', 'tiktok')
+                    .returns<SocialAccount[]>(),
+            ])
 
-            // 1. Fetch creator profiles
-            const { data: creators, error: creatorError } = await supabaseClient
-                .from('creator_profiles')
-                .select(creatorSelectFields)
-                .returns<CreatorProfileDB[]>()
-
-            // 2. Fetch brand profiles
-            const { data: brands, error: brandError } = await supabaseClient
-                .from('brand_profiles')
-                .select(brandSelectFields)
-                .returns<BrandProfileDB[]>()
-
-           
-
-            if (creatorError || brandError) {
-                console.error('Error fetching users:', creatorError || brandError)
+            if (creatorError || brandError || tiktokError) {
+                console.error('Error fetching users:', creatorError || brandError || tiktokError)
                 toast.error('Failed to load users. Please check the database connection.')
                 return
             }
 
+            // Build a quick lookup map: user_id -> tiktok account
+            const tiktokMap: Record<string, SocialAccount> = {}
+            for (const account of tiktokAccounts || []) {
+                tiktokMap[account.user_id] = account
+            }
 
-            // 3. Map and combine the data
-            const creatorProfiles: UserProfile[] = (creators || []).map(mapCreatorToUserProfile)
+            const creatorProfiles: UserProfile[] = (creators || []).map((c) => mapCreatorToUserProfile(c, tiktokMap))
             const brandProfiles: UserProfile[] = (brands || []).map(mapBrandToUserProfile)
 
             setUsers([...creatorProfiles, ...brandProfiles])
@@ -161,38 +175,20 @@ export default function UserManagementPage() {
         }
     }
 
-    // --- NEW FUNCTION: VERIFY BRAND (UNCHANGED) ---
     const handleVerifyBrand = async (brand: UserProfile) => {
         if (brand.role !== 'brand') return
-
         setIsUpdating(true)
         const toastId = toast.loading(`Verifying ${brand.name}...`)
-
         try {
-            // Update the brand_profiles table
             const { error } = await supabaseClient
                 .from('brand_profiles')
                 .update({ is_verified: true })
                 .eq('id', brand.id)
                 .single()
-
-            if (error) {
-                throw new Error(error.message)
-            }
-
-            // Update local state immediately for a fast UI update
-            setUsers((prevUsers) =>
-                prevUsers.map((u) =>
-                    u.id === brand.id
-                        ? { ...u, is_verified: true } // Update the local user object
-                        : u
-                )
-            )
-
-            // Close the dropdown and modal (if open)
+            if (error) throw new Error(error.message)
+            setUsers((prevUsers) => prevUsers.map((u) => (u.id === brand.id ? { ...u, is_verified: true } : u)))
             setViewProfileModal(false)
             setSelectedUser(null)
-
             toast.success(`${brand.name} is now verified!`, { id: toastId })
         } catch (e: any) {
             console.error('Error verifying brand:', e)
@@ -201,7 +197,6 @@ export default function UserManagementPage() {
             setIsUpdating(false)
         }
     }
-    // ------------------------------------
 
     const filteredUsers = users.filter((user) => {
         const matchesSearch =
@@ -218,60 +213,38 @@ export default function UserManagementPage() {
 
     const deleteUserFlow = async (user_id: string, role: 'brand' | 'creator') => {
         const loadingToastId = toast.loading('Deleting user…')
-
         try {
             const res = await fetch('/api/delete-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id, role }),
             })
-
             const data = await res.json()
-
             toast.dismiss(loadingToastId)
-
             if (!res.ok) {
                 toast.error(`Failed to delete user, ${data.error} || 'Unknown error'`)
                 return
             }
-
             toast.success(
                 <>
                     <span style={{ fontWeight: 700 }}>User deleted</span>
                     <div style={{ opacity: 1, fontSize: '0.9rem' }}>{data.message}</div>
                 </>,
                 { duration: 5000 }
-            );
+            )
             fetchUsers()
-
-            // ✅ Optional: remove from local state / UI
-            // setProfiles(prev => prev.filter(p => p.user_id !== user_id))
         } catch (err: any) {
             toast.dismiss(loadingToastId)
-            console.error('deleteUserFlow error:', err)
             toast.error('Error deleting user', { description: err?.message || 'Unknown error' })
         }
     }
 
-    /**
-     * This will delete the user
-     * @param user
-     */
-
     const handleToggleStatus = async (user: UserProfile) => {
-        // ACTION: Implement Supabase update logic here when your schema is ready
-
         try {
             toast.error(`Delete User? This action is permanent and cannot be undone.`, {
                 duration: Infinity,
-                action: {
-                    label: 'Delete',
-                    onClick: () => deleteUserFlow(user.user_id, user.role),
-                },
-                cancel: {
-                    label: 'Cancel',
-                    onClick: () => {},
-                },
+                action: { label: 'Delete', onClick: () => deleteUserFlow(user.user_id, user.role) },
+                cancel: { label: 'Cancel', onClick: () => {} },
             })
         } catch (error) {}
     }
@@ -288,7 +261,6 @@ export default function UserManagementPage() {
         <div className="p-8 space-y-8">
             <h1 className="text-3xl font-bold">User Management</h1>
 
-            {/* Search and Filter UI */}
             <div className="flex justify-between items-center">
                 <Input
                     placeholder="Search users by name or email..."
@@ -305,7 +277,6 @@ export default function UserManagementPage() {
                 </Tabs>
             </div>
 
-            {/* User Table */}
             <div className="border rounded-lg overflow-hidden">
                 <Table>
                     <TableHeader className="bg-gray-50">
@@ -313,7 +284,8 @@ export default function UserManagementPage() {
                             <TableHead>Name</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Role</TableHead>
-                            <TableHead>Contact</TableHead> {/* 👈 ADDED CONTACT HEADER */}
+                            <TableHead>Contact</TableHead>
+                            <TableHead>TikTok</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Joined</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -337,13 +309,43 @@ export default function UserManagementPage() {
                                             {user.role}
                                         </Badge>
                                     </TableCell>
-                                    {/* 👈 CONDITIONAL CONTACT CELL */}
                                     <TableCell className="text-sm text-gray-500">
                                         {user.role === 'creator' ? user.phone || 'N/A' : user.contact || 'N/A'}
                                     </TableCell>
-                                    {/* END CONDITIONAL CONTACT CELL */}
+
+                                    {/* TikTok Column */}
                                     <TableCell>
-                                        {/* Display verification status for Brands */}
+                                        {user.role === 'creator' ? (
+                                            user.tiktok?.connected ? (
+                                                <div className="flex flex-col gap-0.5">
+                                                    <Badge className="bg-black text-white w-fit text-xs px-2 py-0.5">
+                                                        ✓ Connected
+                                                    </Badge>
+                                                    {user.tiktok.username && (
+                                                        <span className="text-xs text-gray-500">
+                                                            @{user.tiktok.username}
+                                                        </span>
+                                                    )}
+                                                    {user.tiktok.connected_at && (
+                                                        <span className="text-xs text-gray-400">
+                                                            {new Date(user.tiktok.connected_at).toLocaleDateString()}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-gray-400 border-gray-200 text-xs"
+                                                >
+                                                    Not connected
+                                                </Badge>
+                                            )
+                                        ) : (
+                                            <span className="text-gray-300 text-sm">—</span>
+                                        )}
+                                    </TableCell>
+
+                                    <TableCell>
                                         {user.role === 'brand' ? (
                                             <Badge
                                                 variant="secondary"
@@ -361,7 +363,6 @@ export default function UserManagementPage() {
                                                 {user.is_verified ? 'Verified' : 'Pending'}
                                             </Badge>
                                         ) : (
-                                            // Fallback to active/suspended for Creators (or non-brand users)
                                             <Badge
                                                 variant="secondary"
                                                 className={`${
@@ -386,8 +387,6 @@ export default function UserManagementPage() {
                                                 <DropdownMenuItem onClick={() => handleViewProfile(user)}>
                                                     View Profile
                                                 </DropdownMenuItem>
-
-                                                {/* NEW: Verification Action for Brands */}
                                                 {user.role === 'brand' && !user.is_verified && (
                                                     <DropdownMenuItem
                                                         onClick={() => handleVerifyBrand(user)}
@@ -397,8 +396,6 @@ export default function UserManagementPage() {
                                                         {isUpdating ? 'Verifying...' : '✅ Mark as Verified'}
                                                     </DropdownMenuItem>
                                                 )}
-
-                                                {/* Toggle Status Action */}
                                                 <DropdownMenuItem onClick={() => handleToggleStatus(user)}>
                                                     Delete User
                                                 </DropdownMenuItem>
@@ -409,9 +406,7 @@ export default function UserManagementPage() {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center text-neutral-500">
-                                    {' '}
-                                    {/* 👈 colSpan updated to 7 */}
+                                <TableCell colSpan={8} className="text-center text-neutral-500">
                                     No users found.
                                 </TableCell>
                             </TableRow>
@@ -420,7 +415,7 @@ export default function UserManagementPage() {
                 </Table>
             </div>
 
-            {/* View Profile Modal (UNCHANGED) */}
+            {/* View Profile Modal */}
             {selectedUser && (
                 <Dialog open={viewProfileModal} onOpenChange={setViewProfileModal}>
                     <DialogContent>
@@ -441,10 +436,8 @@ export default function UserManagementPage() {
                             </DialogTitle>
                             <DialogDescription>{selectedUser.role} Profile Details</DialogDescription>
                         </DialogHeader>
-
                         <Separator className="my-4" />
                         <div className="space-y-3 text-sm max-h-[70vh] overflow-y-auto pr-4">
-                            {/* General Details */}
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                                 <p>
                                     <strong>Email:</strong>
@@ -456,7 +449,6 @@ export default function UserManagementPage() {
                                 <p>{new Date(selectedUser.created_at).toLocaleDateString()}</p>
                             </div>
 
-                            {/* Creator Specific Details - Phone/Contact already handled here */}
                             {selectedUser.role === 'creator' && (
                                 <>
                                     <Separator className="!mt-4 !mb-4" />
@@ -472,21 +464,48 @@ export default function UserManagementPage() {
                                         <p>{selectedUser.country || 'N/A'}</p>
                                     </div>
 
+                                    {/* TikTok Section in Modal */}
+                                    <Separator className="!mt-4 !mb-4" />
+                                    <h4 className="font-bold text-base text-gray-700">TikTok Account</h4>
+                                    {selectedUser.tiktok?.connected ? (
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                            <p>
+                                                <strong>Status:</strong>
+                                            </p>
+                                            <Badge className="bg-black text-white w-fit text-xs">✓ Connected</Badge>
+                                            <p>
+                                                <strong>Username:</strong>
+                                            </p>
+                                            <p>
+                                                {selectedUser.tiktok.username
+                                                    ? `@${selectedUser.tiktok.username}`
+                                                    : 'N/A'}
+                                            </p>
+                                            <p>
+                                                <strong>Connected On:</strong>
+                                            </p>
+                                            <p>
+                                                {selectedUser.tiktok.connected_at
+                                                    ? new Date(selectedUser.tiktok.connected_at).toLocaleDateString()
+                                                    : 'N/A'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-gray-400 italic">No TikTok account connected.</p>
+                                    )}
+
                                     <Separator className="!mt-4 !mb-4" />
                                     <h4 className="font-bold text-base text-gray-700">Payment Information</h4>
-
                                     {selectedUser.has_payment_details ? (
                                         <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                                             <p>
                                                 <strong>Method:</strong>
                                             </p>
                                             <p>{selectedUser.payment_method || 'N/A'}</p>
-
                                             <p>
                                                 <strong>Account Name:</strong>
                                             </p>
                                             <p>{selectedUser.payment_account_name || 'N/A'}</p>
-
                                             <p>
                                                 <strong>Account/Mobile No:</strong>
                                             </p>
@@ -495,7 +514,6 @@ export default function UserManagementPage() {
                                                     ? selectedUser.payment_mobilemoney_number || 'N/A'
                                                     : selectedUser.payment_account_number || 'N/A'}
                                             </p>
-
                                             <p>
                                                 <strong>Frequency:</strong>
                                             </p>
@@ -509,7 +527,6 @@ export default function UserManagementPage() {
                                 </>
                             )}
 
-                            {/* Brand Specific Details - Contact already handled here */}
                             {selectedUser.role === 'brand' && (
                                 <>
                                     <Separator className="!mt-4 !mb-4" />
@@ -517,8 +534,6 @@ export default function UserManagementPage() {
                                     <p>
                                         <strong>Primary Contact:</strong> {selectedUser.contact || 'N/A'}
                                     </p>
-
-                                    {/* Verification Button in Modal */}
                                     {!selectedUser.is_verified && (
                                         <div className="pt-4">
                                             <Button

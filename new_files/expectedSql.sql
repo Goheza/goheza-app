@@ -1,0 +1,1 @@
+ALTER TABLE campaign_submissions ADD COLUMN tiktok_publish_id text;
