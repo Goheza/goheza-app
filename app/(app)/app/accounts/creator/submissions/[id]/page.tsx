@@ -5,7 +5,7 @@ import { supabaseClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { XCircle, CheckCircle2, AlertCircle, MessageSquare, ExternalLink } from 'lucide-react'
-import { extractTikTokVideoId } from '@/lib/appServiceData/social-media/tiktok/extract-video-id'
+import { extractTikTokVideoId, resolveShortTikTokUrl } from '@/lib/appServiceData/social-media/tiktok/extract-video-id'
 
 type CommonStatusType = 'draft' | 'admin_reject' | 'pending' | 'approved' | 'rejected'
 
@@ -64,23 +64,27 @@ export default function SubmissionViewPage() {
             return
         }
 
-        const videoId = extractTikTokVideoId(tiktokInput.trim())
-        if (!videoId) {
-            toast.error(
-                'Invalid TikTok URL. Please paste a full video link, e.g. https://www.tiktok.com/@handle/video/...'
-            )
-            return
-        }
-
         setIsSavingUrl(true)
-
         try {
+            // Resolve short links (vt./vm.tiktok.com) before extracting the ID
+            const resolvedUrl = await resolveShortTikTokUrl(tiktokInput.trim())
+            const videoId = resolvedUrl ? extractTikTokVideoId(resolvedUrl) : null
+
+            if (!videoId) {
+                toast.error(
+                    'Invalid TikTok URL. Please paste a full video link, e.g. https://www.tiktok.com/@handle/video/...'
+                )
+                return
+            }
+
+            // Use the resolved URL for storage (so we always store the canonical long-form URL)
+            const canonicalUrl = resolvedUrl ?? tiktokInput.trim()
+
             // 1. Save tiktok_url to campaign_submissions
             const { error: submissionError } = await supabaseClient
                 .from('campaign_submissions')
-                .update({ tiktok_url: tiktokInput.trim() })
+                .update({ tiktok_url: canonicalUrl })
                 .eq('id', submissionId)
-
             if (submissionError) throw new Error('Failed to save TikTok URL.')
 
             // 2. Upsert a campaign_posts row so the analytics pipeline can see it
@@ -93,14 +97,13 @@ export default function SubmissionViewPage() {
                     user_id: userData.user.id,
                     platform: 'tiktok',
                     media_id: videoId,
-                    permalink: tiktokInput.trim(),
+                    permalink: canonicalUrl,
                     media_type: 'VIDEO',
                     status: 'PUBLISHED',
                     posted_at: new Date().toISOString(),
                 },
                 { onConflict: 'campaign_id, media_id' }
             )
-
             if (postError) throw new Error('Failed to register post for analytics.')
 
             // 3. Trigger initial insights fetch via dedicated endpoint
@@ -116,8 +119,7 @@ export default function SubmissionViewPage() {
                 })
             }
 
-            // toast.success('TikTok URL saved! Your insights will appear shortly.')
-            setSubmission((prev) => (prev ? { ...prev, tiktok_url: tiktokInput.trim() } : prev))
+            setSubmission((prev) => (prev ? { ...prev, tiktok_url: canonicalUrl } : prev))
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Something went wrong.'
             toast.error(message)
