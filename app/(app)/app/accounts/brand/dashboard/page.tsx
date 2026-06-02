@@ -210,9 +210,7 @@ export default function BrandWorkspace() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             <span className="font-medium">{campaign.submissionsCount}</span>
-                                            <span className="text-green-600 ml-1">
-                                                ({campaign.approvedSubmissions} approved)
-                                            </span>
+                                            
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {campaign.createdAt}
