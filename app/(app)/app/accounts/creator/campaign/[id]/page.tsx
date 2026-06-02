@@ -15,6 +15,7 @@ interface ICampaignAssets {
     name: string
     url: string
 }
+
 export interface ICampaignDetails {
     id: string
     campaignName: string
@@ -57,21 +58,27 @@ export default function CampaignOverview() {
     const [isAgreedToTerms, setIsAgreedToTerms] = useState<boolean>(false)
     const router = useRouter()
 
-    // Ref so uploadAndSubmit can read the latest file without
-    // needing to be a dependency of the auto-resume effect
+    // FIX 1: Ref to always hold the latest file without being a dep of effects
     const fileRef = useRef<File | null>(null)
     useEffect(() => {
         fileRef.current = file
     }, [file])
 
-    // ── Core upload + DB insert, extracted so it can be called
-    //    both from handleSubmit and the auto-resume effect ─────
+    // FIX 2: Guard ref to prevent uploadAndSubmit from running concurrently
+    const isSubmittingRef = useRef(false)
+
+    // ── Core upload + DB insert ───────────────────────────────────────────────
     const uploadAndSubmit = useCallback(
         async (captionValue: string, details: ICampaignDetails) => {
+            // FIX 2: Bail out immediately if a submission is already in flight
+            if (isSubmittingRef.current) return
+            isSubmittingRef.current = true
+
             const currentFile = fileRef.current
             if (!currentFile) {
                 toast.error('Video file is missing. Please re-select it and try again.')
                 setUploadStatus('failure')
+                isSubmittingRef.current = false
                 return
             }
 
@@ -80,8 +87,10 @@ export default function CampaignOverview() {
                     .from('campaign_submissions')
                     .select('*', { count: 'exact', head: true })
                     .eq('campaign_id', campaignId)
+
                 if (!countError && count !== null && count >= details.maxSubmissions) {
                     toast.error('This campaign has reached its maximum number of submissions.')
+                    isSubmittingRef.current = false
                     return
                 }
             }
@@ -142,10 +151,21 @@ export default function CampaignOverview() {
                 console.error('Submission error:', err)
                 toast.error('Submission failed. Please try again.')
                 sessionStorage.removeItem(PENDING_SUBMISSION_KEY)
+            } finally {
+                // FIX 2: Always release the lock when done
+                isSubmittingRef.current = false
             }
         },
         [campaignId, router]
     )
+
+    // FIX 3: Keep a stable ref to uploadAndSubmit so the fetch effect below
+    // doesn't need it as a dependency (which would cause it to re-run and
+    // trigger the auto-resume logic multiple times).
+    const uploadAndSubmitRef = useRef(uploadAndSubmit)
+    useEffect(() => {
+        uploadAndSubmitRef.current = uploadAndSubmit
+    }, [uploadAndSubmit])
 
     useEffect(() => {
         const fetchCampaignDetails = async () => {
@@ -154,12 +174,14 @@ export default function CampaignOverview() {
                 setLoading(false)
                 return
             }
+
             try {
                 const { data, error: fetchError } = await supabaseClient
                     .from('campaigns')
                     .select(`*, brand_profiles(logo_url)`)
                     .eq('id', campaignId)
                     .single()
+
                 if (fetchError) throw new Error(fetchError.message)
                 if (!data) throw new Error('Campaign not found')
 
@@ -185,9 +207,10 @@ export default function CampaignOverview() {
                     status: data.status,
                     expiresAt: data.expires_at || null,
                 }
+
                 setCampaignDetails(details)
 
-                // ── Auto-resume after TikTok OAuth redirect ──────────────
+                // ── Auto-resume after TikTok OAuth redirect ───────────────
                 const pending = sessionStorage.getItem(PENDING_SUBMISSION_KEY)
                 if (pending) {
                     const { campaignId: savedId, caption: savedCaption } = JSON.parse(pending)
@@ -195,9 +218,15 @@ export default function CampaignOverview() {
                         const hasTikTok = await areSocialsAvailable()
                         if (hasTikTok) {
                             setCaption(savedCaption)
+                            // FIX 4: Remove the key IMMEDIATELY before scheduling
+                            // the timeout, so a second effect run can't trigger
+                            // another auto-resume while the first is in flight.
+                            sessionStorage.removeItem(PENDING_SUBMISSION_KEY)
                             toast.info('TikTok connected! Resuming your submission…')
-                            // Give React a tick to apply state before uploading
-                            setTimeout(() => uploadAndSubmit(savedCaption, details), 100)
+                            // Give React a tick to apply state before uploading.
+                            // Use the ref so this effect doesn't need uploadAndSubmit
+                            // as a dependency.
+                            setTimeout(() => uploadAndSubmitRef.current(savedCaption, details), 100)
                         } else {
                             // OAuth failed or was cancelled — clean up and let them retry
                             sessionStorage.removeItem(PENDING_SUBMISSION_KEY)
@@ -213,7 +242,10 @@ export default function CampaignOverview() {
         }
 
         fetchCampaignDetails()
-    }, [campaignId, uploadAndSubmit])
+        // FIX 3: campaignId is the only real dependency here. uploadAndSubmit
+        // is accessed via uploadAndSubmitRef so its identity changes don't
+        // re-trigger this effect.
+    }, [campaignId])
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
@@ -583,12 +615,10 @@ export default function CampaignOverview() {
                             </Link>
                         </p>
                     </div>
-
                     <PaymentDialog
                         isPaymentDialogOpen={willShowPaymentDetails}
                         setPaymentDialogOpen={setShowPaymentDetails}
                     />
-
                     <div className="flex justify-end">
                         <button
                             type="submit"
