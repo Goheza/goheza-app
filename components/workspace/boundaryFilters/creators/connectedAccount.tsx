@@ -1,5 +1,4 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import { supabaseClient } from '@/lib/supabase/client'
 import { activateTiktokOAuth } from '@/lib/appServiceData/social-media/tiktok/tiktok-auth'
@@ -13,9 +12,6 @@ interface SocialAccount {
     connected_at: string
 }
 
-/**
- * Claude these are the expectedParams
- */
 type returnParams = 'accepted' | 'error'
 
 export default function ConnectedAccountsPageBoundary() {
@@ -25,13 +21,12 @@ export default function ConnectedAccountsPageBoundary() {
     const [showConfirm, setShowConfirm] = useState(false)
     const returnParams = useSearchParams()
     const [returnBanner, setReturnBanner] = useState<'accepted' | 'error' | null>(null)
-    const router = useRouter() // add this import from 'next/navigation'
+    const router = useRouter()
 
     useEffect(() => {
         const param = returnParams.get('return') as returnParams | null
         if (param === 'accepted' || param === 'error') {
             setReturnBanner(param)
-            // Clean the URL param without a page reload
             const url = new URL(window.location.href)
             url.searchParams.delete('return')
             router.replace(url.pathname + url.search, { scroll: false })
@@ -48,14 +43,12 @@ export default function ConnectedAccountsPageBoundary() {
             data: { user },
         } = await supabaseClient.auth.getUser()
         if (!user) return
-
         const { data } = await supabaseClient
             .from('social_accounts')
             .select('*')
             .eq('user_id', user.id)
             .eq('platform', 'tiktok')
             .maybeSingle()
-
         setTiktokAccount(data)
         setLoading(false)
     }
@@ -70,20 +63,21 @@ export default function ConnectedAccountsPageBoundary() {
     }
 
     return (
-        <div className=" p-6">
-            <div className="mb-8">
-                <h1 className="text-xl font-medium text-gray-900">Connected accounts</h1>
+        <div className="p-4 sm:p-6 max-w-2xl mx-auto w-full">
+            <div className="mb-6 sm:mb-8">
+                <h1 className="text-lg sm:text-xl font-medium text-gray-900">Connected accounts</h1>
                 <p className="text-sm text-gray-500 mt-1">Manage the social accounts linked to your creator profile.</p>
             </div>
 
             <p className="text-xs font-medium uppercase tracking-widest text-gray-400 mb-3">Social platforms</p>
 
+            {/* Success banner */}
             {returnBanner === 'accepted' && (
                 <div className="flex items-start gap-3 p-3.5 rounded-lg border bg-green-50 border-green-200 text-green-800 text-sm mb-5">
                     <span className="w-4 h-4 rounded-full bg-green-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
                         ✓
                     </span>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                         <p className="font-medium">TikTok connected successfully</p>
                         <p className="text-green-700 text-xs mt-0.5">
                             Your account is now linked and ready for campaigns.
@@ -91,19 +85,20 @@ export default function ConnectedAccountsPageBoundary() {
                     </div>
                     <button
                         onClick={() => setReturnBanner(null)}
-                        className="text-green-500 hover:text-green-700 text-lg leading-none"
+                        className="text-green-500 hover:text-green-700 text-lg leading-none flex-shrink-0"
                     >
                         ×
                     </button>
                 </div>
             )}
 
+            {/* Error banner */}
             {returnBanner === 'error' && (
                 <div className="flex items-start gap-3 p-3.5 rounded-lg border bg-red-50 border-red-200 text-red-800 text-sm mb-5">
                     <span className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
                         ×
                     </span>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                         <p className="font-medium">Connection failed</p>
                         <p className="text-red-700 text-xs mt-0.5">
                             Something went wrong while linking your TikTok. Please try again.
@@ -111,22 +106,22 @@ export default function ConnectedAccountsPageBoundary() {
                     </div>
                     <button
                         onClick={() => setReturnBanner(null)}
-                        className="text-red-400 hover:text-red-600 text-lg leading-none"
+                        className="text-red-400 hover:text-red-600 text-lg leading-none flex-shrink-0"
                     >
                         ×
                     </button>
                 </div>
             )}
 
-            <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5">
                 {/* Platform header */}
-                <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-lg bg-black flex items-center justify-center flex-shrink-0">
+                <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-black flex items-center justify-center flex-shrink-0">
                         <TikTokIcon />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">TikTok</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 leading-snug">
                             {tiktokAccount
                                 ? 'Your TikTok account is linked and ready.'
                                 : 'Connect your TikTok to submit content for campaigns.'}
@@ -135,21 +130,23 @@ export default function ConnectedAccountsPageBoundary() {
                     {!tiktokAccount && !loading && (
                         <button
                             onClick={activateTiktokOAuth}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#E8553E] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
+                            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 sm:px-4 bg-[#E8553E] text-white text-xs sm:text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
                         >
-                            <span>+</span> Connect account
+                            <span>+</span>
+                            <span className="hidden xs:inline sm:inline">Connect account</span>
+                            <span className="xs:hidden sm:hidden">Connect</span>
                         </button>
                     )}
                 </div>
 
                 {/* Empty state */}
                 {!loading && !tiktokAccount && (
-                    <div className="mt-4 flex flex-col items-center justify-center border border-dashed border-gray-300 rounded-xl bg-gray-50 py-10 px-6 text-center">
-                        <div className="w-14 h-14 rounded-xl bg-black flex items-center justify-center mb-4">
-                            <TikTokIcon size={24} />
+                    <div className="mt-4 flex flex-col items-center justify-center border border-dashed border-gray-300 rounded-xl bg-gray-50 py-8 sm:py-10 px-4 sm:px-6 text-center">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-black flex items-center justify-center mb-3 sm:mb-4">
+                            <TikTokIcon size={22} />
                         </div>
                         <p className="text-sm font-medium text-gray-900 mb-1">No TikTok account added yet</p>
-                        <p className="text-sm text-gray-500 max-w-xs mb-5 leading-relaxed">
+                        <p className="text-sm text-gray-500 max-w-xs mb-4 sm:mb-5 leading-relaxed">
                             Link your TikTok account to start submitting videos for campaigns and track your earnings.
                         </p>
                         <button
@@ -165,13 +162,13 @@ export default function ConnectedAccountsPageBoundary() {
                 {!loading && tiktokAccount && (
                     <>
                         <hr className="my-4 border-gray-100" />
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-medium">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-9 h-9 rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
                                     {tiktokAccount.extra_data?.display_name?.slice(0, 2).toUpperCase() ?? 'TK'}
                                 </div>
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 truncate">
                                         @{tiktokAccount.extra_data?.username ?? tiktokAccount.external_user_id}
                                     </p>
                                     <p className="text-xs text-gray-400">
@@ -183,14 +180,14 @@ export default function ConnectedAccountsPageBoundary() {
                                         })}
                                     </p>
                                 </div>
-                                <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
+                                <span className="flex-shrink-0 flex items-center gap-1.5 text-xs text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
                                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
                                     Active
                                 </span>
                             </div>
                             <button
                                 onClick={() => setShowConfirm(true)}
-                                className="flex items-center gap-2 px-3 py-1.5 text-red-600 bg-red-50 border border-red-200 text-sm rounded-lg hover:opacity-80 transition-opacity"
+                                className="self-start sm:self-auto flex items-center gap-2 px-3 py-1.5 text-red-600 bg-red-50 border border-red-200 text-sm rounded-lg hover:opacity-80 transition-opacity"
                             >
                                 Remove
                             </button>
@@ -206,8 +203,8 @@ export default function ConnectedAccountsPageBoundary() {
 
             {/* Remove confirmation modal */}
             {showConfirm && (
-                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 border border-gray-200">
+                <div className="fixed inset-0 bg-black/30 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+                    <div className="bg-white rounded-t-2xl sm:rounded-xl p-6 w-full sm:max-w-sm sm:mx-4 border border-gray-200">
                         <h2 className="text-base font-medium text-gray-900 mb-2">Remove TikTok account?</h2>
                         <p className="text-sm text-gray-500 leading-relaxed mb-5">
                             Your account will be disconnected. You won&apos;t be able to submit content for campaigns
@@ -216,14 +213,14 @@ export default function ConnectedAccountsPageBoundary() {
                         <div className="flex gap-2 justify-end">
                             <button
                                 onClick={() => setShowConfirm(false)}
-                                className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
+                                className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleRemove}
                                 disabled={removing}
-                                className="px-4 py-2 text-sm bg-[#E8553E] text-white rounded-lg hover:opacity-90 disabled:opacity-60"
+                                className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 text-sm bg-[#E8553E] text-white rounded-lg hover:opacity-90 disabled:opacity-60"
                             >
                                 {removing ? 'Removing…' : 'Yes, remove'}
                             </button>
