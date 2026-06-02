@@ -59,7 +59,7 @@ interface Insight {
 interface PostWithInsight extends Post {
     insight: Insight | null
 }
-type MetricKey = 'views' | 'likes' | 'comments' 
+type MetricKey = 'views' | 'likes' | 'comments'
 type SortDir = 'asc' | 'desc'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ function fmt(n: number): string {
 }
 function engRate(p: PostWithInsight): string {
     if (!p.insight || !p.insight.views) return '—'
-   const rate = ((p.insight.likes + p.insight.comments) / p.insight.views) * 100
+    const rate = ((p.insight.likes + p.insight.comments) / p.insight.views) * 100
     return rate.toFixed(2) + '%'
 }
 function sumMetric(posts: PostWithInsight[], key: MetricKey): number {
@@ -81,7 +81,7 @@ function avgEngRate(posts: PostWithInsight[]): string {
     if (!published.length) return '—'
     const avg =
         published.reduce((acc, p) => {
-           const r = ((p.insight!.likes + p.insight!.comments) / p.insight!.views) * 100
+            const r = ((p.insight!.likes + p.insight!.comments) / p.insight!.views) * 100
             return acc + r
         }, 0) / published.length
     return avg.toFixed(2) + '%'
@@ -301,6 +301,7 @@ export default function AnalyticsPage() {
     const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
     const [selectedCreator, setSelectedCreator] = useState<PostWithInsight | null>(null)
     const [drillLoading, setDrillLoading] = useState(false)
+    const [didFetchLive, setDidFetchLive] = useState(false)
 
     useEffect(() => {
         async function loadCampaigns() {
@@ -335,6 +336,13 @@ export default function AnalyticsPage() {
                 insight: insightMap.get(p.media_id) ?? null,
             }))
             setPosts(merged)
+            //Try fetching Live Again from Tiktok If you can
+            if (!didFetchLive) {
+                fetchDataLiveFromTiktok(merged).then(() => {
+                    loadData(selectedId)
+                })
+                setDidFetchLive(true)
+            }
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Failed to load data')
         } finally {
@@ -343,7 +351,9 @@ export default function AnalyticsPage() {
     }, [])
 
     useEffect(() => {
-        if (selectedId) loadData(selectedId)
+        if (selectedId) {
+            loadData(selectedId)
+        }
     }, [selectedId, loadData])
     useEffect(() => {
         if (!selectedCreator) return
@@ -352,21 +362,6 @@ export default function AnalyticsPage() {
         )
         if (updated) setSelectedCreator(updated)
     }, [posts])
-
-    async function handleRefresh() {
-        if (!selectedId || refreshing) return
-        setRefreshing(true)
-        setError(null)
-        try {
-            await UpdateInsightsForCampaignTk(selectedId)
-            await loadData(selectedId)
-            setLastRefreshed(new Date())
-        } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : 'Failed to refresh TikTok insights')
-        } finally {
-            setRefreshing(false)
-        }
-    }
 
     async function handleSelectCreator(post: PostWithInsight) {
         setDrillLoading(true)
@@ -390,12 +385,62 @@ export default function AnalyticsPage() {
         }
     }
 
+    /**
+     * Function that runs everytime the user is available or all
+     * for all posts:
+     */
+
+    async function fetchDataLiveFromTiktok(postsData: PostWithInsight[]) {
+        return new Promise<void>((c, er) => {
+            postsData.map(async (post) => {
+                try {
+                    const {
+                        data: { session },
+                    } = await supabaseClient.auth.getSession()
+                    if (session) {
+                        await fetch('/api/tiktok/submission-insights', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${session.access_token}`,
+                            },
+                            body: JSON.stringify({ mediaId: post.media_id, campaignId: post.campaign_id }),
+                        })
+                    }
+                } catch (e) {
+                    console.error(e)
+                    er(e)
+                } finally {
+                    c()
+                }
+            })
+        })
+    }
+
     const tiktokPosts = posts.filter((p) => p.platform === 'tiktok')
     const sorted = [...tiktokPosts].sort((a, b) => {
         const av = a.insight?.[sortKey] ?? 0,
             bv = b.insight?.[sortKey] ?? 0
         return sortDir === 'desc' ? bv - av : av - bv
     })
+
+    async function handleRefresh() {
+        if (!selectedId || refreshing) return
+        setRefreshing(true)
+        setError(null)
+        try {
+            // await UpdateInsightsForCampaignTk(selectedId);
+            fetchDataLiveFromTiktok(sorted).then(() => {
+                loadData(selectedId)
+            })
+            setLastRefreshed(new Date())
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : 'Failed to refresh TikTok insights')
+        } finally {
+            setRefreshing(false)
+        }
+    }
+
     function toggleSort(key: MetricKey) {
         if (key === sortKey) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))
         else {
@@ -409,7 +454,6 @@ export default function AnalyticsPage() {
         views: sumMetric(tiktokPosts, 'views'),
         likes: sumMetric(tiktokPosts, 'likes'),
         comments: sumMetric(tiktokPosts, 'comments'),
-     
     }
 
     // Chart data
@@ -426,8 +470,8 @@ export default function AnalyticsPage() {
 
     const likes = sumMetric(tiktokPosts, 'likes')
     const comments = sumMetric(tiktokPosts, 'comments')
-  
-    const engTotal = likes + comments 
+
+    const engTotal = likes + comments
     const pieData = [
         { name: 'Likes', value: likes, color: '#f97316', pct: engTotal ? Math.round((likes / engTotal) * 100) : 0 },
         {
@@ -436,7 +480,6 @@ export default function AnalyticsPage() {
             color: '#6366f1',
             pct: engTotal ? Math.round((comments / engTotal) * 100) : 0,
         },
-
     ].filter((d) => d.value > 0)
 
     const creatorPieData = selectedCreator
@@ -587,7 +630,6 @@ export default function AnalyticsPage() {
                                             accent: '#10b981',
                                             icon: '💬',
                                         },
-                                    
                                     ] as const
                                 ).map((m, i) => (
                                     <div key={m.label} className="anim-card" style={{ animationDelay: `${i * 60}ms` }}>
@@ -783,7 +825,7 @@ export default function AnalyticsPage() {
                                                         dir={sortDir}
                                                         onSort={toggleSort}
                                                     />
-                                                    
+
                                                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
                                                         Eng. Rate
                                                     </th>
