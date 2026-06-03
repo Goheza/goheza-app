@@ -110,15 +110,6 @@ export default function CampaignSubmissionsPage() {
 
         setIsUpdatingStatus(true)
 
-        const { data: userData } = await supabaseClient.auth.getUser()
-        const adminId = userData.user?.id
-
-        if (!adminId) {
-            toast.error('Authentication error. Admin user not found.')
-            setIsUpdatingStatus(false)
-            return
-        }
-
         const toastMessage =
             newStatus === 'pending'
                 ? 'Approving submission for Brand review...'
@@ -128,12 +119,11 @@ export default function CampaignSubmissionsPage() {
 
         const updateObject: {
             status: SubmissionStatus
-            reviewed_by: string
             reviewed_at: string
             feedback?: string | null
         } = {
             status: newStatus,
-            reviewed_by: adminId,
+
             reviewed_at: new Date().toISOString(),
         }
 
