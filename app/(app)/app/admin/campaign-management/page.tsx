@@ -347,6 +347,7 @@ function confirmDeleteToast(
                         toast.dismiss(toastId) // ← dismiss by ID
 
                         if (error) {
+                            console.log(`[ERROR-ADMIN]:${error.name}ErrorMessage${error.message}`)
                             toast.error('Failed to delete campaign')
                         } else {
                             toast.success('Campaign deleted successfully')
@@ -371,6 +372,9 @@ function confirmDeleteToast(
 // =================================================================================================
 // MAIN COMPONENT
 // =================================================================================================
+// =================================================================================================
+// MAIN COMPONENT
+// =================================================================================================
 export default function CampaignManagementPage() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([])
     const [loading, setLoading] = useState(true)
@@ -382,19 +386,17 @@ export default function CampaignManagementPage() {
         fetchCampaigns()
     }, [filter])
 
-    //used to fetch campaigns
+    // ← Reset selected campaign when filter/tab changes
+    useEffect(() => {
+        setSelectedCampaign(null)
+    }, [filter])
+
     const fetchCampaigns = async () => {
         setLoading(true)
         try {
             const { data, error } = await supabaseClient
                 .from('campaigns')
-                .select(
-                    `
-                    *,
-                    brand_profiles(brand_name)
-                    brand_profiles(logo_url)   // 👈 add logo_url here
-                    `
-                )
+                .select(`*, brand_profiles(brand_name, logo_url)`)
                 .eq('status', filter)
                 .order('created_at', { ascending: false })
 
@@ -404,11 +406,10 @@ export default function CampaignManagementPage() {
                 return
             }
 
-            // CRITICAL: Ensure `brand_name` is correctly mapped from the nested object
             const formattedCampaigns = data.map((c: any) => ({
                 ...c,
                 brand_name: c.brand_profiles?.brand_name || 'N/A',
-                brand_logo_url: c.brand_profiles?.logo_url || null, // 👈 map it
+                brand_logo_url: c.brand_profiles?.logo_url || null,
                 estimated_views: c.estimated_views ? Number(c.estimated_views) : null,
                 num_creators: c.num_creators ? Number(c.num_creators) : null,
             }))
@@ -423,7 +424,6 @@ export default function CampaignManagementPage() {
         const {
             data: { user },
         } = await supabaseClient.auth.getUser()
-
         if (!user) {
             toast.error('Authentication error. Please sign in again.')
             return
@@ -446,11 +446,6 @@ export default function CampaignManagementPage() {
             fetchCampaigns()
             setViewCampaignModal(false)
         }
-    }
-
-    const handleViewCampaign = (campaign: Campaign) => {
-        setSelectedCampaign(campaign)
-        setViewCampaignModal(true)
     }
 
     const getStatusBadge = (status: string) => {
@@ -477,6 +472,8 @@ export default function CampaignManagementPage() {
     return (
         <div className="p-8 space-y-8">
             <h1 className="text-3xl font-bold">Campaign Management</h1>
+
+            {/* Tabs stay exactly as before */}
             <div className="flex justify-start">
                 <Tabs
                     value={filter}
@@ -489,68 +486,271 @@ export default function CampaignManagementPage() {
                     </TabsList>
                 </Tabs>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {campaigns.length > 0 ? (
-                    campaigns.map((campaign) => (
-                        <Card key={campaign.id} className="hover:shadow-lg transition-shadow">
-                            <div className="h-36 w-full relative bg-gray-100">
-                                <Image
-                                    src={
-                                        campaign.cover_image_url ||
-                                        campaign.brand_logo_url ||
-                                        `https://placehold.co/400x225/e85c51/ffffff?text=${
-                                            campaign.name?.charAt(0) ?? 'C'
-                                        }`
-                                    }
-                                    alt={campaign.name}
-                                    fill
-                                    className="object-cover"
-                                />
-                            </div>
-                            <CardHeader>
-                                <CardTitle className="text-xl">{campaign.name}</CardTitle>
-                                <div className="text-sm text-neutral-500">
-                                    <p>
-                                        By: <span className="font-medium text-neutral-700">{campaign.brand_name}</span>
-                                    </p>
-                                    <p>
-                                        Created: {format(new Date(campaign.created_at), 'PPP')} at{' '}
-                                        {format(new Date(campaign.created_at), 'h:mm a')}
-                                    </p>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>{getStatusBadge(campaign.status)}</div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm text-neutral-600 font-medium">Payout:</span>
-                                    <span className="font-bold text-lg text-[#e85c51]">{campaign.payout}</span>
-                                </div>
-                                <Button
-                                    onClick={() => handleViewCampaign(campaign)}
-                                    className="w-full bg-[#e85c51] hover:bg-[#f3867e] text-white"
-                                >
-                                    View Details
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    ))
-                ) : (
-                    <p className="text-center text-neutral-500 col-span-full">No campaigns found with this status.</p>
-                )}
+
+            {/* Dropdown */}
+            <div className="max-w-md">
+                <label className="text-sm font-medium text-neutral-600 mb-1 block">
+                    Select a campaign ({campaigns.length} found)
+                </label>
+                <select
+                    className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#e85c51]"
+                    value={selectedCampaign?.id ?? ''}
+                    onChange={(e) => {
+                        const found = campaigns.find((c) => c.id === e.target.value) || null
+                        setSelectedCampaign(found)
+                    }}
+                >
+                    <option value="">-- Choose a campaign --</option>
+                    {campaigns.map((c) => (
+                        <option key={c.id} value={c.id}>
+                            {c.name} — {c.brand_name}
+                        </option>
+                    ))}
+                </select>
             </div>
 
-            {selectedCampaign && (
-                <CampaignDetailsModal
-                    campaign={selectedCampaign}
-                    isOpen={viewCampaignModal}
-                    onClose={() => setViewCampaignModal(false)}
-                    onAction={handleAction}
-                    getStatusBadge={getStatusBadge}
-                    onWillDeleteCampaign={(id, name) => {
-                        setViewCampaignModal(false) // close the detail modal first
-                        confirmDeleteToast(id, name, fetchCampaigns) // ← pass the refresh
-                    }}
-                />
+            {/* ← Full page detail view, no modal, no card */}
+            {selectedCampaign ? (
+                <div className="space-y-8">
+                    {/* Cover Image */}
+                    <div className="w-full aspect-[21/9] relative rounded-xl overflow-hidden bg-gradient-to-br from-neutral-100 to-neutral-200">
+                        <Image
+                            src={
+                                selectedCampaign.cover_image_url ||
+                                selectedCampaign.brand_logo_url ||
+                                `https://placehold.co/1200x400/e85c51/ffffff?text=${encodeURIComponent(
+                                    selectedCampaign.name?.charAt(0) ?? 'C'
+                                )}`
+                            }
+                            alt={selectedCampaign.name}
+                            fill
+                            priority
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 80vw"
+                            className="object-cover transition-transform duration-500 hover:scale-105"
+                        />
+                        {/* Gradient overlay so the title text below reads well against any image */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+
+                        {/* Campaign name + brand overlaid at the bottom of the image */}
+                        <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+                            <p className="text-xs uppercase tracking-widest text-white/70 mb-1">
+                                {selectedCampaign.brand_name}
+                            </p>
+                            <h2 className="text-2xl md:text-3xl font-bold drop-shadow">{selectedCampaign.name}</h2>
+                        </div>
+                    </div>
+
+                    {/* Title + Meta */}
+                    {/* Actions row — status badge + buttons */}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            {getStatusBadge(selectedCampaign.status)}
+                            <span className="text-sm text-neutral-400">
+                                Created {format(new Date(selectedCampaign.created_at), 'PPP')} at{' '}
+                                {format(new Date(selectedCampaign.created_at), 'h:mm a')}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            {selectedCampaign.status === 'inreview' && (
+                                <>
+                                    <Button
+                                        onClick={() => handleAction(selectedCampaign.id, 'cancelled')}
+                                        variant="outline"
+                                    >
+                                        Reject
+                                    </Button>
+                                    <Button
+                                        onClick={() => handleAction(selectedCampaign.id, 'approved')}
+                                        className="bg-[#e85c51] hover:bg-[#f3867e] text-white"
+                                    >
+                                        Approve
+                                    </Button>
+                                </>
+                            )}
+                            <Button
+                                variant="secondary"
+                                onClick={() =>
+                                    confirmDeleteToast(selectedCampaign.id, selectedCampaign.name, fetchCampaigns)
+                                }
+                            >
+                                Delete
+                            </Button>
+                        </div>
+                    </div>
+                    <Separator />
+
+                    {/* Financials */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div className="bg-neutral-50 rounded-lg p-4">
+                            <p className="text-xs text-neutral-500 uppercase tracking-wide">Total Budget</p>
+                            <p className="text-xl font-bold mt-1">{selectedCampaign.budget || 'N/A'}</p>
+                        </div>
+                        <div className="bg-neutral-50 rounded-lg p-4">
+                            <p className="text-xs text-neutral-500 uppercase tracking-wide">Payout per Creator</p>
+                            <p className="text-xl font-bold mt-1 text-green-600">{selectedCampaign.payout}</p>
+                        </div>
+                        <div className="bg-neutral-50 rounded-lg p-4">
+                            <p className="text-xs text-neutral-500 uppercase tracking-wide">Max / Flat Fee</p>
+                            <p className="text-xl font-bold mt-1">
+                                {selectedCampaign.max_pay || selectedCampaign.flat_fee || 'N/A'}
+                            </p>
+                        </div>
+                        <div className="bg-neutral-50 rounded-lg p-4">
+                            <p className="text-xs text-neutral-500 uppercase tracking-wide">Estimated Views</p>
+                            <p className="text-xl font-bold mt-1">
+                                {selectedCampaign.estimated_views?.toLocaleString() || 'N/A'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Objectives */}
+                    {formatListItems(selectedCampaign.objectives).length > 0 && (
+                        <div className="p-5 bg-neutral-50 rounded-xl">
+                            <h3 className="text-lg font-bold mb-3 text-[#e85c51]">Campaign Objectives</h3>
+                            <ul className="list-disc list-inside text-sm text-neutral-600 space-y-1">
+                                {formatListItems(selectedCampaign.objectives).map((obj, i) => (
+                                    <li key={i}>{obj}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* Description */}
+                    {selectedCampaign.description && (
+                        <div>
+                            <h3 className="text-lg font-bold mb-2 text-[#e85c51]">Campaign Description</h3>
+                            <p className="text-sm text-neutral-600 leading-relaxed">{selectedCampaign.description}</p>
+                        </div>
+                    )}
+
+                    {/* Requirements */}
+                    {formatListItems(selectedCampaign.requirements).length > 0 && (
+                        <div>
+                            <h3 className="text-lg font-bold mb-2 text-[#e85c51]">Key Requirements / Deliverables</h3>
+                            <ul className="list-disc list-inside text-sm text-neutral-600 space-y-1">
+                                {formatListItems(selectedCampaign.requirements).map((req, i) => (
+                                    <li key={i}>{req}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* Assets */}
+                    {selectedCampaign.assets && selectedCampaign.assets.length > 0 && (
+                        <div>
+                            <h3 className="text-lg font-bold mb-3 text-[#e85c51]">Brand Assets / Files 📎</h3>
+                            <div className="flex flex-wrap gap-3">
+                                {selectedCampaign.assets.map((asset, i) => (
+                                    <a
+                                        key={i}
+                                        href={asset.url}
+                                        target="_blank"
+                                        download={asset.name}
+                                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline p-2 border rounded-md bg-white shadow-sm"
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="h-4 w-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0014.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                            />
+                                        </svg>
+                                        <span>{asset.name || `Asset ${i + 1}`}</span>
+                                        {asset.type && (
+                                            <Badge variant="outline" className="text-xs">
+                                                {asset.type}
+                                            </Badge>
+                                        )}
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Do's and Don'ts */}
+                    {(formatListItems(selectedCampaign.dos).length > 0 ||
+                        formatListItems(selectedCampaign.donts).length > 0) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {formatListItems(selectedCampaign.dos).length > 0 && (
+                                <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+                                    <h4 className="font-semibold text-green-700 mb-2">Do's ✅</h4>
+                                    <ul className="list-disc list-inside text-sm text-green-800 space-y-1">
+                                        {formatListItems(selectedCampaign.dos).map((item, i) => (
+                                            <li key={i}>{item}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            {formatListItems(selectedCampaign.donts).length > 0 && (
+                                <div className="bg-red-50 p-4 rounded-xl border border-red-200">
+                                    <h4 className="font-semibold text-red-700 mb-2">Don'ts 🚫</h4>
+                                    <ul className="list-disc list-inside text-sm text-red-800 space-y-1">
+                                        {formatListItems(selectedCampaign.donts).map((item, i) => (
+                                            <li key={i}>{item}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Other Details */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div>
+                            <p className="text-xs text-neutral-500 uppercase tracking-wide">Timeline</p>
+                            <p className="text-sm font-medium mt-1">{selectedCampaign.timeline || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-neutral-500 uppercase tracking-wide">Quality Standard</p>
+                            <p className="text-sm font-medium mt-1">{selectedCampaign.quality_standard || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-neutral-500 uppercase tracking-wide">Number of Creators</p>
+                            <p className="text-sm font-medium mt-1">{selectedCampaign.num_creators || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-neutral-500 uppercase tracking-wide">Creator User ID</p>
+                            <p className="text-xs break-all mt-1 text-neutral-500">{selectedCampaign.created_by}</p>
+                        </div>
+                    </div>
+
+                    {/* Target Countries */}
+                    {formatListItems(selectedCampaign.target_countries).length > 0 && (
+                        <div>
+                            <p className="text-xs text-neutral-500 uppercase tracking-wide mb-2">Target Countries</p>
+                            <div className="flex flex-wrap gap-2">
+                                {formatListItems(selectedCampaign.target_countries).map((country, i) => (
+                                    <Badge key={i} variant="secondary">
+                                        {country}
+                                    </Badge>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Additional Information */}
+                    {selectedCampaign.additional_information && (
+                        <div>
+                            <h3 className="text-lg font-bold mb-2 text-[#e85c51]">Additional Information</h3>
+                            <p className="text-sm text-neutral-600 italic">{selectedCampaign.additional_information}</p>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <p className="text-neutral-500 text-sm">
+                    {campaigns.length === 0
+                        ? 'No campaigns found with this status.'
+                        : 'Select a campaign from the dropdown above to view its details.'}
+                </p>
             )}
         </div>
     )
