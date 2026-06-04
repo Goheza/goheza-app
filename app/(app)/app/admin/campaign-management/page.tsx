@@ -325,35 +325,46 @@ const CampaignDetailsModal = ({
 //================================================================================
 //Delete Dialog For Campaign
 
-function confirmDeleteToast(campaignId: string, campaignName: string) {
-    // Create a temporary div with buttons and handlers
-    toast(
+// Fix 1: Accept a refresh callback, Fix 2: Capture and dismiss by toast ID
+function confirmDeleteToast(
+    campaignId: string,
+    campaignName: string,
+    onDeleted: () => void // ← new param
+) {
+    const toastId = toast(
+        // ← capture the ID
         <div className="flex flex-col space-y-2">
-            <p>Are you sure you want to delete {campaignName}? This action is irreversible.</p>
+            <p>
+                Are you sure you want to delete <strong>{campaignName}</strong>? This action is irreversible.
+            </p>
             <div className="flex space-x-2 mt-2">
                 <button
                     className="px-3 py-1 bg-[#e85c51] text-white rounded"
                     onClick={async (e) => {
-                        e.stopPropagation() // prevent toast click bubbling
+                        e.stopPropagation()
                         const { error } = await supabaseClient.from('campaigns').delete().eq('id', campaignId)
+
+                        toast.dismiss(toastId) // ← dismiss by ID
 
                         if (error) {
                             toast.error('Failed to delete campaign')
                         } else {
-                            toast.success('Campaign deleted')
+                            toast.success('Campaign deleted successfully')
+                            onDeleted() // ← refresh the list
                         }
-
-                        toast.dismiss() // dismiss all toasts
                     }}
                 >
                     Yes, delete
                 </button>
-                <button className="px-3 py-1 bg-gray-300 rounded" onClick={() => toast.dismiss()}>
+                <button
+                    className="px-3 py-1 bg-gray-300 rounded"
+                    onClick={() => toast.dismiss(toastId)} // ← dismiss by ID
+                >
                     Cancel
                 </button>
             </div>
         </div>,
-        { duration: Infinity } // keep open until user acts
+        { duration: Infinity }
     )
 }
 
@@ -535,7 +546,10 @@ export default function CampaignManagementPage() {
                     onClose={() => setViewCampaignModal(false)}
                     onAction={handleAction}
                     getStatusBadge={getStatusBadge}
-                    onWillDeleteCampaign={confirmDeleteToast}
+                    onWillDeleteCampaign={(id, name) => {
+                        setViewCampaignModal(false) // close the detail modal first
+                        confirmDeleteToast(id, name, fetchCampaigns) // ← pass the refresh
+                    }}
                 />
             )}
         </div>
