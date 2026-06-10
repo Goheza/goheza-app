@@ -5,10 +5,10 @@ import { supabaseClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { XCircle, CheckCircle2, AlertCircle, MessageSquare, ExternalLink } from 'lucide-react'
-import { extractTikTokVideoId, resolveShortTikTokUrl } from '@/lib/appServiceData/social-media/tiktok/extract-video-id'
+import { getTikTokVideoId } from '@/lib/appServiceData/social-media/tiktok/extract-video-id'
+
 
 type CommonStatusType = 'draft' | 'admin_reject' | 'pending' | 'approved' | 'rejected'
-
 const StatusBanner: React.FC<{ status: CommonStatusType }> = ({ status }) => {
     const getStatusStyles = (status: CommonStatusType) => {
         switch (status) {
@@ -26,7 +26,6 @@ const StatusBanner: React.FC<{ status: CommonStatusType }> = ({ status }) => {
                 return 'bg-gray-100 text-gray-800 border-gray-200'
         }
     }
-
     const getIcon = (status: CommonStatusType) => {
         switch (status) {
             case 'draft':
@@ -41,7 +40,6 @@ const StatusBanner: React.FC<{ status: CommonStatusType }> = ({ status }) => {
                 return <AlertCircle className="w-5 h-5" />
         }
     }
-
     return (
         <div className={`flex items-center space-x-2 p-3 rounded-lg ${getStatusStyles(status)}`}>
             {getIcon(status)}
@@ -49,48 +47,34 @@ const StatusBanner: React.FC<{ status: CommonStatusType }> = ({ status }) => {
         </div>
     )
 }
-
 export default function SubmissionViewPage() {
     const router = useRouter()
     const params = useParams()
-
     const submissionId = params.id as string
     const [tiktokInput, setTiktokInput] = useState('')
     const [isSavingUrl, setIsSavingUrl] = useState(false)
-
     const handleSaveTikTokUrl = async () => {
         if (!tiktokInput.trim()) {
             toast.error('Please paste your TikTok video URL.')
             return
         }
-
         setIsSavingUrl(true)
         try {
-            // Resolve short links (vt./vm.tiktok.com) before extracting the ID
-            const resolvedUrl = await resolveShortTikTokUrl(tiktokInput.trim())
-            const videoId = resolvedUrl ? extractTikTokVideoId(resolvedUrl) : null
-
+            const canonicalUrl = tiktokInput.trim()
+            const videoId = getTikTokVideoId(canonicalUrl)
             if (!videoId) {
                 toast.error(
                     'Invalid TikTok URL. Please paste a full video link, e.g. https://www.tiktok.com/@handle/video/...'
                 )
                 return
             }
-
-            // Use the resolved URL for storage (so we always store the canonical long-form URL)
-            const canonicalUrl = resolvedUrl ?? tiktokInput.trim()
-
-            // 1. Save tiktok_url to campaign_submissions
             const { error: submissionError } = await supabaseClient
                 .from('campaign_submissions')
                 .update({ tiktok_url: canonicalUrl })
                 .eq('id', submissionId)
             if (submissionError) throw new Error('Failed to save TikTok URL.')
-
-            // 2. Upsert a campaign_posts row so the analytics pipeline can see it
             const { data: userData, error: userError } = await supabaseClient.auth.getUser()
             if (userError || !userData.user) throw new Error('Authentication error.')
-
             const { error: postError } = await supabaseClient.from('campaign_posts').upsert(
                 {
                     campaign_id: submission!.campaign_id,
@@ -105,8 +89,6 @@ export default function SubmissionViewPage() {
                 { onConflict: 'campaign_id, media_id' }
             )
             if (postError) throw new Error('Failed to register post for analytics.')
-
-            // 3. Trigger initial insights fetch via dedicated endpoint
             const { data: sessionData } = await supabaseClient.auth.getSession()
             if (sessionData.session) {
                 await fetch('/api/tiktok/submission-insights', {
@@ -118,7 +100,7 @@ export default function SubmissionViewPage() {
                     body: JSON.stringify({ submissionId }),
                 })
             }
-
+            toast.success('TikTok link saved successfully!')
             setSubmission((prev) => (prev ? { ...prev, tiktok_url: canonicalUrl } : prev))
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Something went wrong.'
@@ -135,21 +117,18 @@ export default function SubmissionViewPage() {
         caption: string | null
         feedback: string | null
         tiktok_url: string | null
-        campaign_id: string // ← add
-        user_id: string // ← add
+        campaign_id: string
+        user_id: string
     } | null
-
     const [submission, setSubmission] = useState<SubmissionType>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-
     useEffect(() => {
         if (!submissionId) {
             setError('Submission ID not found.')
             setLoading(false)
             return
         }
-
         const fetchSubmission = async () => {
             setLoading(true)
             try {
@@ -158,13 +137,11 @@ export default function SubmissionViewPage() {
                     .select('*')
                     .eq('id', submissionId)
                     .single()
-
                 if (fetchError) throw new Error(fetchError.message)
                 if (!data) {
                     setError('Submission not found.')
                     return
                 }
-
                 setSubmission(data as SubmissionType)
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : 'Failed to load submission details.'
@@ -174,21 +151,15 @@ export default function SubmissionViewPage() {
                 setLoading(false)
             }
         }
-
         fetchSubmission()
     }, [submissionId])
-
     if (loading) return <div className="p-8 text-center text-gray-500">Loading submission details...</div>
     if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>
     if (!submission) return <div className="p-8 text-center text-gray-500">Submission details are not available.</div>
-
     const hasFeedback =
         (submission.status === 'rejected' || submission.status === 'admin_reject') && submission.feedback
-
-    // ← NEW
     const isApprovedWithTikTok = submission.status === 'approved' && !!submission.tiktok_url
     const isApprovedAwaitingPost = submission.status === 'approved' && !submission.tiktok_url
-
     return (
         <div className="p-8 max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8">
@@ -200,19 +171,14 @@ export default function SubmissionViewPage() {
                     Go Back
                 </Button>
             </div>
-
             <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-200">
                 <div className="space-y-8">
-                    {/* Header and Status Section */}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                         <h2 className="text-2xl font-bold text-gray-900">{submission.campaign_name}</h2>
                         <div className="mt-4 sm:mt-0">
                             <StatusBanner status={submission.status as CommonStatusType} />
                         </div>
                     </div>
-
-                    {/* ← NEW: TikTok live banner for approved submissions */}
-                    {/* TikTok URL submitted and live */}
                     {isApprovedWithTikTok && (
                         <div className="bg-green-50 rounded-xl p-5 border border-green-300 shadow-sm flex items-center justify-between">
                             <div className="flex items-center space-x-3">
@@ -235,8 +201,6 @@ export default function SubmissionViewPage() {
                             </button>
                         </div>
                     )}
-
-                    {/* Brand approved — creator needs to post manually */}
                     {isApprovedAwaitingPost && (
                         <div className="bg-blue-50 rounded-xl p-5 border border-blue-300 shadow-sm space-y-4">
                             <div className="flex items-start space-x-3">
@@ -269,8 +233,6 @@ export default function SubmissionViewPage() {
                             </div>
                         </div>
                     )}
-
-                    {/* Reviewer Feedback Section */}
                     {hasFeedback && (
                         <div className="bg-orange-50 rounded-xl p-5 border border-orange-300 shadow-sm flex items-start space-x-3">
                             <MessageSquare className="w-6 h-6 text-orange-600 mt-1 flex-shrink-0" />
@@ -282,8 +244,6 @@ export default function SubmissionViewPage() {
                             </div>
                         </div>
                     )}
-
-                    {/* Video Player Section */}
                     {submission.video_url && (
                         <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-300">
                             <video src={submission.video_url} controls className="w-full h-full object-cover">
@@ -291,8 +251,6 @@ export default function SubmissionViewPage() {
                             </video>
                         </div>
                     )}
-
-                    {/* Details Cards Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
                             <h3 className="text-lg font-semibold text-gray-700">Submitted On:</h3>
