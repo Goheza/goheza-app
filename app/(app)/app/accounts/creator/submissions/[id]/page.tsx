@@ -1,4 +1,5 @@
 'use client'
+
 import { useParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { supabaseClient } from '@/lib/supabase/client'
@@ -52,7 +53,14 @@ export default function SubmissionViewPage() {
     const params = useParams()
     const submissionId = params.id as string
     const [tiktokInput, setTiktokInput] = useState('')
-    const [isSavingUrl, setIsSavingUrl] = useState(false)
+    const [isSavingUrl, setIsSavingUrl] = useState(false);
+
+    /**
+     * 
+     * Handle Save Tiktok URL
+     * 
+     * @returns 
+     */
     const handleSaveTikTokUrl = async () => {
         if (!tiktokInput.trim()) {
             toast.error('Please paste your TikTok video URL.')
@@ -60,14 +68,16 @@ export default function SubmissionViewPage() {
         }
         setIsSavingUrl(true)
         try {
-            const canonicalUrl = tiktokInput.trim()
-            const videoId = getTikTokVideoId(canonicalUrl)
+            const canonicalUrl = tiktokInput.trim();
+
+            const videoId = await getTikTokVideoId(canonicalUrl)
             if (!videoId) {
                 toast.error(
                     'Invalid TikTok URL. Please paste a full video link, e.g. https://www.tiktok.com/@handle/video/...'
                 )
                 return
-            }
+            };
+
             const { error: submissionError } = await supabaseClient
                 .from('campaign_submissions')
                 .update({ tiktok_url: canonicalUrl })
