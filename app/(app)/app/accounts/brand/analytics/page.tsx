@@ -630,6 +630,7 @@ export default function AnalyticsPage() {
                                             accent: '#10b981',
                                             icon: '💬',
                                         },
+                                        
                                     ] as const
                                 ).map((m, i) => (
                                     <div key={m.label} className="anim-card" style={{ animationDelay: `${i * 60}ms` }}>
@@ -997,18 +998,14 @@ export default function AnalyticsPage() {
                                             accent: '#f59e0b',
                                             icon: '🔁',
                                         },
-                                        {
-                                            label: 'Reach',
-                                            value: selectedCreator.insight?.reach ?? 0,
-                                            accent: '#ec4899',
-                                            icon: '📡',
-                                        },
-                                        {
-                                            label: 'Impressions',
-                                            value: selectedCreator.insight?.impressions ?? 0,
-                                            accent: '#3b82f6',
-                                            icon: '📊',
-                                        },
+                                        //  {
+                                        //     label: 'Saves',
+                                        //     value: selectedCreator.insight?.saves ?? 0,
+                                        //     accent: '#f59e0b',
+                                        //     icon: '🔖',
+                                        // },
+
+                                     
                                     ] as const
                                 ).map((m, i) => (
                                     <div key={m.label} className="anim-card" style={{ animationDelay: `${i * 50}ms` }}>
