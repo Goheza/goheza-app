@@ -391,30 +391,23 @@ export default function AnalyticsPage() {
      */
 
     async function fetchDataLiveFromTiktok(postsData: PostWithInsight[]) {
-        return new Promise<void>((c, er) => {
+        const {
+            data: { session },
+        } = await supabaseClient.auth.getSession()
+        if (!session) return
+
+        await Promise.all(
             postsData.map(async (post) => {
-                try {
-                    const {
-                        data: { session },
-                    } = await supabaseClient.auth.getSession()
-                    if (session) {
-                        await fetch('/api/tiktok/submission-insights', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${session.access_token}`,
-                            },
-                            body: JSON.stringify({ mediaId: post.media_id, campaignId: post.campaign_id }),
-                        })
-                    }
-                } catch (e) {
-                    console.error(e)
-                    er(e)
-                } finally {
-                    c()
-                }
+                await fetch('/api/tiktok/submission-insights', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ mediaId: post.media_id, campaignId: post.campaign_id }),
+                })
             })
-        })
+        )
     }
 
     const tiktokPosts = posts.filter((p) => p.platform === 'tiktok')
@@ -630,7 +623,6 @@ export default function AnalyticsPage() {
                                             accent: '#10b981',
                                             icon: '💬',
                                         },
-                                        
                                     ] as const
                                 ).map((m, i) => (
                                     <div key={m.label} className="anim-card" style={{ animationDelay: `${i * 60}ms` }}>
@@ -1004,8 +996,6 @@ export default function AnalyticsPage() {
                                         //     accent: '#f59e0b',
                                         //     icon: '🔖',
                                         // },
-
-                                     
                                     ] as const
                                 ).map((m, i) => (
                                     <div key={m.label} className="anim-card" style={{ animationDelay: `${i * 50}ms` }}>
