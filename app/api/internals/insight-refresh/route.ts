@@ -2,10 +2,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
 async function refreshInsightForPost(mediaId: string, campaignId: string, userId: string) {
     // ── Get creator's TikTok token ────────────────────────────────────
@@ -22,8 +19,7 @@ async function refreshInsightForPost(mediaId: string, campaignId: string, userId
 
     // ── Normalize expires_at to UTC ───────────────────────────────────
     const rawExpiry = account.expires_at as string
-    const normalizedExpiry =
-        rawExpiry.endsWith('Z') || rawExpiry.includes('+') ? rawExpiry : rawExpiry + 'Z'
+    const normalizedExpiry = rawExpiry.endsWith('Z') || rawExpiry.includes('+') ? rawExpiry : rawExpiry + 'Z'
 
     let accessToken = account.access_token
 
@@ -160,22 +156,34 @@ export async function GET(req: Request) {
 
         // ── Refresh insights for each post ────────────────────────────
         const results = await Promise.allSettled(
-            posts.map((post) =>
-                refreshInsightForPost(post.media_id, post.campaign_id, post.user_id)
-            )
+            posts.map((post) => refreshInsightForPost(post.media_id, post.campaign_id, post.user_id))
         )
 
-        const succeeded = results.filter((r) => r.status === 'fulfilled').length
-        const failed = results
-            .filter((r) => r.status === 'rejected')
-            .map((r) => (r as PromiseRejectedResult).reason?.message)
+        const succeeded: string[] = []
+        const failed: { media_id: string; user_id: string; reason: string; stack?: string }[] = []
+
+        results.forEach((result, i) => {
+            const post = posts[i]
+            if (result.status === 'fulfilled') {
+                succeeded.push(result.value)
+            } else {
+                const err = result.reason
+                failed.push({
+                    media_id: post.media_id,
+                    user_id: post.user_id,
+                    reason: err?.message ?? 'Unknown error',
+                    stack: err?.stack ?? undefined,
+                })
+            }
+        })
 
         return NextResponse.json({
             campaign: campaign.name,
             total: posts.length,
-            succeeded,
+            succeeded: succeeded.length,
             failed: failed.length,
-            errors: failed, // shows exactly which posts failed and why
+            ...(succeeded.length > 0 && { succeeded_media_ids: succeeded }),
+            ...(failed.length > 0 && { failures: failed }),
         })
     } catch (err: any) {
         console.error('insight-refresh error:', err)
