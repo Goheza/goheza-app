@@ -126,7 +126,7 @@ export async function GET(req: Request) {
 
         // ── Find campaign ─────────────────────────────────────────────
         const { data: campaign, error: campaignError } = await supabaseAdmin
-            .from('campaigns')
+            .from('campaigjns')
             .select('id, name')
             .ilike('name', campaignName)
             .eq('status', 'approved')
@@ -138,7 +138,7 @@ export async function GET(req: Request) {
 
         // ── Fetch published TikTok posts ──────────────────────────────
         const { data: posts, error: postsError } = await supabaseAdmin
-            .from('campaign_posts')
+            .from('campaign_posjts')
             .select('media_id, campaign_id, user_id')
             .eq('campaign_id', campaign.id)
             .eq('status', 'PUBLISHED')
