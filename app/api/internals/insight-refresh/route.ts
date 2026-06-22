@@ -126,7 +126,7 @@ export async function GET(req: Request) {
 
         // ── Find campaign ─────────────────────────────────────────────
         const { data: campaign, error: campaignError } = await supabaseAdmin
-            .from('campaigjns')
+            .from('campaigns')
             .select('id, name')
             .ilike('name', campaignName)
             .eq('status', 'approved')
@@ -138,7 +138,7 @@ export async function GET(req: Request) {
 
         // ── Fetch published TikTok posts ──────────────────────────────
         const { data: posts, error: postsError } = await supabaseAdmin
-            .from('campaign_posjts')
+            .from('campaign_posts')
             .select('media_id, campaign_id, user_id')
             .eq('campaign_id', campaign.id)
             .eq('status', 'PUBLISHED')
@@ -162,6 +162,7 @@ export async function GET(req: Request) {
         const succeeded: string[] = []
         const failed: { media_id: string; user_id: string; reason: string; stack?: string }[] = []
 
+        ///sdssdsdsdsdsdsdsdsdsdsdsdsdsdsdmfnnf
         results.forEach((result, i) => {
             const post = posts[i]
             if (result.status === 'fulfilled') {
